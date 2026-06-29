@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using RimWorld;
+using UnityEngine;
 using Verse;
 
 namespace WorkMonitor
@@ -69,6 +70,25 @@ namespace WorkMonitor
 
             float hours = ageTicks / (float)WorkMonitorSettings.TicksPerHour;
             return hours.ToString("0.#") + "h";
+        }
+
+        public static string FormatGameDateTime(int sampleTick)
+        {
+            if (sampleTick <= 0 || Find.TickManager == null)
+            {
+                return "—";
+            }
+
+            int ageTicks = CurrentTicksGame() - sampleTick;
+            long absTick = Find.TickManager.TicksAbs - ageTicks;
+            Map map = Find.CurrentMap ?? Find.AnyPlayerHomeMap;
+            if (map == null)
+            {
+                return GenDate.DateFullStringAt(absTick, Vector2.zero);
+            }
+
+            Vector2 location = Find.WorldGrid.LongLatOf(map.Tile);
+            return GenDate.DateFullStringAt(absTick, location);
         }
     }
 }

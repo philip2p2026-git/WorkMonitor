@@ -10,6 +10,7 @@ namespace WorkMonitor.UI
     public class WorkGroupChartPanel
     {
         public int RangeHours = 24;
+        public WorkChartDisplayMode DisplayMode = WorkChartDisplayMode.Line;
 
         public void Draw(Rect rect, WorkGroupStats stats, List<WorkGroupStats> allStats)
         {
@@ -26,6 +27,16 @@ namespace WorkMonitor.UI
                 };
             }
 
+            string modeLabel = DisplayMode == WorkChartDisplayMode.Stream
+                ? "WorkMonitor.ChartModeStream".Translate()
+                : "WorkMonitor.ChartModeLine".Translate();
+            if (Widgets.ButtonText(new Rect(rect.x + 168f, rect.y, 90f, 24f), modeLabel))
+            {
+                DisplayMode = DisplayMode == WorkChartDisplayMode.Line
+                    ? WorkChartDisplayMode.Stream
+                    : WorkChartDisplayMode.Line;
+            }
+
             WorkActivityTracker tracker = WorkActivityTracker.EnsureRegistered();
             WorkHistoryRingBuffer history = tracker?.GetGroupHistory(stats.Group.Key.StorageKey);
             int minHour = WorkMonitorUtility.CurrentHourIndex() - RangeHours;
@@ -38,7 +49,7 @@ namespace WorkMonitor.UI
 
             WorkChartDataBuilder.BuildJobCountSeries(history, minHour, out float[] colonistJobs, out _);
             WorkChartDataBuilder.BuildMapOpenTasksSeries(history, groupKey, minHour, out float[] mapJobs);
-            DualLineChart.Draw(
+            DrawChart(
                 new Rect(rect.x, chartY, cellW, chartH),
                 colonistJobs,
                 mapJobs,
@@ -48,13 +59,31 @@ namespace WorkMonitor.UI
 
             WorkChartDataBuilder.BuildWorkUnitsSeries(history, minHour, out float[] colonistWork, out _);
             WorkChartDataBuilder.BuildMapWorkLeftSeries(history, groupKey, minHour, out float[] mapWork);
-            DualLineChart.Draw(
+            DrawChart(
                 new Rect(rect.x + cellW + gap, chartY, cellW, chartH),
                 colonistWork,
                 mapWork,
                 "WorkMonitor.MetricWorkUnits".Translate(),
                 "WorkMonitor.WorkProcessed".Translate(),
                 "WorkMonitor.ExistWork".Translate());
+        }
+
+        private void DrawChart(
+            Rect rect,
+            float[] colonistValues,
+            float[] mapValues,
+            string title,
+            string colonistLegend,
+            string mapLegend)
+        {
+            if (DisplayMode == WorkChartDisplayMode.Stream)
+            {
+                DualStreamChart.Draw(rect, colonistValues, mapValues, title, colonistLegend, mapLegend);
+            }
+            else
+            {
+                DualLineChart.Draw(rect, colonistValues, mapValues, title, colonistLegend, mapLegend);
+            }
         }
     }
 }

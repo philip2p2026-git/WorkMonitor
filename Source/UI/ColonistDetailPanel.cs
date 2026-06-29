@@ -170,6 +170,7 @@ namespace WorkMonitor.UI
         {
             ColonistGroupWorkDetail detail = GetGroupDetail(group);
             bool showHours = WorkMonitorMod.Settings?.showTimeInHours ?? true;
+            Rect columnRow = new Rect(area.x, y, area.width, RowHeight);
 
             foreach (ColonistWorkGiverStat wg in detail.WorkGiverStats)
             {
@@ -179,15 +180,16 @@ namespace WorkMonitor.UI
                     Widgets.DrawBoxSolid(row, new Color(1f, 1f, 1f, 0.02f));
                 }
 
-                float metricsLeft = WorkMonitorTableColumns.ColonistWorkGiverMetricsLeftEdge(row);
+                columnRow.y = y;
+                float metricsLeft = WorkMonitorTableColumns.ColonistGroupMetricsLeftEdge(columnRow);
                 Text.Font = GameFont.Tiny;
                 Color prev = GUI.color;
                 GUI.color = new Color(0.8f, 0.8f, 0.8f);
-                Widgets.Label(new Rect(row.x, row.y, metricsLeft - row.x - 8f, row.height), wg.Label.Truncate(metricsLeft - row.x - 8f));
+                Widgets.Label(new Rect(area.x + WorkGiverIndent, row.y, metricsLeft - area.x - WorkGiverIndent - 8f, row.height), wg.Label.Truncate(metricsLeft - area.x - WorkGiverIndent - 8f));
                 GUI.color = prev;
                 Text.Font = GameFont.Small;
 
-                WorkMonitorTableColumns.GetColonistWorkGiverColumns(row, out Rect jobCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol);
+                WorkMonitorTableColumns.GetColonistGroupColumns(columnRow, out Rect jobCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol, out _);
                 LabelRight(jobCol, wg.JobCount.ToString());
                 LabelRight(workCol, WorkMonitorUtility.FormatWorkUnits(wg.WorkUnitsSpent));
                 LabelRight(walkCol, WorkMonitorUtility.FormatDuration(wg.TravelTicksSpent, showHours));

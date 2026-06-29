@@ -76,7 +76,7 @@ namespace WorkMonitor.UI
 
             Rect content = new Rect(rect.x, chartRect.yMax + 6f, rect.width, rect.yMax - chartRect.yMax - 12f);
             int rowCount = stats.ColonistStats.Count + stats.WorkGiverStats.Count + 1;
-            float viewHeight = 108f + rowCount * RowHeight;
+            float viewHeight = 126f + rowCount * RowHeight;
             Rect view = new Rect(0f, 0f, content.width - 16f, viewHeight);
             Widgets.BeginScrollView(content, ref scroll, view);
 
@@ -179,6 +179,15 @@ namespace WorkMonitor.UI
             Widgets.Label(titleRect, "WorkMonitor.WorkGiversMap".Translate());
             TooltipHandler.TipRegion(titleRect, "WorkMonitor.WorkGiversMapTip".Translate());
             y += RowHeight;
+
+            Text.Font = GameFont.Tiny;
+            Color prevColor = GUI.color;
+            GUI.color = new Color(0.72f, 0.72f, 0.72f);
+            Widgets.Label(
+                new Rect(area.x, y, area.width, 16f),
+                "WorkMonitor.MapSampleGameTime".Translate(WorkMonitorUtility.FormatGameDateTime(stats.MapSampleTick)));
+            GUI.color = prevColor;
+            y += 18f;
 
             DrawWorkGiverHeader(new Rect(area.x, y, area.width, RowHeight));
             y += RowHeight;

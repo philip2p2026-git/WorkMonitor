@@ -65,6 +65,9 @@
 	<WorkMonitor.MetricRelativeShare>Relative work consumed</WorkMonitor.MetricRelativeShare>
 	<WorkMonitor.Hours>{0}h</WorkMonitor.Hours>
 	<WorkMonitor.LastHours>Last {0}h</WorkMonitor.LastHours>
+	<WorkMonitor.ChartModeLine>Line</WorkMonitor.ChartModeLine>
+	<WorkMonitor.ChartModeStream>Stream</WorkMonitor.ChartModeStream>
+	<WorkMonitor.MapSampleGameTime>Recorded: {0}</WorkMonitor.MapSampleGameTime>
 	<WorkMonitor.OtherGroup>Other</WorkMonitor.OtherGroup>
 	<WorkMonitor.NoGroups>No work groups found.</WorkMonitor.NoGroups>
 	<WorkMonitor.SettingsTitle>Work Monitor</WorkMonitor.SettingsTitle>
