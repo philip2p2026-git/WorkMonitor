@@ -26,7 +26,8 @@
 	<WorkMonitor.Colonists>Colonists</WorkMonitor.Colonists>
 	<WorkMonitor.Colonist>Colonist</WorkMonitor.Colonist>
 	<WorkMonitor.Work>Work</WorkMonitor.Work>
-	<WorkMonitor.Kpi>KPI</WorkMonitor.Kpi>
+	<WorkMonitor.KpiJobs>KPI-job</WorkMonitor.KpiJobs>
+	<WorkMonitor.KpiWork>KPI-work</WorkMonitor.KpiWork>
 	<WorkMonitor.Range>Range</WorkMonitor.Range>
 	<WorkMonitor.Metric>Metric</WorkMonitor.Metric>
 	<WorkMonitor.MetricJobCount>Job count</WorkMonitor.MetricJobCount>

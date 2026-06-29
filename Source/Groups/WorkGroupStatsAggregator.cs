@@ -153,7 +153,11 @@ namespace WorkMonitor.Groups
             foreach (ColonistWorkStat colonist in stats.ColonistStats)
             {
                 float hours = colonist.TicksSpent / (float)WorkMonitorSettings.TicksPerHour;
-                colonist.EfficiencyKpi = hours > 0f ? colonist.WorkUnitsSpent / hours : 0f;
+                if (hours > 0f)
+                {
+                    colonist.JobsPerHour = colonist.JobCount / hours;
+                    colonist.WorkUnitsPerHour = colonist.WorkUnitsSpent / hours;
+                }
             }
 
             stats.ColonistStats = stats.ColonistStats.OrderByDescending(c => c.TicksSpent).ToList();

@@ -10,7 +10,8 @@ namespace WorkMonitor.Groups
         public int JobCount;
         public int TicksSpent;
         public float WorkUnitsSpent;
-        public float EfficiencyKpi;
+        public float JobsPerHour;
+        public float WorkUnitsPerHour;
         public Passion Passion;
     }
 
