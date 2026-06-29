@@ -7,6 +7,14 @@ namespace WorkMonitor.UI
 {
     public class WorkGroupOverviewPanel
     {
+        private const float RowHeight = 30f;
+        private const float StatusWidth = 22f;
+        private const float JobsWidth = 42f;
+        private const float TimeWidth = 50f;
+        private const float WorkedWidth = 52f;
+        private const float InterestWidth = 58f;
+        private const float ColumnGap = 10f;
+
         private Vector2 scroll;
         private List<WorkGroupStats> cachedStats = new List<WorkGroupStats>();
         private int lastRefreshTick;
@@ -35,22 +43,29 @@ namespace WorkMonitor.UI
             DrawHeader(header);
 
             Rect listRect = new Rect(rect.x, rect.y + 48f, rect.width, rect.height - 88f);
-            Rect viewRect = new Rect(0f, 0f, listRect.width - 16f, cachedStats.Count * 28f);
+            Rect viewRect = new Rect(0f, 0f, listRect.width - 16f, cachedStats.Count * RowHeight);
             Widgets.BeginScrollView(listRect, ref scroll, viewRect);
 
             WorkGroupSnapshot selected = null;
             float y = 0f;
+            int rowIndex = 0;
             foreach (WorkGroupStats stats in cachedStats)
             {
-                Rect row = new Rect(0f, y, viewRect.width, 26f);
+                Rect row = new Rect(0f, y, viewRect.width, RowHeight);
                 if (Widgets.ButtonInvisible(row))
                 {
                     clicked = true;
                     selected = stats.Group;
                 }
 
+                if (rowIndex % 2 == 1)
+                {
+                    Widgets.DrawBoxSolid(row, new Color(1f, 1f, 1f, 0.03f));
+                }
+
                 DrawRow(row, stats);
-                y += 28f;
+                y += RowHeight;
+                rowIndex++;
             }
 
             Widgets.EndScrollView();
@@ -74,38 +89,69 @@ namespace WorkMonitor.UI
         private static void DrawHeader(Rect rect)
         {
             Text.Font = GameFont.Tiny;
-            float x = rect.x;
-            Widgets.Label(new Rect(x, rect.y, 36f, rect.height), "WorkMonitor.Status".Translate());
-            x += 40f;
-            Widgets.Label(new Rect(x, rect.y, 110f, rect.height), "WorkMonitor.Group".Translate());
-            x += 115f;
-            Widgets.Label(new Rect(x, rect.y, 40f, rect.height), "WorkMonitor.Jobs".Translate());
-            x += 45f;
-            Widgets.Label(new Rect(x, rect.y, 50f, rect.height), "WorkMonitor.Time".Translate());
-            x += 55f;
-            Widgets.Label(new Rect(x, rect.y, 55f, rect.height), "WorkMonitor.Worked".Translate());
-            x += 60f;
-            Widgets.Label(new Rect(x, rect.y, 80f, rect.height), "WorkMonitor.Interest".Translate());
+            Color prev = GUI.color;
+            GUI.color = new Color(0.72f, 0.72f, 0.72f);
+
+            GetColumnRects(rect, out Rect statusCol, out Rect groupCol, out Rect jobsCol, out Rect timeCol, out Rect workedCol, out Rect interestCol);
+
+            Widgets.Label(statusCol, "WorkMonitor.Status".Translate());
+            Widgets.Label(groupCol, "WorkMonitor.Group".Translate());
+            LabelRight(jobsCol, "WorkMonitor.Jobs".Translate());
+            LabelRight(timeCol, "WorkMonitor.Time".Translate());
+            LabelRight(workedCol, "WorkMonitor.Worked".Translate());
+            LabelRight(interestCol, "WorkMonitor.Interest".Translate());
+
+            GUI.color = prev;
         }
 
         private static void DrawRow(Rect row, WorkGroupStats stats)
         {
             Text.Font = GameFont.Small;
-            float x = row.x + 4f;
+            GetColumnRects(row, out Rect statusCol, out Rect groupCol, out Rect jobsCol, out Rect timeCol, out Rect workedCol, out Rect interestCol);
+
             Color dot = WorkMonitorUiUtility.StatusColor(stats.Status);
-            Widgets.DrawBoxSolid(new Rect(x, row.y + 8f, 10f, 10f), dot);
-            x += 18f;
-            Widgets.Label(new Rect(x, row.y, 105f, row.height), stats.Group.Label);
-            x += 110f;
-            Widgets.Label(new Rect(x, row.y, 40f, row.height), stats.TotalJobCount.ToString());
-            x += 45f;
-            Widgets.Label(new Rect(x, row.y, 50f, row.height),
+            float dotSize = 10f;
+            Widgets.DrawBoxSolid(
+                new Rect(statusCol.x + (statusCol.width - dotSize) * 0.5f, row.y + (row.height - dotSize) * 0.5f, dotSize, dotSize),
+                dot);
+
+            Widgets.Label(groupCol, stats.Group.Label.Truncate(groupCol.width));
+            LabelRight(jobsCol, stats.TotalJobCount.ToString());
+            LabelRight(timeCol,
                 WorkMonitorUtility.FormatDuration(stats.TotalTicksSpent, WorkMonitorMod.Settings?.showTimeInHours ?? true));
-            x += 55f;
-            Widgets.Label(new Rect(x, row.y, 55f, row.height), stats.WorkedCount + "/" + stats.EnabledCount);
-            x += 60f;
-            Widgets.Label(new Rect(x, row.y, 80f, row.height),
-                "WorkMonitor.InterestShort".Translate(stats.MajorInterestCount, stats.MinorInterestCount));
+            LabelRight(workedCol, stats.WorkedCount + "/" + stats.EnabledCount);
+            LabelRight(interestCol, WorkMonitorUiUtility.FormatInterestRatio(stats));
+        }
+
+        private static void GetColumnRects(
+            Rect row,
+            out Rect statusCol,
+            out Rect groupCol,
+            out Rect jobsCol,
+            out Rect timeCol,
+            out Rect workedCol,
+            out Rect interestCol)
+        {
+            float interestX = row.xMax - InterestWidth;
+            float workedX = interestX - ColumnGap - WorkedWidth;
+            float timeX = workedX - ColumnGap - TimeWidth;
+            float jobsX = timeX - ColumnGap - JobsWidth;
+            float groupX = row.x + StatusWidth + 4f;
+            float groupWidth = jobsX - ColumnGap - groupX;
+
+            statusCol = new Rect(row.x, row.y, StatusWidth, row.height);
+            groupCol = new Rect(groupX, row.y, Mathf.Max(groupWidth, 60f), row.height);
+            jobsCol = new Rect(jobsX, row.y, JobsWidth, row.height);
+            timeCol = new Rect(timeX, row.y, TimeWidth, row.height);
+            workedCol = new Rect(workedX, row.y, WorkedWidth, row.height);
+            interestCol = new Rect(interestX, row.y, InterestWidth, row.height);
+        }
+
+        private static void LabelRight(Rect rect, string text)
+        {
+            Text.Anchor = TextAnchor.MiddleRight;
+            Widgets.Label(rect, text);
+            Text.Anchor = TextAnchor.UpperLeft;
         }
     }
 }

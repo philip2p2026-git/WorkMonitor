@@ -5,19 +5,9 @@ using WorkMonitor.UI;
 
 namespace WorkMonitor
 {
-    public enum MonitorView
-    {
-        Overview,
-        GroupDetail
-    }
-
     public class WorkGroupMonitorWindow : Window
     {
-        private readonly WorkGroupOverviewPanel overviewPanel = new WorkGroupOverviewPanel();
-        private readonly WorkGroupDetailPanel detailPanel = new WorkGroupDetailPanel();
-
-        private MonitorView view = MonitorView.Overview;
-        private WorkGroupSnapshot selectedGroup;
+        private readonly WorkMonitorContentHost contentHost = new WorkMonitorContentHost();
 
         public WorkGroupMonitorWindow()
         {
@@ -42,29 +32,7 @@ namespace WorkMonitor
 
         public override void DoWindowContents(Rect inRect)
         {
-            if (view == MonitorView.Overview)
-            {
-                WorkGroupSnapshot clicked = overviewPanel.Draw(inRect, out bool rowClicked);
-                if (rowClicked && clicked != null)
-                {
-                    selectedGroup = clicked;
-                    detailPanel.SetGroup(selectedGroup);
-                    view = MonitorView.GroupDetail;
-                }
-            }
-            else
-            {
-                detailPanel.Draw(inRect, out bool back, out bool highlight);
-                if (back)
-                {
-                    view = MonitorView.Overview;
-                    selectedGroup = null;
-                }
-                else if (highlight && selectedGroup != null)
-                {
-                    WorkTabHighlightController.HighlightGroup(selectedGroup);
-                }
-            }
+            contentHost.Draw(inRect);
         }
     }
 }

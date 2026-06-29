@@ -46,6 +46,17 @@ namespace WorkMonitor
             listing.Gap(6f);
 
             listing.CheckboxLabeled("WorkMonitor.SettingsShowTimeInHours".Translate(), ref Settings.showTimeInHours);
+            listing.Gap(6f);
+
+            listing.CheckboxLabeled("WorkMonitor.SettingsShowSkillOnWorkGiver".Translate(), ref Settings.showSkillOnWorkGiverLabels);
+            listing.Gap(6f);
+
+            listing.Label("WorkMonitor.SettingsWorkGiverLabelFormat".Translate());
+            Settings.workGiverLabelFormat = listing.TextEntry(Settings.workGiverLabelFormat ?? "{skill}: {label}");
+            listing.Gap(6f);
+
+            listing.Label("WorkMonitor.SettingsSkillRoleOverrides".Translate());
+            Settings.skillRoleOverrides = listing.TextEntry(Settings.skillRoleOverrides ?? "");
             listing.End();
         }
 

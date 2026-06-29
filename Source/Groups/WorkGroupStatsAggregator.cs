@@ -4,6 +4,7 @@ using RimWorld;
 using UnityEngine;
 using Verse;
 using WorkMonitor.Tracking;
+using WorkMonitor.UI;
 using WorkTab;
 
 namespace WorkMonitor.Groups
@@ -72,13 +73,19 @@ namespace WorkMonitor.Groups
 
                 int pawnJobs = 0;
                 int pawnTicks = 0;
+                float pawnWorkUnits = 0f;
                 int pawnLastTick = -1;
 
                 foreach (WorkGiverDef wg in group.WorkGivers)
                 {
                     WorkActivityRecord record = tracker?.GetRecord(pawn.thingIDNumber, wg.defName);
-                    pawnJobs += tracker?.SumPawnWorkGiverJobs(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
-                    pawnTicks += tracker?.SumPawnWorkGiverTicks(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
+                    int wgJobs = tracker?.SumPawnWorkGiverJobs(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
+                    int wgTicks = tracker?.SumPawnWorkGiverTicks(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
+                    float wgUnits = tracker?.SumPawnWorkGiverWorkUnits(pawn.thingIDNumber, wg.defName, minHour) ?? 0f;
+                    pawnJobs += wgJobs;
+                    pawnTicks += wgTicks;
+                    pawnWorkUnits += wgUnits;
+
                     if (record != null)
                     {
                         pawnLastTick = Mathf.Max(pawnLastTick, record.lastWorkTick);
@@ -97,51 +104,56 @@ namespace WorkMonitor.Groups
 
                 if (pawnTicks > 0 || pawnJobs > 0)
                 {
-                    stats.ColonistStats.Add(new ColonistWorkStat
+                    var colonistStat = new ColonistWorkStat
                     {
                         Pawn = pawn,
                         Label = pawn.LabelShort,
                         JobCount = pawnJobs,
                         TicksSpent = pawnTicks,
+                        WorkUnitsSpent = pawnWorkUnits,
                         Passion = GetPassionForGroup(pawn, group)
-                    });
+                    };
+                    stats.ColonistStats.Add(colonistStat);
                 }
 
                 stats.TotalJobCount += pawnJobs;
                 stats.TotalTicksSpent += pawnTicks;
+                stats.TotalWorkUnits += pawnWorkUnits;
             }
 
             if (history != null)
             {
                 stats.TotalJobCount = history.SumJobCount(minHour);
                 stats.TotalTicksSpent = history.SumTicksSpent(minHour);
+                stats.TotalWorkUnits = history.SumWorkUnits(minHour);
             }
 
             foreach (WorkGiverDef wg in group.WorkGivers)
             {
                 int wgJobs = 0;
                 int wgTicks = 0;
+                float wgUnits = 0f;
                 foreach (Pawn pawn in colonists)
                 {
                     wgJobs += tracker?.SumPawnWorkGiverJobs(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
                     wgTicks += tracker?.SumPawnWorkGiverTicks(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
+                    wgUnits += tracker?.SumPawnWorkGiverWorkUnits(pawn.thingIDNumber, wg.defName, minHour) ?? 0f;
                 }
 
                 stats.WorkGiverStats.Add(new WorkGiverStat
                 {
                     WorkGiver = wg,
-                    Label = wg.label,
+                    Label = WorkGiverLabelUtility.Format(wg),
                     JobCount = wgJobs,
-                    TicksSpent = wgTicks
+                    TicksSpent = wgTicks,
+                    WorkUnitsSpent = wgUnits
                 });
             }
 
-            if (stats.TotalTicksSpent > 0)
+            foreach (ColonistWorkStat colonist in stats.ColonistStats)
             {
-                foreach (ColonistWorkStat colonist in stats.ColonistStats)
-                {
-                    colonist.PercentOfGroupTime = colonist.TicksSpent / (float)stats.TotalTicksSpent * 100f;
-                }
+                float hours = colonist.TicksSpent / (float)WorkMonitorSettings.TicksPerHour;
+                colonist.EfficiencyKpi = hours > 0f ? colonist.WorkUnitsSpent / hours : 0f;
             }
 
             stats.ColonistStats = stats.ColonistStats.OrderByDescending(c => c.TicksSpent).ToList();

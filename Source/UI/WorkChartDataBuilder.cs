@@ -1,3 +1,4 @@
+using RimWorld;
 using UnityEngine;
 using Verse;
 using WorkMonitor.Tracking;
@@ -7,14 +8,14 @@ namespace WorkMonitor.UI
     public enum WorkChartMetric
     {
         JobCount,
-        TimeConsumed,
+        WorkUnits,
         WorkAmong,
         RelativeShare
     }
 
     public static class WorkChartDataBuilder
     {
-        public static void BuildLineSeries(
+        public static void BuildWorkUnitsSeries(
             WorkHistoryRingBuffer history,
             int minHourIndex,
             out float[] values,
@@ -47,7 +48,7 @@ namespace WorkMonitor.UI
                     continue;
                 }
 
-                values[i] = b.ticksSpent / (float)WorkMonitorSettings.TicksPerHour;
+                values[i] = b.workUnitsSpent;
                 labels[i] = (b.hourIndex % 24).ToString() + "h";
                 i++;
             }
@@ -96,34 +97,46 @@ namespace WorkMonitor.UI
     public static class SimpleLineChart
     {
         private static readonly Color LineColor = new Color(0.4f, 0.85f, 0.5f);
+        private static readonly Color GridColor = new Color(0.45f, 0.45f, 0.45f, 0.35f);
 
         public static void Draw(Rect rect, float[] values, string title)
         {
             Widgets.DrawBoxSolid(rect, new Color(0.1f, 0.1f, 0.1f, 0.35f));
             Text.Font = GameFont.Tiny;
-            Widgets.Label(new Rect(rect.x + 4f, rect.y + 2f, rect.width, 18f), title);
+            Widgets.Label(new Rect(rect.x + 4f, rect.y + 2f, rect.width, 16f), title);
 
-            Rect plot = new Rect(rect.x + 8f, rect.y + 22f, rect.width - 16f, rect.height - 30f);
+            const float axisWidth = 30f;
+            Rect plot = new Rect(rect.x + axisWidth + 4f, rect.y + 20f, rect.width - axisWidth - 12f, rect.height - 26f);
             if (values == null || values.Length == 0)
             {
                 Widgets.Label(plot, "-");
                 return;
             }
 
-            float max = 0.01f;
+            float dataMax = 0.01f;
             foreach (float v in values)
             {
-                if (v > max)
+                if (v > dataMax)
                 {
-                    max = v;
+                    dataMax = v;
                 }
+            }
+
+            float yMax = dataMax * 1.2f;
+            DrawYAxis(new Rect(rect.x + 2f, plot.y, axisWidth, plot.height), yMax);
+
+            for (int tick = 1; tick <= 3; tick++)
+            {
+                float fraction = tick / 4f;
+                float y = plot.yMax - plot.height * fraction;
+                Widgets.DrawLine(new Vector2(plot.x, y), new Vector2(plot.xMax, y), GridColor, 1f);
             }
 
             Vector2 prev = default;
             for (int i = 0; i < values.Length; i++)
             {
                 float x = plot.x + plot.width * i / Mathf.Max(1, values.Length - 1);
-                float y = plot.yMax - plot.height * (values[i] / max);
+                float y = plot.yMax - plot.height * (values[i] / yMax);
                 if (i > 0)
                 {
                     Widgets.DrawLine(prev, new Vector2(x, y), LineColor, 1f);
@@ -131,6 +144,42 @@ namespace WorkMonitor.UI
 
                 prev = new Vector2(x, y);
             }
+        }
+
+        private static void DrawYAxis(Rect axis, float yMax)
+        {
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.MiddleRight;
+            Color prev = GUI.color;
+            GUI.color = new Color(0.7f, 0.7f, 0.7f);
+
+            for (int tick = 1; tick <= 3; tick++)
+            {
+                float fraction = tick / 4f;
+                float y = axis.yMax - axis.height * fraction;
+                float value = yMax * fraction;
+                Widgets.Label(new Rect(axis.x, y - 7f, axis.width - 2f, 14f), FormatAxisValue(value));
+            }
+
+            Widgets.Label(new Rect(axis.x, axis.y - 2f, axis.width - 2f, 14f), FormatAxisValue(yMax));
+
+            GUI.color = prev;
+            Text.Anchor = TextAnchor.UpperLeft;
+        }
+
+        private static string FormatAxisValue(float value)
+        {
+            if (value >= 10000f)
+            {
+                return (value / 1000f).ToString("0.#") + "k";
+            }
+
+            if (value >= 100f)
+            {
+                return value.ToString("0");
+            }
+
+            return value.ToString("0.#");
         }
     }
 

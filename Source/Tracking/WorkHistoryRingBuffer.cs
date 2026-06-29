@@ -47,6 +47,11 @@ namespace WorkMonitor.Tracking
             return buckets.Where(b => b.hourIndex >= minHourIndex).Sum(b => b.ticksSpent);
         }
 
+        public float SumWorkUnits(int minHourIndex)
+        {
+            return buckets.Where(b => b.hourIndex >= minHourIndex).Sum(b => b.workUnitsSpent);
+        }
+
         public void ExposeData()
         {
             Scribe_Values.Look(ref maxHours, "maxHours", 24);

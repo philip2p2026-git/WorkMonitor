@@ -39,6 +39,23 @@ namespace WorkMonitor.UI
             };
         }
 
+        public static int TotalInterestedCount(WorkGroupStats stats)
+        {
+            return stats.MajorInterestCount + stats.MinorInterestCount;
+        }
+
+        public static string FormatInterestRatio(WorkGroupStats stats)
+        {
+            int major = stats.MajorInterestCount;
+            int total = TotalInterestedCount(stats);
+            if (total <= 0)
+            {
+                return "—";
+            }
+
+            return major + "++/" + total + "+";
+        }
+
         public static void DrawShareBar(Rect rect, float percent)
         {
             Widgets.DrawBoxSolid(rect, new Color(0.15f, 0.15f, 0.15f, 0.5f));

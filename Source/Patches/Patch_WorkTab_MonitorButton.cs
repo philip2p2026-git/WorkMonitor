@@ -1,7 +1,7 @@
 using HarmonyLib;
 using UnityEngine;
 using Verse;
-using WorkMonitor.UI;
+using WorkMonitor.Patches;
 using WorkTab;
 
 namespace WorkMonitor.Patches
@@ -10,14 +10,23 @@ namespace WorkMonitor.Patches
     public static class Patch_WorkTab_MonitorButton
     {
         private const float Margin = 6f;
+        private const float ButtonWidth = 88f;
+        private const float ButtonHeight = 26f;
 
         public static void Postfix(MainTabWindow_WorkTab __instance, Rect canvas)
         {
-            Rect buttonRect = new Rect(canvas.xMax - 30f - Margin * 4f - 90f, canvas.yMin, 90f, 30f);
-            if (Widgets.ButtonText(buttonRect, "WorkMonitor.OpenMonitor".Translate()))
+            Rect buttonRect = new Rect(
+                canvas.xMax - ButtonWidth - Margin,
+                canvas.yMax - ButtonHeight - Margin,
+                ButtonWidth,
+                ButtonHeight);
+
+            if (Widgets.ButtonText(buttonRect, "WorkMonitor.OpenMonitorShort".Translate()))
             {
-                WorkGroupMonitorWindow.Open();
+                WorkMonitorHistoryTab.Open();
             }
+
+            TooltipHandler.TipRegion(buttonRect, "WorkMonitor.OpenMonitor".Translate());
         }
     }
 }

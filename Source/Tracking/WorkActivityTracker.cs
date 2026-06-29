@@ -150,6 +150,39 @@ namespace WorkMonitor.Tracking
             return buffer.SumTicksSpent(minHourIndex);
         }
 
+        public float SumPawnWorkGiverWorkUnits(int pawnId, string workGiverDefName, int minHourIndex)
+        {
+            if (!pawnWorkGiverHistory.TryGetValue(pawnId, out Dictionary<string, WorkHistoryRingBuffer> perWg)
+                || !perWg.TryGetValue(workGiverDefName, out WorkHistoryRingBuffer buffer))
+            {
+                return 0f;
+            }
+
+            return buffer.SumWorkUnits(minHourIndex);
+        }
+
+        public void RecordWorkUnits(Pawn pawn, WorkGiverDef workGiver, float units, int tick)
+        {
+            if (pawn == null || workGiver == null || units <= 0f || !pawn.IsColonist)
+            {
+                return;
+            }
+
+            WorkActivityRecord record = GetOrCreateRecord(pawn.thingIDNumber, workGiver.defName);
+            record.workUnitsSpent += units;
+            record.lastWorkTick = tick;
+
+            int hour = tick / WorkMonitorSettings.TicksPerHour;
+            HourlyWorkBucket pawnBucket = GetPawnWorkGiverHistory(pawn.thingIDNumber, workGiver.defName).GetOrCreateBucket(hour);
+            pawnBucket.AddWorkUnits(pawn.thingIDNumber, units);
+
+            foreach (string groupKey in WorkGroupKeyResolver.ResolveGroupKeysForWorkGiver(workGiver))
+            {
+                HourlyWorkBucket groupBucket = GetGroupHistory(groupKey).GetOrCreateBucket(hour);
+                groupBucket.AddWorkUnits(pawn.thingIDNumber, units);
+            }
+        }
+
         public WorkHistoryRingBuffer GetGroupHistory(string groupKey)
         {
             if (!groupHistory.TryGetValue(groupKey, out WorkHistoryRingBuffer buffer))

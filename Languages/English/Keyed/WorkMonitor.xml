@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LanguageData>
 	<WorkMonitor.ModName>Work Monitor</WorkMonitor.ModName>
-	<WorkMonitor.OpenMonitor>Open work monitor</WorkMonitor.OpenMonitor>
+	<WorkMonitor.OpenMonitor>Open work monitor in History</WorkMonitor.OpenMonitor>
+	<WorkMonitor.OpenMonitorShort>Monitor</WorkMonitor.OpenMonitorShort>
+	<WorkMonitor.HistoryTab>Work</WorkMonitor.HistoryTab>
 	<WorkMonitor.OverviewTitle>Work Monitor — Overview</WorkMonitor.OverviewTitle>
 	<WorkMonitor.DetailTitle>{0} — Detail</WorkMonitor.DetailTitle>
 	<WorkMonitor.Back>Back</WorkMonitor.Back>
 	<WorkMonitor.HighlightInWorkTab>Highlight in Work Tab</WorkMonitor.HighlightInWorkTab>
+	<WorkMonitor.HighlightShort>Highlight</WorkMonitor.HighlightShort>
 	<WorkMonitor.Status>Status</WorkMonitor.Status>
 	<WorkMonitor.Group>Group</WorkMonitor.Group>
 	<WorkMonitor.Jobs>Jobs</WorkMonitor.Jobs>
@@ -19,10 +22,15 @@
 	<WorkMonitor.InterestShort>{0} major {1} minor</WorkMonitor.InterestShort>
 	<WorkMonitor.FooterSummary>{0} groups · {1} jobs · {2} total colony work</WorkMonitor.FooterSummary>
 	<WorkMonitor.WorkGivers>WorkGivers</WorkMonitor.WorkGivers>
-	<WorkMonitor.Colonists>Colonists (work among)</WorkMonitor.Colonists>
+	<WorkMonitor.WorkGiver>WorkGiver</WorkMonitor.WorkGiver>
+	<WorkMonitor.Colonists>Colonists</WorkMonitor.Colonists>
+	<WorkMonitor.Colonist>Colonist</WorkMonitor.Colonist>
+	<WorkMonitor.Work>Work</WorkMonitor.Work>
+	<WorkMonitor.Kpi>KPI</WorkMonitor.Kpi>
 	<WorkMonitor.Range>Range</WorkMonitor.Range>
 	<WorkMonitor.Metric>Metric</WorkMonitor.Metric>
 	<WorkMonitor.MetricJobCount>Job count</WorkMonitor.MetricJobCount>
+	<WorkMonitor.MetricWorkUnits>Work units</WorkMonitor.MetricWorkUnits>
 	<WorkMonitor.MetricTimeConsumed>Time consumed</WorkMonitor.MetricTimeConsumed>
 	<WorkMonitor.MetricWorkAmong>Work among</WorkMonitor.MetricWorkAmong>
 	<WorkMonitor.MetricRelativeShare>Relative work consumed</WorkMonitor.MetricRelativeShare>
@@ -42,7 +50,12 @@
 	<WorkMonitor.StatusRed>Idle</WorkMonitor.StatusRed>
 	<WorkMonitor.StatusGrey>No capable colonists</WorkMonitor.StatusGrey>
 	<WorkMonitor.JobsTimeSummary>{0} jobs · {1}</WorkMonitor.JobsTimeSummary>
+	<WorkMonitor.JobsWorkUnitsSummary>{0} jobs · {1} work · {2}</WorkMonitor.JobsWorkUnitsSummary>
 	<WorkMonitor.WorkGiverRow>{0} — {1} jobs · {2}</WorkMonitor.WorkGiverRow>
+	<WorkMonitor.WorkGiverRowUnits>{0} — {1} jobs · {2} work · {3}</WorkMonitor.WorkGiverRowUnits>
+	<WorkMonitor.SettingsShowSkillOnWorkGiver>Show skill role on WorkGiver labels</WorkMonitor.SettingsShowSkillOnWorkGiver>
+	<WorkMonitor.SettingsWorkGiverLabelFormat>WorkGiver label format ({skill}, {label})</WorkMonitor.SettingsWorkGiverLabelFormat>
+	<WorkMonitor.SettingsSkillRoleOverrides>Skill role overrides (SkillDef=Label, comma-separated)</WorkMonitor.SettingsSkillRoleOverrides>
 	<WorkMonitor.ColonistRow>{0} — {1} jobs · {2} — {3}</WorkMonitor.ColonistRow>
 	<WorkMonitor.PassionMajor>major</WorkMonitor.PassionMajor>
 	<WorkMonitor.PassionMinor>minor</WorkMonitor.PassionMinor>
