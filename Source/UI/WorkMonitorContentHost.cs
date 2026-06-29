@@ -67,8 +67,14 @@ namespace WorkMonitor.UI
                 return;
             }
 
-            colonistDetailPanel.Draw(rect, out bool colonistBack);
-            if (colonistBack)
+            colonistDetailPanel.Draw(rect, out bool colonistBack, out bool groupClicked, out WorkGroupSnapshot groupFromColonist);
+            if (groupClicked && groupFromColonist != null)
+            {
+                selectedGroup = groupFromColonist;
+                detailPanel.SetGroup(selectedGroup);
+                view = MonitorView.GroupDetail;
+            }
+            else if (colonistBack)
             {
                 view = MonitorView.GroupDetail;
             }

@@ -31,9 +31,11 @@ namespace WorkMonitor.UI
             }
         }
 
-        public void Draw(Rect rect, out bool back)
+        public void Draw(Rect rect, out bool back, out bool groupClicked, out WorkGroupSnapshot selectedGroup)
         {
             back = false;
+            groupClicked = false;
+            selectedGroup = null;
 
             if (stats?.Pawn == null)
             {
@@ -62,7 +64,7 @@ namespace WorkMonitor.UI
             Rect viewRect = new Rect(0f, 0f, content.width - 16f, viewHeight);
             Widgets.BeginScrollView(content, ref scroll, viewRect);
             float y = 0f;
-            DrawGroupTable(new Rect(0f, y, viewRect.width, viewHeight), ref y);
+            DrawGroupTable(new Rect(0f, y, viewRect.width, viewHeight), ref y, out groupClicked, out selectedGroup);
             Widgets.EndScrollView();
 
             if (pendingColonistSelection != null)
@@ -121,8 +123,10 @@ namespace WorkMonitor.UI
             Widgets.Label(new Rect(rect.x, rect.y, rect.width, 16f), totalSummary);
         }
 
-        private void DrawGroupTable(Rect area, ref float y)
+        private void DrawGroupTable(Rect area, ref float y, out bool groupClicked, out WorkGroupSnapshot selectedGroup)
         {
+            groupClicked = false;
+            selectedGroup = null;
             Text.Font = GameFont.Small;
             Widgets.Label(new Rect(area.x, y, area.width, 22f), "WorkMonitor.Groups".Translate());
             y += RowHeight;
@@ -153,6 +157,13 @@ namespace WorkMonitor.UI
                     {
                         expandedGroupKeys.Add(storageKey);
                     }
+                }
+
+                Rect clickRect = new Rect(row.x + ExpandButtonWidth, row.y, row.width - ExpandButtonWidth, row.height);
+                if (Widgets.ButtonInvisible(clickRect))
+                {
+                    groupClicked = true;
+                    selectedGroup = groupStat.Group;
                 }
 
                 DrawGroupRow(row, groupStat);

@@ -11,8 +11,7 @@ namespace WorkMonitor.UI
         private const float RowHeight = 24f;
         private const float ChartHeight = 168f;
         private const float ColonistIconSize = 18f;
-        private const float ColonistIconGap = 2f;
-        private const float ColonistIconsWidth = ColonistIconSize * 2f + ColonistIconGap;
+        private const float ColonistIconsWidth = ColonistIconSize;
         private const float KpiJobWidth = 42f;
         private const float KpiWorkWidth = 52f;
         private const float JobsWidth = 42f;
@@ -154,17 +153,27 @@ namespace WorkMonitor.UI
                     Widgets.DrawBoxSolid(row, new Color(1f, 1f, 1f, 0.03f));
                 }
 
-                if (DrawColonistRow(row, colonist, out bool inspectClicked, out bool workClicked))
+                GetColonistTableColumns(
+                    row,
+                    out Rect iconsCol,
+                    out Rect labelCol,
+                    out _,
+                    out _,
+                    out _,
+                    out _,
+                    out _,
+                    out _);
+
+                Rect clickRect = new Rect(labelCol.x, row.y, row.xMax - labelCol.x, row.height);
+                if (Widgets.ButtonInvisible(clickRect))
                 {
-                    if (inspectClicked)
-                    {
-                        ColonistInspectUtility.OpenPawnProfile(colonist.Pawn);
-                    }
-                    else if (workClicked)
-                    {
-                        colonistClicked = true;
-                        selectedColonist = colonist;
-                    }
+                    colonistClicked = true;
+                    selectedColonist = colonist;
+                }
+
+                if (DrawColonistRow(row, colonist, iconsCol, out bool inspectClicked) && inspectClicked)
+                {
+                    ColonistInspectUtility.OpenPawnProfile(colonist.Pawn);
                 }
 
                 y += RowHeight;
@@ -241,15 +250,14 @@ namespace WorkMonitor.UI
             GUI.color = prev;
         }
 
-        private static bool DrawColonistRow(Rect row, ColonistWorkStat colonist, out bool inspectClicked, out bool workClicked)
+        private static bool DrawColonistRow(Rect row, ColonistWorkStat colonist, Rect iconsCol, out bool inspectClicked)
         {
             inspectClicked = false;
-            workClicked = false;
 
             Text.Font = GameFont.Small;
             GetColonistTableColumns(
                 row,
-                out Rect iconsCol,
+                out _,
                 out Rect labelCol,
                 out Rect kpiJobCol,
                 out Rect kpiWorkCol,
@@ -259,7 +267,6 @@ namespace WorkMonitor.UI
                 out Rect activeWorkCol);
 
             Rect inspectRect = new Rect(iconsCol.x, row.y + (row.height - ColonistIconSize) * 0.5f, ColonistIconSize, ColonistIconSize);
-            Rect workRect = new Rect(inspectRect.xMax + ColonistIconGap, inspectRect.y, ColonistIconSize, ColonistIconSize);
             if (Widgets.ButtonImage(inspectRect, TexButton.Info))
             {
                 inspectClicked = true;
@@ -267,15 +274,6 @@ namespace WorkMonitor.UI
             }
 
             TooltipHandler.TipRegion(inspectRect, "WorkMonitor.OpenColonistProfile".Translate());
-            Text.Font = GameFont.Tiny;
-            if (Widgets.ButtonText(workRect, "W"))
-            {
-                workClicked = true;
-                return true;
-            }
-
-            Text.Font = GameFont.Small;
-            TooltipHandler.TipRegion(workRect, "WorkMonitor.OpenColonistWork".Translate());
 
             string passion = WorkMonitorUiUtility.PassionShort(colonist.Passion);
             Widgets.Label(labelCol, (passion + " " + colonist.Label).Trim().Truncate(labelCol.width));

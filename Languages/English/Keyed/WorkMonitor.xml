@@ -41,7 +41,7 @@
 	<WorkMonitor.WorkGiversColonist>WorkGivers</WorkMonitor.WorkGiversColonist>
 	<WorkMonitor.BackToGroups>Back</WorkMonitor.BackToGroups>
 	<WorkMonitor.TimeShare>Time %</WorkMonitor.TimeShare>
-	<WorkMonitor.ColonistsIconTip>Info opens colonist bio. Map icon opens colonist work breakdown.</WorkMonitor.ColonistsIconTip>
+	<WorkMonitor.ColonistsIconTip>Info opens colonist bio. Click a row to open colonist work breakdown.</WorkMonitor.ColonistsIconTip>
 	<WorkMonitor.OpenColonistProfile>Open colonist bio</WorkMonitor.OpenColonistProfile>
 	<WorkMonitor.OpenColonistWork>Open colonist work view</WorkMonitor.OpenColonistWork>
 	<WorkMonitor.WorkGivers>WorkGivers</WorkMonitor.WorkGivers>
