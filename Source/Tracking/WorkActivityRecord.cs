@@ -7,6 +7,8 @@ namespace WorkMonitor.Tracking
         public int lastWorkTick;
         public int jobCount;
         public int ticksSpent;
+        public int travelTicksSpent;
+        public int workTicksSpent;
         public float workUnitsSpent;
 
         public void ExposeData()
@@ -14,6 +16,8 @@ namespace WorkMonitor.Tracking
             Scribe_Values.Look(ref lastWorkTick, "lastWorkTick");
             Scribe_Values.Look(ref jobCount, "jobCount");
             Scribe_Values.Look(ref ticksSpent, "ticksSpent");
+            Scribe_Values.Look(ref travelTicksSpent, "travelTicksSpent", 0);
+            Scribe_Values.Look(ref workTicksSpent, "workTicksSpent", 0);
             Scribe_Values.Look(ref workUnitsSpent, "workUnitsSpent", 0f);
         }
     }

@@ -52,6 +52,44 @@ namespace WorkMonitor.Tracking
             return buckets.Where(b => b.hourIndex >= minHourIndex).Sum(b => b.workUnitsSpent);
         }
 
+        public int SumTravelTicksSpent(int minHourIndex)
+        {
+            return buckets.Where(b => b.hourIndex >= minHourIndex).Sum(b => b.travelTicksSpent);
+        }
+
+        public int SumWorkTicksSpent(int minHourIndex)
+        {
+            return buckets.Where(b => b.hourIndex >= minHourIndex).Sum(b => b.workTicksSpent);
+        }
+
+        public int SumPawnTravelTicks(int pawnId, int minHourIndex)
+        {
+            int sum = 0;
+            foreach (HourlyWorkBucket bucket in buckets.Where(b => b.hourIndex >= minHourIndex))
+            {
+                if (bucket.pawnTravelTicksSpent.TryGetValue(pawnId, out int ticks))
+                {
+                    sum += ticks;
+                }
+            }
+
+            return sum;
+        }
+
+        public int SumPawnWorkTicks(int pawnId, int minHourIndex)
+        {
+            int sum = 0;
+            foreach (HourlyWorkBucket bucket in buckets.Where(b => b.hourIndex >= minHourIndex))
+            {
+                if (bucket.pawnWorkTicksSpent.TryGetValue(pawnId, out int ticks))
+                {
+                    sum += ticks;
+                }
+            }
+
+            return sum;
+        }
+
         public void ExposeData()
         {
             Scribe_Values.Look(ref maxHours, "maxHours", 24);

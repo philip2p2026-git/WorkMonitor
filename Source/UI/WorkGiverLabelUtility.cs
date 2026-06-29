@@ -19,6 +19,11 @@ namespace WorkMonitor.UI
                 return workGiver.label;
             }
 
+            if (!WorkGiverSkillUtility.UsesRelevantSkill(workGiver))
+            {
+                return workGiver.label;
+            }
+
             string skillRole = ResolveSkillRole(workGiver);
             if (skillRole.NullOrEmpty())
             {

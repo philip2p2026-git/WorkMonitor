@@ -7,7 +7,7 @@ using WorkMonitor.Tracking;
 namespace WorkMonitor.Patches
 {
     [HarmonyPatch(typeof(JobDriver), nameof(JobDriver.DriverTick))]
-    public static class Patch_BillWorkProgress
+    public static class Patch_JobDriverTick
     {
         public static void Postfix(JobDriver __instance)
         {
@@ -16,12 +16,14 @@ namespace WorkMonitor.Patches
                 return;
             }
 
-            if (__instance is not JobDriver_DoBill)
-            {
-                return;
-            }
+            int tick = Find.TickManager.TicksGame;
+            WorkActivityTracker tracker = WorkActivityTracker.Instance;
+            tracker?.SampleJobTick(__instance.pawn, tick);
 
-            WorkActivityTracker.Instance?.SampleBillWorkLeft(__instance.pawn, Find.TickManager.TicksGame);
+            if (__instance is JobDriver_DoBill)
+            {
+                tracker?.SampleBillWorkLeft(__instance.pawn, tick);
+            }
         }
     }
 }

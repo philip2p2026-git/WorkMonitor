@@ -9,6 +9,8 @@ namespace WorkMonitor.Groups
         public string Label;
         public int JobCount;
         public int TicksSpent;
+        public int TravelTicksSpent;
+        public int WorkTicksSpent;
         public float WorkUnitsSpent;
         public float JobsPerHour;
         public float WorkUnitsPerHour;
@@ -21,6 +23,8 @@ namespace WorkMonitor.Groups
         public string Label;
         public int JobCount;
         public int TicksSpent;
+        public int TravelTicksSpent;
+        public int WorkTicksSpent;
         public float WorkUnitsSpent;
     }
 
@@ -31,10 +35,33 @@ namespace WorkMonitor.Groups
         public float MapWorkLeft;
         public int JobCount;
         public int TicksSpent;
+        public int TravelTicksSpent;
+        public int WorkTicksSpent;
         public float WorkUnitsSpent;
         public int GroupJobCount;
         public float GroupWorkUnits;
         public int GroupTicksSpent;
+    }
+
+    public class ColonistWorkGiverStat
+    {
+        public WorkGiverDef WorkGiver;
+        public string Label;
+        public int JobCount;
+        public int TravelTicksSpent;
+        public int WorkTicksSpent;
+        public float WorkUnitsSpent;
+    }
+
+    public class ColonistGroupWorkDetail
+    {
+        public WorkGroupSnapshot Group;
+        public Pawn Pawn;
+        public int JobCount;
+        public int TravelTicksSpent;
+        public int WorkTicksSpent;
+        public float WorkUnitsSpent;
+        public System.Collections.Generic.List<ColonistWorkGiverStat> WorkGiverStats = new System.Collections.Generic.List<ColonistWorkGiverStat>();
     }
 
     public class ColonistStats
@@ -44,6 +71,8 @@ namespace WorkMonitor.Groups
         public Passion TopPassion;
         public int TotalJobCount;
         public int TotalTicksSpent;
+        public int TotalTravelTicksSpent;
+        public int TotalWorkTicksSpent;
         public float TotalWorkUnits;
         public System.Collections.Generic.List<ColonistGroupStat> GroupStats = new System.Collections.Generic.List<ColonistGroupStat>();
     }

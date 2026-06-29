@@ -20,11 +20,13 @@ namespace WorkMonitor.UI
 
         private MonitorView view = MonitorView.Overview;
         private WorkGroupSnapshot selectedGroup;
+        private Pawn selectedColonist;
 
         public void ResetToOverview()
         {
             view = MonitorView.Overview;
             selectedGroup = null;
+            selectedColonist = null;
         }
 
         public void Draw(Rect rect)
@@ -44,15 +46,21 @@ namespace WorkMonitor.UI
 
             if (view == MonitorView.GroupDetail)
             {
-                detailPanel.Draw(rect, out bool back, out bool highlight, out bool colonistClicked, out ColonistWorkStat selectedColonist);
+                detailPanel.Draw(rect, out bool back, out bool highlight, out bool colonistClicked, out ColonistWorkStat selectedColonistStat, out WorkGroupSnapshot groupChanged);
+                if (groupChanged != null)
+                {
+                    selectedGroup = groupChanged;
+                }
+
                 if (back)
                 {
                     view = MonitorView.Overview;
                     selectedGroup = null;
                 }
-                else if (colonistClicked && selectedColonist?.Pawn != null)
+                else if (colonistClicked && selectedColonistStat?.Pawn != null)
                 {
-                    colonistDetailPanel.SetColonist(selectedColonist.Pawn);
+                    selectedColonist = selectedColonistStat.Pawn;
+                    colonistDetailPanel.SetColonist(selectedColonist, selectedGroup, openGroupDetail: true);
                     view = MonitorView.ColonistDetail;
                 }
                 else if (highlight && selectedGroup != null)

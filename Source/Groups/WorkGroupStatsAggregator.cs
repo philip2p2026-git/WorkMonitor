@@ -74,6 +74,8 @@ namespace WorkMonitor.Groups
 
                 int pawnJobs = 0;
                 int pawnTicks = 0;
+                int pawnTravel = 0;
+                int pawnWork = 0;
                 float pawnWorkUnits = 0f;
                 int pawnLastTick = -1;
 
@@ -82,9 +84,13 @@ namespace WorkMonitor.Groups
                     WorkActivityRecord record = tracker?.GetRecord(pawn.thingIDNumber, wg.defName);
                     int wgJobs = tracker?.SumPawnWorkGiverJobs(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
                     int wgTicks = tracker?.SumPawnWorkGiverTicks(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
+                    int wgTravel = tracker?.SumPawnWorkGiverTravelTicks(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
+                    int wgWork = tracker?.SumPawnWorkGiverWorkTicks(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
                     float wgUnits = tracker?.SumPawnWorkGiverWorkUnits(pawn.thingIDNumber, wg.defName, minHour) ?? 0f;
                     pawnJobs += wgJobs;
                     pawnTicks += wgTicks;
+                    pawnTravel += wgTravel;
+                    pawnWork += wgWork;
                     pawnWorkUnits += wgUnits;
 
                     if (record != null)
@@ -111,6 +117,8 @@ namespace WorkMonitor.Groups
                         Label = pawn.LabelShort,
                         JobCount = pawnJobs,
                         TicksSpent = pawnTicks,
+                        TravelTicksSpent = pawnTravel,
+                        WorkTicksSpent = pawnWork,
                         WorkUnitsSpent = pawnWorkUnits,
                         Passion = GetPassionForGroup(pawn, group)
                     };

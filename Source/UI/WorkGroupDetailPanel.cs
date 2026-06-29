@@ -17,13 +17,18 @@ namespace WorkMonitor.UI
         private const float KpiWorkWidth = 52f;
         private const float JobsWidth = 42f;
         private const float WorkWidth = 52f;
-        private const float TimeWidth = 50f;
+        private const float WalkWidth = 40f;
+        private const float ActiveWorkWidth = 40f;
         private const float ColumnGap = 10f;
+        private const float GroupDropdownWidth = 160f;
 
         private readonly WorkGroupChartPanel chartPanel = new WorkGroupChartPanel();
         private Vector2 scroll;
         private WorkGroupStats stats;
         private List<WorkGroupStats> allStats = new List<WorkGroupStats>();
+        private WorkGroupSnapshot pendingGroupSelection;
+
+        public WorkGroupSnapshot CurrentGroup => stats?.Group;
 
         public void SetGroup(WorkGroupSnapshot group)
         {
@@ -31,12 +36,13 @@ namespace WorkMonitor.UI
             stats = WorkGroupStatsAggregator.Build(group);
         }
 
-        public void Draw(Rect rect, out bool back, out bool highlight, out bool colonistClicked, out ColonistWorkStat selectedColonist)
+        public void Draw(Rect rect, out bool back, out bool highlight, out bool colonistClicked, out ColonistWorkStat selectedColonist, out WorkGroupSnapshot groupChanged)
         {
             back = false;
             highlight = false;
             colonistClicked = false;
             selectedColonist = null;
+            groupChanged = null;
 
             if (stats == null)
             {
@@ -50,9 +56,18 @@ namespace WorkMonitor.UI
                 return;
             }
 
-            Widgets.Label(
-                new Rect(rect.x + 76f, rect.y + 2f, rect.width - 76f - 128f, 22f),
-                "WorkMonitor.DetailTitle".Translate(stats.Group.Label));
+            Rect dropdownRect = new Rect(rect.x + 76f, rect.y, GroupDropdownWidth, 26f);
+            List<FloatMenuOption> groupOptions = WorkMonitorDropdownUtility.BuildOptions(
+                WorkGroupRegistry.GetAllGroups(),
+                g => g.Label,
+                g =>
+                {
+                    if (stats == null || g.Key.StorageKey != stats.Group.Key.StorageKey)
+                    {
+                        pendingGroupSelection = g;
+                    }
+                });
+            WorkMonitorDropdownUtility.DrawDropdown(dropdownRect, stats.Group.Label, groupOptions);
 
             Rect highlightRect = new Rect(rect.xMax - 120f, rect.y, 120f, 26f);
             if (Widgets.ButtonText(highlightRect, "WorkMonitor.HighlightShort".Translate()))
@@ -79,6 +94,13 @@ namespace WorkMonitor.UI
             DrawWorkGiverTable(new Rect(0f, y, view.width, viewHeight - y), ref y);
 
             Widgets.EndScrollView();
+
+            if (pendingGroupSelection != null)
+            {
+                SetGroup(pendingGroupSelection);
+                groupChanged = pendingGroupSelection;
+                pendingGroupSelection = null;
+            }
         }
 
         private void DrawHeader(Rect rect)
@@ -95,10 +117,19 @@ namespace WorkMonitor.UI
                 WorkMonitorUiUtility.FormatInterestRatio(stats));
             Widgets.Label(new Rect(rect.x + 14f, rect.y, rect.width - 14f, 16f), summary);
 
-            string totals = "WorkMonitor.JobsWorkUnitsSummary".Translate(
+            int totalTravel = 0;
+            int totalWork = 0;
+            foreach (ColonistWorkStat colonist in stats.ColonistStats)
+            {
+                totalTravel += colonist.TravelTicksSpent;
+                totalWork += colonist.WorkTicksSpent;
+            }
+
+            string totals = "WorkMonitor.JobsWorkWalkActiveSummary".Translate(
                 stats.TotalJobCount,
                 WorkMonitorUtility.FormatWorkUnits(stats.TotalWorkUnits),
-                WorkMonitorUtility.FormatDuration(stats.TotalTicksSpent, WorkMonitorMod.Settings?.showTimeInHours ?? true));
+                WorkMonitorUtility.FormatDuration(totalTravel, WorkMonitorMod.Settings?.showTimeInHours ?? true),
+                WorkMonitorUtility.FormatDuration(totalWork, WorkMonitorMod.Settings?.showTimeInHours ?? true));
             Widgets.Label(new Rect(rect.x + 14f, rect.y + 18f, rect.width - 14f, 16f), totals);
 
             string mapSummary = "WorkMonitor.MapSummary".Translate(
@@ -194,7 +225,8 @@ namespace WorkMonitor.UI
                 out Rect kpiWorkCol,
                 out Rect jobsCol,
                 out Rect workCol,
-                out Rect timeCol);
+                out Rect walkCol,
+                out Rect activeWorkCol);
 
             Widgets.Label(iconsCol, "");
             Widgets.Label(labelCol, "WorkMonitor.Colonist".Translate());
@@ -202,7 +234,8 @@ namespace WorkMonitor.UI
             LabelRight(kpiWorkCol, "WorkMonitor.KpiWork".Translate());
             LabelRight(jobsCol, "WorkMonitor.Jobs".Translate());
             LabelRight(workCol, "WorkMonitor.Work".Translate());
-            LabelRight(timeCol, "WorkMonitor.Time".Translate());
+            LabelRight(walkCol, "WorkMonitor.Walk".Translate());
+            LabelRight(activeWorkCol, "WorkMonitor.WorkTime".Translate());
 
             GUI.color = prev;
         }
@@ -221,7 +254,8 @@ namespace WorkMonitor.UI
                 out Rect kpiWorkCol,
                 out Rect jobsCol,
                 out Rect workCol,
-                out Rect timeCol);
+                out Rect walkCol,
+                out Rect activeWorkCol);
 
             Rect inspectRect = new Rect(iconsCol.x, row.y + (row.height - ColonistIconSize) * 0.5f, ColonistIconSize, ColonistIconSize);
             Rect workRect = new Rect(inspectRect.xMax + ColonistIconGap, inspectRect.y, ColonistIconSize, ColonistIconSize);
@@ -249,8 +283,11 @@ namespace WorkMonitor.UI
             LabelRight(jobsCol, colonist.JobCount.ToString());
             LabelRight(workCol, WorkMonitorUtility.FormatWorkUnits(colonist.WorkUnitsSpent));
             LabelRight(
-                timeCol,
-                WorkMonitorUtility.FormatDuration(colonist.TicksSpent, WorkMonitorMod.Settings?.showTimeInHours ?? true));
+                walkCol,
+                WorkMonitorUtility.FormatDuration(colonist.TravelTicksSpent, WorkMonitorMod.Settings?.showTimeInHours ?? true));
+            LabelRight(
+                activeWorkCol,
+                WorkMonitorUtility.FormatDuration(colonist.WorkTicksSpent, WorkMonitorMod.Settings?.showTimeInHours ?? true));
             return false;
         }
 
@@ -292,6 +329,18 @@ namespace WorkMonitor.UI
             GUI.color = prev;
         }
 
+        private static void GetMapTableColumns(Rect row, out Rect labelCol, out Rect jobsCol, out Rect workCol)
+        {
+            float workX = row.xMax - WorkWidth;
+            float jobsX = workX - ColumnGap - JobsWidth;
+            float labelX = row.x;
+            float labelWidth = jobsX - ColumnGap - labelX;
+
+            labelCol = new Rect(labelX, row.y, Mathf.Max(labelWidth, 60f), row.height);
+            jobsCol = new Rect(jobsX, row.y, JobsWidth, row.height);
+            workCol = new Rect(workX, row.y, WorkWidth, row.height);
+        }
+
         private static void GetColonistTableColumns(
             Rect row,
             out Rect iconsCol,
@@ -300,10 +349,12 @@ namespace WorkMonitor.UI
             out Rect kpiWorkCol,
             out Rect jobsCol,
             out Rect workCol,
-            out Rect timeCol)
+            out Rect walkCol,
+            out Rect activeWorkCol)
         {
-            float timeX = row.xMax - TimeWidth;
-            float workX = timeX - ColumnGap - WorkWidth;
+            float activeWorkX = row.xMax - ActiveWorkWidth;
+            float walkX = activeWorkX - ColumnGap - WalkWidth;
+            float workX = walkX - ColumnGap - WorkWidth;
             float jobsX = workX - ColumnGap - JobsWidth;
             float kpiWorkX = jobsX - ColumnGap - KpiWorkWidth;
             float kpiJobX = kpiWorkX - ColumnGap - KpiJobWidth;
@@ -316,20 +367,8 @@ namespace WorkMonitor.UI
             kpiWorkCol = new Rect(kpiWorkX, row.y, KpiWorkWidth, row.height);
             jobsCol = new Rect(jobsX, row.y, JobsWidth, row.height);
             workCol = new Rect(workX, row.y, WorkWidth, row.height);
-            timeCol = new Rect(timeX, row.y, TimeWidth, row.height);
-        }
-
-        private static void GetMapTableColumns(Rect row, out Rect labelCol, out Rect jobsCol, out Rect workCol)
-        {
-            float timeX = row.xMax - TimeWidth;
-            float workX = timeX - ColumnGap - WorkWidth;
-            float jobsX = workX - ColumnGap - JobsWidth;
-            float labelX = row.x;
-            float labelWidth = jobsX - ColumnGap - labelX;
-
-            labelCol = new Rect(labelX, row.y, Mathf.Max(labelWidth, 60f), row.height);
-            jobsCol = new Rect(jobsX, row.y, JobsWidth, row.height);
-            workCol = new Rect(workX, row.y, WorkWidth, row.height);
+            walkCol = new Rect(walkX, row.y, WalkWidth, row.height);
+            activeWorkCol = new Rect(activeWorkX, row.y, ActiveWorkWidth, row.height);
         }
 
         private static string FormatPerHour(float value, bool integer)

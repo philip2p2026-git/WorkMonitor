@@ -17,11 +17,13 @@ namespace WorkMonitor
         public bool showSkillOnWorkGiverLabels = true;
         public string workGiverLabelFormat = "{skill}: {label}";
         public string skillRoleOverrides = "";
+        public string workGiverSkillOverrides = "";
         public int mapSampleIntervalHours = 6;
 
         public Vector2 monitorWindowSize = new Vector2(720f, 520f);
 
         private Dictionary<string, string> skillRoleOverrideCache;
+        private Dictionary<string, bool> workGiverSkillOverrideCache;
 
         public int StatsWindowTicks => statsWindowHours * TicksPerHour;
         public int GreenStatusTicks => greenStatusHours * TicksPerHour;
@@ -37,6 +39,60 @@ namespace WorkMonitor
 
             EnsureOverrideCache();
             return skillRoleOverrideCache.TryGetValue(skillDefName, out label);
+        }
+
+        public bool TryGetWorkGiverSkillOverride(string workGiverDefName, out bool usesSkill)
+        {
+            usesSkill = false;
+            if (workGiverDefName.NullOrEmpty())
+            {
+                return false;
+            }
+
+            EnsureWorkGiverSkillOverrideCache();
+            return workGiverSkillOverrideCache.TryGetValue(workGiverDefName, out usesSkill);
+        }
+
+        private void EnsureWorkGiverSkillOverrideCache()
+        {
+            if (workGiverSkillOverrideCache != null)
+            {
+                return;
+            }
+
+            workGiverSkillOverrideCache = new Dictionary<string, bool>();
+            if (workGiverSkillOverrides.NullOrEmpty())
+            {
+                return;
+            }
+
+            string[] pairs = workGiverSkillOverrides.Split(',');
+            foreach (string pair in pairs)
+            {
+                string trimmed = pair.Trim();
+                if (trimmed.NullOrEmpty())
+                {
+                    continue;
+                }
+
+                int eq = trimmed.IndexOf('=');
+                if (eq <= 0)
+                {
+                    continue;
+                }
+
+                string key = trimmed.Substring(0, eq).Trim();
+                string value = trimmed.Substring(eq + 1).Trim();
+                if (key.NullOrEmpty() || value.NullOrEmpty())
+                {
+                    continue;
+                }
+
+                if (bool.TryParse(value, out bool parsed))
+                {
+                    workGiverSkillOverrideCache[key] = parsed;
+                }
+            }
         }
 
         private void EnsureOverrideCache()
@@ -87,9 +143,11 @@ namespace WorkMonitor
             Scribe_Values.Look(ref showSkillOnWorkGiverLabels, "showSkillOnWorkGiverLabels", true);
             Scribe_Values.Look(ref workGiverLabelFormat, "workGiverLabelFormat", "{skill}: {label}");
             Scribe_Values.Look(ref skillRoleOverrides, "skillRoleOverrides", "");
+            Scribe_Values.Look(ref workGiverSkillOverrides, "workGiverSkillOverrides", "");
             Scribe_Values.Look(ref mapSampleIntervalHours, "mapSampleIntervalHours", 6);
             Scribe_Values.Look(ref monitorWindowSize, "monitorWindowSize", new Vector2(720f, 520f));
             skillRoleOverrideCache = null;
+            workGiverSkillOverrideCache = null;
         }
     }
 }

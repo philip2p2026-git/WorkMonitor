@@ -17,6 +17,8 @@ namespace WorkMonitor.Tracking
     {
         public string workGiverDefName;
         public int startTick;
+        public int travelTicks;
+        public int workTicks;
         public bool tracksWorkLeft;
         public float startWorkLeft;
         public WorkLeftTrackingMode trackingMode;
@@ -198,6 +200,45 @@ namespace WorkMonitor.Tracking
             {
                 active.lastBillWorkLeft = currentWorkLeft;
             }
+        }
+
+        public void SampleJobTick(Pawn pawn, int tick)
+        {
+            if (pawn == null || !pawn.IsColonist || !activeJobs.ContainsKey(pawn.thingIDNumber))
+            {
+                return;
+            }
+
+            if (IsTravelTick(pawn))
+            {
+                activeJobs[pawn.thingIDNumber].travelTicks++;
+            }
+            else
+            {
+                activeJobs[pawn.thingIDNumber].workTicks++;
+            }
+        }
+
+        public int SumPawnWorkGiverTravelTicks(int pawnId, string workGiverDefName, int minHourIndex)
+        {
+            if (!pawnWorkGiverHistory.TryGetValue(pawnId, out Dictionary<string, WorkHistoryRingBuffer> perWg)
+                || !perWg.TryGetValue(workGiverDefName, out WorkHistoryRingBuffer buffer))
+            {
+                return 0;
+            }
+
+            return buffer.SumPawnTravelTicks(pawnId, minHourIndex);
+        }
+
+        public int SumPawnWorkGiverWorkTicks(int pawnId, string workGiverDefName, int minHourIndex)
+        {
+            if (!pawnWorkGiverHistory.TryGetValue(pawnId, out Dictionary<string, WorkHistoryRingBuffer> perWg)
+                || !perWg.TryGetValue(workGiverDefName, out WorkHistoryRingBuffer buffer))
+            {
+                return 0;
+            }
+
+            return buffer.SumPawnWorkTicks(pawnId, minHourIndex);
         }
 
         public WorkActivityRecord GetRecord(int pawnId, string workGiverDefName)
@@ -392,18 +433,37 @@ namespace WorkMonitor.Tracking
             }
 
             int elapsed = Mathf.Max(0, tick - active.startTick);
+            int travelTicks = active.travelTicks;
+            int workTicks = active.workTicks;
+            if (travelTicks + workTicks <= 0)
+            {
+                workTicks = elapsed;
+            }
+            else if (travelTicks + workTicks != elapsed)
+            {
+                int diff = elapsed - (travelTicks + workTicks);
+                if (diff > 0)
+                {
+                    workTicks += diff;
+                }
+            }
+
             WorkActivityRecord record = GetOrCreateRecord(pawn.thingIDNumber, workGiver.defName);
             record.ticksSpent += elapsed;
+            record.travelTicksSpent += travelTicks;
+            record.workTicksSpent += workTicks;
 
             int hour = tick / WorkMonitorSettings.TicksPerHour;
             HourlyWorkBucket pawnBucket = GetPawnWorkGiverHistory(pawn.thingIDNumber, workGiver.defName).GetOrCreateBucket(hour);
-            pawnBucket.ticksSpent += elapsed;
-            if (!pawnBucket.pawnTicksSpent.ContainsKey(pawn.thingIDNumber))
+            if (travelTicks > 0)
             {
-                pawnBucket.pawnTicksSpent[pawn.thingIDNumber] = 0;
+                pawnBucket.AddTravelTicks(pawn.thingIDNumber, travelTicks);
             }
 
-            pawnBucket.pawnTicksSpent[pawn.thingIDNumber] += elapsed;
+            if (workTicks > 0)
+            {
+                pawnBucket.AddWorkTicks(pawn.thingIDNumber, workTicks);
+            }
 
             float workDelta = 0f;
             if (active.trackingMode == WorkLeftTrackingMode.Snapshot
@@ -422,13 +482,16 @@ namespace WorkMonitor.Tracking
             foreach (string groupKey in WorkGroupKeyResolver.ResolveGroupKeysForWorkGiver(workGiver))
             {
                 HourlyWorkBucket groupBucket = GetGroupHistory(groupKey).GetOrCreateBucket(hour);
-                groupBucket.ticksSpent += elapsed;
-                if (!groupBucket.pawnTicksSpent.ContainsKey(pawn.thingIDNumber))
+                if (travelTicks > 0)
                 {
-                    groupBucket.pawnTicksSpent[pawn.thingIDNumber] = 0;
+                    groupBucket.AddTravelTicks(pawn.thingIDNumber, travelTicks);
                 }
 
-                groupBucket.pawnTicksSpent[pawn.thingIDNumber] += elapsed;
+                if (workTicks > 0)
+                {
+                    groupBucket.AddWorkTicks(pawn.thingIDNumber, workTicks);
+                }
+
                 if (workDelta > 0f)
                 {
                     groupBucket.AddWorkUnits(pawn.thingIDNumber, workDelta);
@@ -491,6 +554,11 @@ namespace WorkMonitor.Tracking
             }
 
             return record;
+        }
+
+        private static bool IsTravelTick(Pawn pawn)
+        {
+            return pawn?.pather?.MovingNow == true;
         }
     }
 }

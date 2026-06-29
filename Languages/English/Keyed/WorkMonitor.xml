@@ -32,6 +32,14 @@
 	<WorkMonitor.Groups>Groups</WorkMonitor.Groups>
 	<WorkMonitor.ColonistDetailTitle>{0} — Work</WorkMonitor.ColonistDetailTitle>
 	<WorkMonitor.ColonistSummary>{0} · {1} jobs · {2} work · {3}</WorkMonitor.ColonistSummary>
+	<WorkMonitor.ColonistSummaryWalkWork>{0} · {1} jobs · {2} work · walk {3} · work {4}</WorkMonitor.ColonistSummaryWalkWork>
+	<WorkMonitor.ColonistGroupSummary>{0} · {1} jobs · {2} work · walk {3} · work {4}</WorkMonitor.ColonistGroupSummary>
+	<WorkMonitor.JobsWorkWalkActiveSummary>{0} jobs · {1} work · walk {2} · work {3}</WorkMonitor.JobsWorkWalkActiveSummary>
+	<WorkMonitor.Walk>Walk</WorkMonitor.Walk>
+	<WorkMonitor.WorkTime>Work</WorkMonitor.WorkTime>
+	<WorkMonitor.ColonistWorkDetailTitle>{0} — {1}</WorkMonitor.ColonistWorkDetailTitle>
+	<WorkMonitor.WorkGiversColonist>WorkGivers</WorkMonitor.WorkGiversColonist>
+	<WorkMonitor.BackToGroups>Back</WorkMonitor.BackToGroups>
 	<WorkMonitor.TimeShare>Time %</WorkMonitor.TimeShare>
 	<WorkMonitor.ColonistsIconTip>Info opens colonist bio. Map icon opens colonist work breakdown.</WorkMonitor.ColonistsIconTip>
 	<WorkMonitor.OpenColonistProfile>Open colonist bio</WorkMonitor.OpenColonistProfile>
@@ -77,6 +85,7 @@
 	<WorkMonitor.SettingsShowSkillOnWorkGiver>Show skill role on WorkGiver labels</WorkMonitor.SettingsShowSkillOnWorkGiver>
 	<WorkMonitor.SettingsWorkGiverLabelFormat>WorkGiver label format ({skill}, {label})</WorkMonitor.SettingsWorkGiverLabelFormat>
 	<WorkMonitor.SettingsSkillRoleOverrides>Skill role overrides (SkillDef=Label, comma-separated)</WorkMonitor.SettingsSkillRoleOverrides>
+	<WorkMonitor.SettingsWorkGiverSkillOverrides>WorkGiver skill overrides (WorkGiverDef=true/false, comma-separated)</WorkMonitor.SettingsWorkGiverSkillOverrides>
 	<WorkMonitor.SettingsMapSampleInterval>Map work sample interval</WorkMonitor.SettingsMapSampleInterval>
 	<WorkMonitor.SettingsMapSampleCycle>Cycle map sample interval</WorkMonitor.SettingsMapSampleCycle>
 	<WorkMonitor.ColonistRow>{0} — {1} jobs · {2} — {3}</WorkMonitor.ColonistRow>

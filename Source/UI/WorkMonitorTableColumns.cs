@@ -11,10 +11,14 @@ namespace WorkMonitor.UI
         private const float WorkProcessedWidth = 76f;
         private const float ColumnGap = 6f;
 
-        private const float ColonistJobWidth = 40f;
-        private const float ColonistWorkWidth = 48f;
-        private const float ColonistTimeWidth = 50f;
-        private const float ColonistShareWidth = 52f;
+        private const float ColonistJobWidth = 36f;
+        private const float ColonistWorkWidth = 44f;
+        private const float ColonistWalkWidth = 40f;
+        private const float ColonistActiveWorkWidth = 40f;
+        private const float ColonistShareWidth = 48f;
+
+        private const float GroupDetailWalkWidth = 40f;
+        private const float GroupDetailActiveWorkWidth = 40f;
 
         public static void GetOverviewMetricColumns(
             Rect row,
@@ -44,24 +48,63 @@ namespace WorkMonitor.UI
             Rect row,
             out Rect jobCol,
             out Rect workCol,
-            out Rect timeCol,
+            out Rect walkCol,
+            out Rect activeWorkCol,
             out Rect shareCol)
         {
             float shareX = row.xMax - ColonistShareWidth;
-            float timeX = shareX - ColumnGap - ColonistTimeWidth;
-            float workX = timeX - ColumnGap - ColonistWorkWidth;
+            float activeWorkX = shareX - ColumnGap - ColonistActiveWorkWidth;
+            float walkX = activeWorkX - ColumnGap - ColonistWalkWidth;
+            float workX = walkX - ColumnGap - ColonistWorkWidth;
             float jobX = workX - ColumnGap - ColonistJobWidth;
 
             jobCol = new Rect(jobX, row.y, ColonistJobWidth, row.height);
             workCol = new Rect(workX, row.y, ColonistWorkWidth, row.height);
-            timeCol = new Rect(timeX, row.y, ColonistTimeWidth, row.height);
+            walkCol = new Rect(walkX, row.y, ColonistWalkWidth, row.height);
+            activeWorkCol = new Rect(activeWorkX, row.y, ColonistActiveWorkWidth, row.height);
             shareCol = new Rect(shareX, row.y, ColonistShareWidth, row.height);
         }
 
         public static float ColonistGroupMetricsLeftEdge(Rect row)
         {
-            GetColonistGroupColumns(row, out Rect jobCol, out _, out _, out _);
+            GetColonistGroupColumns(row, out Rect jobCol, out _, out _, out _, out _);
             return jobCol.x;
+        }
+
+        public static void GetColonistWorkGiverColumns(
+            Rect row,
+            out Rect jobCol,
+            out Rect workCol,
+            out Rect walkCol,
+            out Rect activeWorkCol)
+        {
+            float activeWorkX = row.xMax - ColonistActiveWorkWidth;
+            float walkX = activeWorkX - ColumnGap - ColonistWalkWidth;
+            float workX = walkX - ColumnGap - ColonistWorkWidth;
+            float jobX = workX - ColumnGap - ColonistJobWidth;
+
+            jobCol = new Rect(jobX, row.y, ColonistJobWidth, row.height);
+            workCol = new Rect(workX, row.y, ColonistWorkWidth, row.height);
+            walkCol = new Rect(walkX, row.y, ColonistWalkWidth, row.height);
+            activeWorkCol = new Rect(activeWorkX, row.y, ColonistActiveWorkWidth, row.height);
+        }
+
+        public static float ColonistWorkGiverMetricsLeftEdge(Rect row)
+        {
+            GetColonistWorkGiverColumns(row, out Rect jobCol, out _, out _, out _);
+            return jobCol.x;
+        }
+
+        public static void GetGroupDetailColonistTimeColumns(
+            Rect row,
+            float jobsColX,
+            out Rect walkCol,
+            out Rect activeWorkCol)
+        {
+            float activeWorkX = row.xMax - GroupDetailActiveWorkWidth;
+            float walkX = activeWorkX - ColumnGap - GroupDetailWalkWidth;
+            walkCol = new Rect(walkX, row.y, GroupDetailWalkWidth, row.height);
+            activeWorkCol = new Rect(activeWorkX, row.y, GroupDetailActiveWorkWidth, row.height);
         }
 
         public static void DrawOverviewMetricHeader(

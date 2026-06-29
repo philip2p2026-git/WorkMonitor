@@ -60,6 +60,10 @@ namespace WorkMonitor
             Settings.skillRoleOverrides = listing.TextEntry(Settings.skillRoleOverrides ?? "");
             listing.Gap(6f);
 
+            listing.Label("WorkMonitor.SettingsWorkGiverSkillOverrides".Translate());
+            Settings.workGiverSkillOverrides = listing.TextEntry(Settings.workGiverSkillOverrides ?? "");
+            listing.Gap(6f);
+
             listing.Label("WorkMonitor.SettingsMapSampleInterval".Translate() + ": " + MapWorkSampler.NormalizeInterval(Settings.mapSampleIntervalHours) + "h");
             if (listing.ButtonText("WorkMonitor.SettingsMapSampleCycle".Translate()))
             {
