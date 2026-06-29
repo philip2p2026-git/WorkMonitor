@@ -10,6 +10,8 @@ namespace WorkMonitor.UI
     {
         private const float RowHeight = 24f;
         private const float ColonistDropdownWidth = 160f;
+        private const float ColonistIconSize = 18f;
+        private const float ColonistIconGap = 4f;
         private const float ExpandButtonWidth = 20f;
         private const float WorkGiverIndent = 16f;
 
@@ -55,6 +57,18 @@ namespace WorkMonitor.UI
                 p => p.LabelShort,
                 p => pendingColonistSelection = p);
             WorkMonitorDropdownUtility.DrawDropdown(dropdownRect, stats.Label, colonistOptions);
+
+            Rect inspectRect = new Rect(
+                dropdownRect.xMax + ColonistIconGap,
+                rect.y + (26f - ColonistIconSize) * 0.5f,
+                ColonistIconSize,
+                ColonistIconSize);
+            if (Widgets.ButtonImage(inspectRect, TexButton.Info))
+            {
+                ColonistInspectUtility.OpenPawnProfile(stats.Pawn);
+            }
+
+            TooltipHandler.TipRegion(inspectRect, "WorkMonitor.OpenColonistProfile".Translate());
 
             Rect header = new Rect(rect.x, rect.y + 32f, rect.width, 18f);
             DrawHeader(header);

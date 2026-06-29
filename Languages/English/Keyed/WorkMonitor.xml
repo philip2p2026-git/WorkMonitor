@@ -48,7 +48,7 @@
 	<WorkMonitor.WorkGiversMap>WorkGivers (map)</WorkMonitor.WorkGiversMap>
 	<WorkMonitor.WorkGiversMapTip>Periodic map sample: open tasks and work-left backlog on the map. Updates every 1–12 hours (mod setting).</WorkMonitor.WorkGiversMapTip>
 	<WorkMonitor.MapTotal>Total ({0})</WorkMonitor.MapTotal>
-	<WorkMonitor.MapSummary>Map: {0} open tasks · {1} work remaining · sampled {2} ago</WorkMonitor.MapSummary>
+	<WorkMonitor.MapSummary>Map: {0} open tasks · {1} work remaining · recorded {2} · sampled {3} ago</WorkMonitor.MapSummary>
 	<WorkMonitor.ColonistsTip>Colonist stats from job events: jobs started, work-left completed, and time spent.</WorkMonitor.ColonistsTip>
 	<WorkMonitor.WorkGiver>WorkGiver</WorkMonitor.WorkGiver>
 	<WorkMonitor.Colonists>Colonists</WorkMonitor.Colonists>
@@ -67,7 +67,7 @@
 	<WorkMonitor.LastHours>Last {0}h</WorkMonitor.LastHours>
 	<WorkMonitor.ChartModeLine>Line</WorkMonitor.ChartModeLine>
 	<WorkMonitor.ChartModeStream>Stream</WorkMonitor.ChartModeStream>
-	<WorkMonitor.MapSampleGameTime>Recorded: {0}</WorkMonitor.MapSampleGameTime>
+	<WorkMonitor.MapSampleGameTime>Recorded: {0} · sampled {1} ago</WorkMonitor.MapSampleGameTime>
 	<WorkMonitor.OtherGroup>Other</WorkMonitor.OtherGroup>
 	<WorkMonitor.NoGroups>No work groups found.</WorkMonitor.NoGroups>
 	<WorkMonitor.SettingsTitle>Work Monitor</WorkMonitor.SettingsTitle>

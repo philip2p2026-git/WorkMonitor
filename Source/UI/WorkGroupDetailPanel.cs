@@ -126,6 +126,7 @@ namespace WorkMonitor.UI
             string mapSummary = "WorkMonitor.MapSummary".Translate(
                 stats.TotalMapOpenTasks,
                 WorkMonitorUtility.FormatWorkUnits(stats.TotalMapWorkLeft),
+                WorkMonitorUtility.FormatGameDateTime(stats.MapSampleTick),
                 WorkMonitorUtility.FormatSampleAge(stats.MapSampleTick));
             Widgets.Label(new Rect(rect.x + 14f, rect.y + 36f, rect.width - 14f, 16f), mapSummary);
         }
@@ -194,7 +195,9 @@ namespace WorkMonitor.UI
             GUI.color = new Color(0.72f, 0.72f, 0.72f);
             Widgets.Label(
                 new Rect(area.x, y, area.width, 16f),
-                "WorkMonitor.MapSampleGameTime".Translate(WorkMonitorUtility.FormatGameDateTime(stats.MapSampleTick)));
+                "WorkMonitor.MapSampleGameTime".Translate(
+                    WorkMonitorUtility.FormatGameDateTime(stats.MapSampleTick),
+                    WorkMonitorUtility.FormatSampleAge(stats.MapSampleTick)));
             GUI.color = prevColor;
             y += 18f;
 
