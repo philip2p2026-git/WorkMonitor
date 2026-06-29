@@ -29,64 +29,32 @@ namespace WorkMonitor.UI
             WorkActivityTracker tracker = WorkActivityTracker.EnsureRegistered();
             WorkHistoryRingBuffer history = tracker?.GetGroupHistory(stats.Group.Key.StorageKey);
             int minHour = WorkMonitorUtility.CurrentHourIndex() - RangeHours;
+            string groupKey = stats.Group.Key.StorageKey;
 
-            float gap = 6f;
-            float cellW = (rect.width - gap * 2f) / 3f;
+            float gap = 8f;
+            float cellW = (rect.width - gap) / 2f;
             float chartY = rect.y + 28f;
             float chartH = rect.height - 28f;
 
-            WorkChartDataBuilder.BuildJobCountSeries(history, minHour, out float[] jobs, out _);
-            WorkChartDataBuilder.BuildWorkUnitsSeries(history, minHour, out float[] workUnits, out _);
-            float[] share = BuildRelativeShareSeries(stats, allStats, minHour);
-
-            SimpleLineChart.Draw(
+            WorkChartDataBuilder.BuildJobCountSeries(history, minHour, out float[] colonistJobs, out _);
+            WorkChartDataBuilder.BuildMapOpenTasksSeries(history, groupKey, minHour, out float[] mapJobs);
+            DualLineChart.Draw(
                 new Rect(rect.x, chartY, cellW, chartH),
-                jobs,
-                "WorkMonitor.MetricJobCount".Translate());
-            SimpleLineChart.Draw(
+                colonistJobs,
+                mapJobs,
+                "WorkMonitor.MetricJobCount".Translate(),
+                "WorkMonitor.JobProcessed".Translate(),
+                "WorkMonitor.ExistJob".Translate());
+
+            WorkChartDataBuilder.BuildWorkUnitsSeries(history, minHour, out float[] colonistWork, out _);
+            WorkChartDataBuilder.BuildMapWorkLeftSeries(history, groupKey, minHour, out float[] mapWork);
+            DualLineChart.Draw(
                 new Rect(rect.x + cellW + gap, chartY, cellW, chartH),
-                workUnits,
-                "WorkMonitor.MetricWorkUnits".Translate());
-            SimpleLineChart.Draw(
-                new Rect(rect.x + (cellW + gap) * 2f, chartY, cellW, chartH),
-                share,
-                "WorkMonitor.MetricRelativeShare".Translate());
-        }
-
-        private static float[] BuildRelativeShareSeries(WorkGroupStats stats, List<WorkGroupStats> allStats, int minHour)
-        {
-            WorkActivityTracker tracker = WorkActivityTracker.EnsureRegistered();
-            WorkHistoryRingBuffer groupHistory = tracker?.GetGroupHistory(stats.Group.Key.StorageKey);
-            if (groupHistory == null)
-            {
-                return new float[0];
-            }
-
-            List<float> values = new List<float>();
-            foreach (var bucket in groupHistory.Buckets)
-            {
-                if (bucket.hourIndex < minHour)
-                {
-                    continue;
-                }
-
-                int colonyTicks = 0;
-                foreach (WorkGroupStats other in allStats)
-                {
-                    WorkHistoryRingBuffer otherHistory = tracker.GetGroupHistory(other.Group.Key.StorageKey);
-                    foreach (var otherBucket in otherHistory.Buckets)
-                    {
-                        if (otherBucket.hourIndex == bucket.hourIndex)
-                        {
-                            colonyTicks += otherBucket.ticksSpent;
-                        }
-                    }
-                }
-
-                values.Add(colonyTicks > 0 ? bucket.ticksSpent / (float)colonyTicks * 100f : 0f);
-            }
-
-            return values.ToArray();
+                colonistWork,
+                mapWork,
+                "WorkMonitor.MetricWorkUnits".Translate(),
+                "WorkMonitor.WorkProcessed".Translate(),
+                "WorkMonitor.ExistWork".Translate());
         }
     }
 }

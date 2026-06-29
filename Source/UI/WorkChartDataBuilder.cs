@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using RimWorld;
 using UnityEngine;
 using Verse;
@@ -91,6 +92,207 @@ namespace WorkMonitor.UI
                 labels[i] = (b.hourIndex % 24).ToString() + "h";
                 i++;
             }
+        }
+
+        public static void BuildMapOpenTasksSeries(
+            WorkHistoryRingBuffer colonistHistory,
+            string groupStorageKey,
+            int minHourIndex,
+            out float[] values)
+        {
+            values = BuildMapMetricSeries(colonistHistory, minHourIndex, groupStorageKey, map: true);
+        }
+
+        public static void BuildMapWorkLeftSeries(
+            WorkHistoryRingBuffer colonistHistory,
+            string groupStorageKey,
+            int minHourIndex,
+            out float[] values)
+        {
+            values = BuildMapMetricSeries(colonistHistory, minHourIndex, groupStorageKey, map: false);
+        }
+
+        private static float[] BuildMapMetricSeries(
+            WorkHistoryRingBuffer colonistHistory,
+            int minHourIndex,
+            string groupStorageKey,
+            bool map)
+        {
+            var buckets = colonistHistory?.Buckets;
+            if (buckets == null || buckets.Count == 0)
+            {
+                return new float[0];
+            }
+
+            MapWorkSampler sampler = MapWorkSampler.EnsureRegistered();
+            IReadOnlyList<MapWorkSnapshot> mapHistory = sampler?.GetHistory();
+            if (mapHistory == null || mapHistory.Count == 0)
+            {
+                int emptyCount = 0;
+                foreach (var b in buckets)
+                {
+                    if (b.hourIndex >= minHourIndex)
+                    {
+                        emptyCount++;
+                    }
+                }
+
+                return new float[emptyCount];
+            }
+
+            List<float> values = new List<float>();
+            float lastValue = 0f;
+            int mapIndex = 0;
+            foreach (var bucket in buckets)
+            {
+                if (bucket.hourIndex < minHourIndex)
+                {
+                    continue;
+                }
+
+                while (mapIndex < mapHistory.Count && mapHistory[mapIndex].hourIndex <= bucket.hourIndex)
+                {
+                    if (mapHistory[mapIndex].perGroupKey.TryGetValue(groupStorageKey, out MapWorkGroupSnapshot groupSnap))
+                    {
+                        lastValue = map ? groupSnap.openTaskCount : groupSnap.workLeftTotal;
+                    }
+
+                    mapIndex++;
+                }
+
+                values.Add(lastValue);
+            }
+
+            return values.ToArray();
+        }
+    }
+
+    public static class DualLineChart
+    {
+        private static readonly Color ColonistColor = new Color(0.4f, 0.85f, 0.5f);
+        private static readonly Color MapColor = new Color(0.95f, 0.65f, 0.3f);
+        private static readonly Color GridColor = new Color(0.45f, 0.45f, 0.45f, 0.35f);
+
+        public static void Draw(
+            Rect rect,
+            float[] colonistValues,
+            float[] mapValues,
+            string title,
+            string colonistLegend,
+            string mapLegend)
+        {
+            Widgets.DrawBoxSolid(rect, new Color(0.1f, 0.1f, 0.1f, 0.35f));
+            Text.Font = GameFont.Tiny;
+            Widgets.Label(new Rect(rect.x + 4f, rect.y + 2f, rect.width - 8f, 16f), title);
+
+            float legendY = rect.y + 18f;
+            DrawLegendEntry(new Rect(rect.x + 6f, legendY, rect.width * 0.5f - 8f, 14f), ColonistColor, colonistLegend);
+            DrawLegendEntry(new Rect(rect.x + rect.width * 0.5f, legendY, rect.width * 0.5f - 6f, 14f), MapColor, mapLegend);
+
+            const float axisWidth = 30f;
+            Rect plot = new Rect(rect.x + axisWidth + 4f, rect.y + 34f, rect.width - axisWidth - 12f, rect.height - 40f);
+            if (colonistValues == null || colonistValues.Length == 0)
+            {
+                Widgets.Label(plot, "-");
+                return;
+            }
+
+            float dataMax = 0.01f;
+            foreach (float v in colonistValues)
+            {
+                if (v > dataMax)
+                {
+                    dataMax = v;
+                }
+            }
+
+            if (mapValues != null)
+            {
+                foreach (float v in mapValues)
+                {
+                    if (v > dataMax)
+                    {
+                        dataMax = v;
+                    }
+                }
+            }
+
+            float yMax = dataMax * 1.2f;
+            DrawYAxis(new Rect(rect.x + 2f, plot.y, axisWidth, plot.height), yMax);
+
+            for (int tick = 1; tick <= 3; tick++)
+            {
+                float fraction = tick / 4f;
+                float y = plot.yMax - plot.height * fraction;
+                Widgets.DrawLine(new Vector2(plot.x, y), new Vector2(plot.xMax, y), GridColor, 1f);
+            }
+
+            DrawSeries(plot, colonistValues, yMax, ColonistColor);
+            if (mapValues != null && mapValues.Length == colonistValues.Length)
+            {
+                DrawSeries(plot, mapValues, yMax, MapColor);
+            }
+        }
+
+        private static void DrawLegendEntry(Rect rect, Color color, string label)
+        {
+            Widgets.DrawBoxSolid(new Rect(rect.x, rect.y + 3f, 10f, 10f), color);
+            Color prev = GUI.color;
+            GUI.color = new Color(0.75f, 0.75f, 0.75f);
+            Widgets.Label(new Rect(rect.x + 14f, rect.y, rect.width - 14f, rect.height), label);
+            GUI.color = prev;
+        }
+
+        private static void DrawSeries(Rect plot, float[] values, float yMax, Color color)
+        {
+            Vector2 prev = default;
+            for (int i = 0; i < values.Length; i++)
+            {
+                float x = plot.x + plot.width * i / Mathf.Max(1, values.Length - 1);
+                float y = plot.yMax - plot.height * (values[i] / yMax);
+                if (i > 0)
+                {
+                    Widgets.DrawLine(prev, new Vector2(x, y), color, 1f);
+                }
+
+                prev = new Vector2(x, y);
+            }
+        }
+
+        private static void DrawYAxis(Rect axis, float yMax)
+        {
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.MiddleRight;
+            Color prev = GUI.color;
+            GUI.color = new Color(0.7f, 0.7f, 0.7f);
+
+            for (int tick = 1; tick <= 3; tick++)
+            {
+                float fraction = tick / 4f;
+                float y = axis.yMax - axis.height * fraction;
+                float value = yMax * fraction;
+                Widgets.Label(new Rect(axis.x, y - 7f, axis.width - 2f, 14f), FormatAxisValue(value));
+            }
+
+            Widgets.Label(new Rect(axis.x, axis.y - 2f, axis.width - 2f, 14f), FormatAxisValue(yMax));
+
+            GUI.color = prev;
+            Text.Anchor = TextAnchor.UpperLeft;
+        }
+
+        private static string FormatAxisValue(float value)
+        {
+            if (value >= 10000f)
+            {
+                return (value / 1000f).ToString("0.#") + "k";
+            }
+
+            if (value >= 100f)
+            {
+                return value.ToString("0");
+            }
+
+            return value.ToString("0.#");
         }
     }
 

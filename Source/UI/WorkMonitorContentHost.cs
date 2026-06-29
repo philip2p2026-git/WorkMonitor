@@ -46,7 +46,7 @@ namespace WorkMonitor.UI
 
             if (view == MonitorView.GroupDetail)
             {
-                detailPanel.Draw(rect, out bool back, out bool highlight, out bool colonistClicked, out ColonistWorkStat selectedColonistStat, out WorkGroupSnapshot groupChanged);
+                detailPanel.Draw(rect, out bool back, out bool colonistClicked, out ColonistWorkStat selectedColonistStat, out WorkGroupSnapshot groupChanged);
                 if (groupChanged != null)
                 {
                     selectedGroup = groupChanged;
@@ -62,10 +62,6 @@ namespace WorkMonitor.UI
                     selectedColonist = selectedColonistStat.Pawn;
                     colonistDetailPanel.SetColonist(selectedColonist, selectedGroup, openGroupDetail: true);
                     view = MonitorView.ColonistDetail;
-                }
-                else if (highlight && selectedGroup != null)
-                {
-                    WorkTabHighlightController.HighlightGroup(selectedGroup);
                 }
 
                 return;

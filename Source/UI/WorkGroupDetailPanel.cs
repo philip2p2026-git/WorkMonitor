@@ -36,10 +36,9 @@ namespace WorkMonitor.UI
             stats = WorkGroupStatsAggregator.Build(group);
         }
 
-        public void Draw(Rect rect, out bool back, out bool highlight, out bool colonistClicked, out ColonistWorkStat selectedColonist, out WorkGroupSnapshot groupChanged)
+        public void Draw(Rect rect, out bool back, out bool colonistClicked, out ColonistWorkStat selectedColonist, out WorkGroupSnapshot groupChanged)
         {
             back = false;
-            highlight = false;
             colonistClicked = false;
             selectedColonist = null;
             groupChanged = null;
@@ -68,13 +67,6 @@ namespace WorkMonitor.UI
                     }
                 });
             WorkMonitorDropdownUtility.DrawDropdown(dropdownRect, stats.Group.Label, groupOptions);
-
-            Rect highlightRect = new Rect(rect.xMax - 120f, rect.y, 120f, 26f);
-            if (Widgets.ButtonText(highlightRect, "WorkMonitor.HighlightShort".Translate()))
-            {
-                highlight = true;
-            }
-            TooltipHandler.TipRegion(highlightRect, "WorkMonitor.HighlightInWorkTab".Translate());
 
             Rect header = new Rect(rect.x, rect.y + 32f, rect.width, 52f);
             DrawHeader(header);

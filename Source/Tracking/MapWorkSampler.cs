@@ -59,6 +59,11 @@ namespace WorkMonitor.Tracking
             return latestSnapshot;
         }
 
+        public IReadOnlyList<MapWorkSnapshot> GetHistory()
+        {
+            return historyBuffer;
+        }
+
         public override void GameComponentTick()
         {
             if (Find.TickManager.TicksGame % 250 != 0)
