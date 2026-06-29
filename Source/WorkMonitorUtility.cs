@@ -1,9 +1,6 @@
 using System.Collections.Generic;
-using System.Linq;
 using RimWorld;
-using UnityEngine;
 using Verse;
-using Verse.AI;
 
 namespace WorkMonitor
 {
@@ -47,24 +44,6 @@ namespace WorkMonitor
             return CurrentTicksGame() / WorkMonitorSettings.TicksPerHour;
         }
 
-        public static float EstimateWorkUnitsForInterval(Pawn pawn, Job job, int delta)
-        {
-            if (pawn == null || job == null || delta <= 0)
-            {
-                return 0f;
-            }
-
-            float factor = pawn.GetStatValue(StatDefOf.WorkSpeedGlobal);
-            WorkTypeDef workType = job.workGiverDef?.workType;
-            SkillDef skill = workType?.relevantSkills?.FirstOrDefault();
-            if (skill != null && pawn.skills != null)
-            {
-                factor *= 0.3f + pawn.skills.GetSkill(skill).Level / 20f;
-            }
-
-            return factor * delta;
-        }
-
         public static string FormatWorkUnits(float units)
         {
             if (units >= 10000f)
@@ -73,6 +52,23 @@ namespace WorkMonitor
             }
 
             return units.ToString("0");
+        }
+
+        public static string FormatSampleAge(int sampleTick)
+        {
+            if (sampleTick <= 0)
+            {
+                return "—";
+            }
+
+            int ageTicks = CurrentTicksGame() - sampleTick;
+            if (ageTicks < WorkMonitorSettings.TicksPerHour)
+            {
+                return "<1h";
+            }
+
+            float hours = ageTicks / (float)WorkMonitorSettings.TicksPerHour;
+            return hours.ToString("0.#") + "h";
         }
     }
 }

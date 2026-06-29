@@ -27,7 +27,7 @@ namespace WorkMonitor.Groups
             groups.AddRange(WorkTabGroupsProvider.GetCustomGroups());
             groups.AddRange(new OtherWorkGroupProvider().GetGroups());
 
-            cachedGroups = groups;
+            cachedGroups = WorkGroupOrderUtility.Sort(groups);
             lastCacheTick = tick;
             return cachedGroups;
         }
@@ -44,6 +44,7 @@ namespace WorkMonitor.Groups
             int statsWindow = WorkMonitorMod.Settings?.StatsWindowTicks ?? WorkMonitorSettings.TicksPerHour * 24;
             int minHour = WorkMonitorUtility.CurrentHourIndex() - (WorkMonitorMod.Settings?.statsWindowHours ?? 24);
             WorkHistoryRingBuffer history = tracker?.GetGroupHistory(group.Key.StorageKey);
+            MapWorkSnapshot mapSnapshot = MapWorkSampler.EnsureRegistered()?.GetLatestSnapshot();
 
             int mostRecentEnabledWorkTick = -1;
 
@@ -130,24 +131,30 @@ namespace WorkMonitor.Groups
 
             foreach (WorkGiverDef wg in group.WorkGivers)
             {
-                int wgJobs = 0;
-                int wgTicks = 0;
-                float wgUnits = 0f;
-                foreach (Pawn pawn in colonists)
+                MapWorkGiverSnapshot mapSnap = null;
+                if (mapSnapshot?.perWorkGiver != null)
                 {
-                    wgJobs += tracker?.SumPawnWorkGiverJobs(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
-                    wgTicks += tracker?.SumPawnWorkGiverTicks(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
-                    wgUnits += tracker?.SumPawnWorkGiverWorkUnits(pawn.thingIDNumber, wg.defName, minHour) ?? 0f;
+                    mapSnapshot.perWorkGiver.TryGetValue(wg.defName, out mapSnap);
                 }
 
                 stats.WorkGiverStats.Add(new WorkGiverStat
                 {
                     WorkGiver = wg,
                     Label = WorkGiverLabelUtility.Format(wg),
-                    JobCount = wgJobs,
-                    TicksSpent = wgTicks,
-                    WorkUnitsSpent = wgUnits
+                    JobCount = mapSnap?.openTaskCount ?? 0,
+                    TicksSpent = 0,
+                    WorkUnitsSpent = mapSnap?.workLeftTotal ?? 0f
                 });
+            }
+
+            if (mapSnapshot != null)
+            {
+                stats.MapSampleTick = mapSnapshot.sampleTick;
+                if (mapSnapshot.perGroupKey.TryGetValue(group.Key.StorageKey, out MapWorkGroupSnapshot groupSnap))
+                {
+                    stats.TotalMapOpenTasks = groupSnap.openTaskCount;
+                    stats.TotalMapWorkLeft = groupSnap.workLeftTotal;
+                }
             }
 
             foreach (ColonistWorkStat colonist in stats.ColonistStats)

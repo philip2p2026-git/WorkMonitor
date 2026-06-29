@@ -20,8 +20,28 @@
 	<WorkMonitor.WorkedCount>worked {0}</WorkMonitor.WorkedCount>
 	<WorkMonitor.InterestCount>{0} major · {1} minor</WorkMonitor.InterestCount>
 	<WorkMonitor.InterestShort>{0} major {1} minor</WorkMonitor.InterestShort>
-	<WorkMonitor.FooterSummary>{0} groups · {1} jobs · {2} total colony work</WorkMonitor.FooterSummary>
+	<WorkMonitor.FooterSummary>{0} groups · map {1}/{2} · done {3}/{4}</WorkMonitor.FooterSummary>
+	<WorkMonitor.ExistJob>ExistJob</WorkMonitor.ExistJob>
+	<WorkMonitor.ExistWork>ExistWork</WorkMonitor.ExistWork>
+	<WorkMonitor.JobProcessed>Job Processed</WorkMonitor.JobProcessed>
+	<WorkMonitor.WorkProcessed>Work Processed</WorkMonitor.WorkProcessed>
+	<WorkMonitor.ExistJobTip>Open tasks on the map (periodic sample).</WorkMonitor.ExistJobTip>
+	<WorkMonitor.ExistWorkTip>Work remaining on the map (periodic sample).</WorkMonitor.ExistWorkTip>
+	<WorkMonitor.JobProcessedTip>Jobs started by colonists in the stats window.</WorkMonitor.JobProcessedTip>
+	<WorkMonitor.WorkProcessedTip>Work completed by colonists in the stats window.</WorkMonitor.WorkProcessedTip>
+	<WorkMonitor.Groups>Groups</WorkMonitor.Groups>
+	<WorkMonitor.ColonistDetailTitle>{0} — Work</WorkMonitor.ColonistDetailTitle>
+	<WorkMonitor.ColonistSummary>{0} · {1} jobs · {2} work · {3}</WorkMonitor.ColonistSummary>
+	<WorkMonitor.TimeShare>Time %</WorkMonitor.TimeShare>
+	<WorkMonitor.ColonistsIconTip>Info opens colonist bio. Map icon opens colonist work breakdown.</WorkMonitor.ColonistsIconTip>
+	<WorkMonitor.OpenColonistProfile>Open colonist bio</WorkMonitor.OpenColonistProfile>
+	<WorkMonitor.OpenColonistWork>Open colonist work view</WorkMonitor.OpenColonistWork>
 	<WorkMonitor.WorkGivers>WorkGivers</WorkMonitor.WorkGivers>
+	<WorkMonitor.WorkGiversMap>WorkGivers (map)</WorkMonitor.WorkGiversMap>
+	<WorkMonitor.WorkGiversMapTip>Periodic map sample: open tasks and work-left backlog on the map. Updates every 1–12 hours (mod setting).</WorkMonitor.WorkGiversMapTip>
+	<WorkMonitor.MapTotal>Total ({0})</WorkMonitor.MapTotal>
+	<WorkMonitor.MapSummary>Map: {0} open tasks · {1} work remaining · sampled {2} ago</WorkMonitor.MapSummary>
+	<WorkMonitor.ColonistsTip>Colonist stats from job events: jobs started, work-left completed, and time spent.</WorkMonitor.ColonistsTip>
 	<WorkMonitor.WorkGiver>WorkGiver</WorkMonitor.WorkGiver>
 	<WorkMonitor.Colonists>Colonists</WorkMonitor.Colonists>
 	<WorkMonitor.Colonist>Colonist</WorkMonitor.Colonist>
@@ -57,6 +77,8 @@
 	<WorkMonitor.SettingsShowSkillOnWorkGiver>Show skill role on WorkGiver labels</WorkMonitor.SettingsShowSkillOnWorkGiver>
 	<WorkMonitor.SettingsWorkGiverLabelFormat>WorkGiver label format ({skill}, {label})</WorkMonitor.SettingsWorkGiverLabelFormat>
 	<WorkMonitor.SettingsSkillRoleOverrides>Skill role overrides (SkillDef=Label, comma-separated)</WorkMonitor.SettingsSkillRoleOverrides>
+	<WorkMonitor.SettingsMapSampleInterval>Map work sample interval</WorkMonitor.SettingsMapSampleInterval>
+	<WorkMonitor.SettingsMapSampleCycle>Cycle map sample interval</WorkMonitor.SettingsMapSampleCycle>
 	<WorkMonitor.ColonistRow>{0} — {1} jobs · {2} — {3}</WorkMonitor.ColonistRow>
 	<WorkMonitor.PassionMajor>major</WorkMonitor.PassionMajor>
 	<WorkMonitor.PassionMinor>minor</WorkMonitor.PassionMinor>

@@ -1,3 +1,4 @@
+using RimWorld;
 using UnityEngine;
 using Verse;
 using WorkMonitor.Groups;
@@ -7,13 +8,15 @@ namespace WorkMonitor.UI
     public enum MonitorView
     {
         Overview,
-        GroupDetail
+        GroupDetail,
+        ColonistDetail
     }
 
     public class WorkMonitorContentHost
     {
         private readonly WorkGroupOverviewPanel overviewPanel = new WorkGroupOverviewPanel();
         private readonly WorkGroupDetailPanel detailPanel = new WorkGroupDetailPanel();
+        private readonly ColonistDetailPanel colonistDetailPanel = new ColonistDetailPanel();
 
         private MonitorView view = MonitorView.Overview;
         private WorkGroupSnapshot selectedGroup;
@@ -35,19 +38,35 @@ namespace WorkMonitor.UI
                     detailPanel.SetGroup(selectedGroup);
                     view = MonitorView.GroupDetail;
                 }
+
+                return;
             }
-            else
+
+            if (view == MonitorView.GroupDetail)
             {
-                detailPanel.Draw(rect, out bool back, out bool highlight);
+                detailPanel.Draw(rect, out bool back, out bool highlight, out bool colonistClicked, out ColonistWorkStat selectedColonist);
                 if (back)
                 {
                     view = MonitorView.Overview;
                     selectedGroup = null;
                 }
+                else if (colonistClicked && selectedColonist?.Pawn != null)
+                {
+                    colonistDetailPanel.SetColonist(selectedColonist.Pawn);
+                    view = MonitorView.ColonistDetail;
+                }
                 else if (highlight && selectedGroup != null)
                 {
                     WorkTabHighlightController.HighlightGroup(selectedGroup);
                 }
+
+                return;
+            }
+
+            colonistDetailPanel.Draw(rect, out bool colonistBack);
+            if (colonistBack)
+            {
+                view = MonitorView.GroupDetail;
             }
         }
     }

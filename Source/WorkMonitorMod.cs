@@ -1,6 +1,7 @@
 using HarmonyLib;
 using UnityEngine;
 using Verse;
+using WorkMonitor.Tracking;
 
 namespace WorkMonitor
 {
@@ -57,6 +58,20 @@ namespace WorkMonitor
 
             listing.Label("WorkMonitor.SettingsSkillRoleOverrides".Translate());
             Settings.skillRoleOverrides = listing.TextEntry(Settings.skillRoleOverrides ?? "");
+            listing.Gap(6f);
+
+            listing.Label("WorkMonitor.SettingsMapSampleInterval".Translate() + ": " + MapWorkSampler.NormalizeInterval(Settings.mapSampleIntervalHours) + "h");
+            if (listing.ButtonText("WorkMonitor.SettingsMapSampleCycle".Translate()))
+            {
+                Settings.mapSampleIntervalHours = MapWorkSampler.NormalizeInterval(Settings.mapSampleIntervalHours) switch
+                {
+                    1 => 2,
+                    2 => 3,
+                    3 => 6,
+                    6 => 12,
+                    _ => 1
+                };
+            }
             listing.End();
         }
 

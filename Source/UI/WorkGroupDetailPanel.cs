@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using RimWorld;
 using UnityEngine;
 using Verse;
 using WorkMonitor.Groups;
@@ -9,6 +10,9 @@ namespace WorkMonitor.UI
     {
         private const float RowHeight = 24f;
         private const float ChartHeight = 168f;
+        private const float ColonistIconSize = 18f;
+        private const float ColonistIconGap = 2f;
+        private const float ColonistIconsWidth = ColonistIconSize * 2f + ColonistIconGap;
         private const float KpiJobWidth = 42f;
         private const float KpiWorkWidth = 52f;
         private const float JobsWidth = 42f;
@@ -27,10 +31,12 @@ namespace WorkMonitor.UI
             stats = WorkGroupStatsAggregator.Build(group);
         }
 
-        public void Draw(Rect rect, out bool back, out bool highlight)
+        public void Draw(Rect rect, out bool back, out bool highlight, out bool colonistClicked, out ColonistWorkStat selectedColonist)
         {
             back = false;
             highlight = false;
+            colonistClicked = false;
+            selectedColonist = null;
 
             if (stats == null)
             {
@@ -55,20 +61,20 @@ namespace WorkMonitor.UI
             }
             TooltipHandler.TipRegion(highlightRect, "WorkMonitor.HighlightInWorkTab".Translate());
 
-            Rect header = new Rect(rect.x, rect.y + 32f, rect.width, 36f);
+            Rect header = new Rect(rect.x, rect.y + 32f, rect.width, 52f);
             DrawHeader(header);
 
             Rect chartRect = new Rect(rect.x, header.yMax + 4f, rect.width, ChartHeight);
             chartPanel.Draw(chartRect, stats, allStats);
 
             Rect content = new Rect(rect.x, chartRect.yMax + 6f, rect.width, rect.yMax - chartRect.yMax - 12f);
-            int rowCount = stats.ColonistStats.Count + stats.WorkGiverStats.Count;
+            int rowCount = stats.ColonistStats.Count + stats.WorkGiverStats.Count + 1;
             float viewHeight = 108f + rowCount * RowHeight;
             Rect view = new Rect(0f, 0f, content.width - 16f, viewHeight);
             Widgets.BeginScrollView(content, ref scroll, view);
 
             float y = 0f;
-            DrawColonistTable(new Rect(0f, y, view.width, viewHeight - y), ref y);
+            DrawColonistTable(new Rect(0f, y, view.width, viewHeight - y), ref y, out colonistClicked, out selectedColonist);
             y += 12f;
             DrawWorkGiverTable(new Rect(0f, y, view.width, viewHeight - y), ref y);
 
@@ -94,12 +100,23 @@ namespace WorkMonitor.UI
                 WorkMonitorUtility.FormatWorkUnits(stats.TotalWorkUnits),
                 WorkMonitorUtility.FormatDuration(stats.TotalTicksSpent, WorkMonitorMod.Settings?.showTimeInHours ?? true));
             Widgets.Label(new Rect(rect.x + 14f, rect.y + 18f, rect.width - 14f, 16f), totals);
+
+            string mapSummary = "WorkMonitor.MapSummary".Translate(
+                stats.TotalMapOpenTasks,
+                WorkMonitorUtility.FormatWorkUnits(stats.TotalMapWorkLeft),
+                WorkMonitorUtility.FormatSampleAge(stats.MapSampleTick));
+            Widgets.Label(new Rect(rect.x + 14f, rect.y + 36f, rect.width - 14f, 16f), mapSummary);
         }
 
-        private void DrawColonistTable(Rect area, ref float y)
+        private void DrawColonistTable(Rect area, ref float y, out bool colonistClicked, out ColonistWorkStat selectedColonist)
         {
+            colonistClicked = false;
+            selectedColonist = null;
+
             Text.Font = GameFont.Small;
-            Widgets.Label(new Rect(area.x, y, area.width, 22f), "WorkMonitor.Colonists".Translate());
+            Rect titleRect = new Rect(area.x, y, area.width, 22f);
+            Widgets.Label(titleRect, "WorkMonitor.Colonists".Translate());
+            TooltipHandler.TipRegion(titleRect, "WorkMonitor.ColonistsIconTip".Translate());
             y += RowHeight;
 
             DrawColonistHeader(new Rect(area.x, y, area.width, RowHeight));
@@ -114,7 +131,19 @@ namespace WorkMonitor.UI
                     Widgets.DrawBoxSolid(row, new Color(1f, 1f, 1f, 0.03f));
                 }
 
-                DrawColonistRow(row, colonist);
+                if (DrawColonistRow(row, colonist, out bool inspectClicked, out bool workClicked))
+                {
+                    if (inspectClicked)
+                    {
+                        ColonistInspectUtility.OpenPawnProfile(colonist.Pawn);
+                    }
+                    else if (workClicked)
+                    {
+                        colonistClicked = true;
+                        selectedColonist = colonist;
+                    }
+                }
+
                 y += RowHeight;
                 rowIndex++;
             }
@@ -123,7 +152,9 @@ namespace WorkMonitor.UI
         private void DrawWorkGiverTable(Rect area, ref float y)
         {
             Text.Font = GameFont.Small;
-            Widgets.Label(new Rect(area.x, y, area.width, 22f), "WorkMonitor.WorkGivers".Translate());
+            Rect titleRect = new Rect(area.x, y, area.width, 22f);
+            Widgets.Label(titleRect, "WorkMonitor.WorkGiversMap".Translate());
+            TooltipHandler.TipRegion(titleRect, "WorkMonitor.WorkGiversMapTip".Translate());
             y += RowHeight;
 
             DrawWorkGiverHeader(new Rect(area.x, y, area.width, RowHeight));
@@ -142,6 +173,11 @@ namespace WorkMonitor.UI
                 y += RowHeight;
                 rowIndex++;
             }
+
+            Rect totalRow = new Rect(area.x, y, area.width, RowHeight);
+            Widgets.DrawBoxSolid(totalRow, new Color(1f, 1f, 1f, 0.05f));
+            DrawWorkGiverTotalRow(totalRow);
+            y += RowHeight;
         }
 
         private static void DrawColonistHeader(Rect row)
@@ -150,8 +186,9 @@ namespace WorkMonitor.UI
             Color prev = GUI.color;
             GUI.color = new Color(0.72f, 0.72f, 0.72f);
 
-            GetDetailTableColumns(
+            GetColonistTableColumns(
                 row,
+                out Rect iconsCol,
                 out Rect labelCol,
                 out Rect kpiJobCol,
                 out Rect kpiWorkCol,
@@ -159,6 +196,7 @@ namespace WorkMonitor.UI
                 out Rect workCol,
                 out Rect timeCol);
 
+            Widgets.Label(iconsCol, "");
             Widgets.Label(labelCol, "WorkMonitor.Colonist".Translate());
             LabelRight(kpiJobCol, "WorkMonitor.KpiJobs".Translate());
             LabelRight(kpiWorkCol, "WorkMonitor.KpiWork".Translate());
@@ -169,17 +207,40 @@ namespace WorkMonitor.UI
             GUI.color = prev;
         }
 
-        private void DrawColonistRow(Rect row, ColonistWorkStat colonist)
+        private static bool DrawColonistRow(Rect row, ColonistWorkStat colonist, out bool inspectClicked, out bool workClicked)
         {
+            inspectClicked = false;
+            workClicked = false;
+
             Text.Font = GameFont.Small;
-            GetDetailTableColumns(
+            GetColonistTableColumns(
                 row,
+                out Rect iconsCol,
                 out Rect labelCol,
                 out Rect kpiJobCol,
                 out Rect kpiWorkCol,
                 out Rect jobsCol,
                 out Rect workCol,
                 out Rect timeCol);
+
+            Rect inspectRect = new Rect(iconsCol.x, row.y + (row.height - ColonistIconSize) * 0.5f, ColonistIconSize, ColonistIconSize);
+            Rect workRect = new Rect(inspectRect.xMax + ColonistIconGap, inspectRect.y, ColonistIconSize, ColonistIconSize);
+            if (Widgets.ButtonImage(inspectRect, TexButton.Info))
+            {
+                inspectClicked = true;
+                return true;
+            }
+
+            TooltipHandler.TipRegion(inspectRect, "WorkMonitor.OpenColonistProfile".Translate());
+            Text.Font = GameFont.Tiny;
+            if (Widgets.ButtonText(workRect, "W"))
+            {
+                workClicked = true;
+                return true;
+            }
+
+            Text.Font = GameFont.Small;
+            TooltipHandler.TipRegion(workRect, "WorkMonitor.OpenColonistWork".Translate());
 
             string passion = WorkMonitorUiUtility.PassionShort(colonist.Passion);
             Widgets.Label(labelCol, (passion + " " + colonist.Label).Trim().Truncate(labelCol.width));
@@ -190,6 +251,7 @@ namespace WorkMonitor.UI
             LabelRight(
                 timeCol,
                 WorkMonitorUtility.FormatDuration(colonist.TicksSpent, WorkMonitorMod.Settings?.showTimeInHours ?? true));
+            return false;
         }
 
         private static void DrawWorkGiverHeader(Rect row)
@@ -198,20 +260,11 @@ namespace WorkMonitor.UI
             Color prev = GUI.color;
             GUI.color = new Color(0.72f, 0.72f, 0.72f);
 
-            GetDetailTableColumns(
-                row,
-                out Rect labelCol,
-                out Rect kpiJobCol,
-                out Rect kpiWorkCol,
-                out Rect jobsCol,
-                out Rect workCol,
-                out Rect timeCol);
+            GetMapTableColumns(row, out Rect labelCol, out Rect jobsCol, out Rect workCol);
 
-            Rect nameHeader = Rect.MinMaxRect(labelCol.xMin, labelCol.yMin, kpiWorkCol.xMax, labelCol.yMax);
-            Widgets.Label(nameHeader, "WorkMonitor.WorkGiver".Translate());
+            Widgets.Label(labelCol, "WorkMonitor.WorkGiver".Translate());
             LabelRight(jobsCol, "WorkMonitor.Jobs".Translate());
             LabelRight(workCol, "WorkMonitor.Work".Translate());
-            LabelRight(timeCol, "WorkMonitor.Time".Translate());
 
             GUI.color = prev;
         }
@@ -219,26 +272,29 @@ namespace WorkMonitor.UI
         private void DrawWorkGiverRow(Rect row, WorkGiverStat wg)
         {
             Text.Font = GameFont.Small;
-            GetDetailTableColumns(
-                row,
-                out Rect labelCol,
-                out Rect kpiJobCol,
-                out Rect kpiWorkCol,
-                out Rect jobsCol,
-                out Rect workCol,
-                out Rect timeCol);
+            GetMapTableColumns(row, out Rect labelCol, out Rect jobsCol, out Rect workCol);
 
-            Rect nameCol = Rect.MinMaxRect(labelCol.xMin, labelCol.yMin, kpiWorkCol.xMax, labelCol.yMax);
-            Widgets.Label(nameCol, wg.Label.Truncate(nameCol.width));
+            Widgets.Label(labelCol, wg.Label.Truncate(labelCol.width));
             LabelRight(jobsCol, wg.JobCount.ToString());
             LabelRight(workCol, WorkMonitorUtility.FormatWorkUnits(wg.WorkUnitsSpent));
-            LabelRight(
-                timeCol,
-                WorkMonitorUtility.FormatDuration(wg.TicksSpent, WorkMonitorMod.Settings?.showTimeInHours ?? true));
         }
 
-        private static void GetDetailTableColumns(
+        private void DrawWorkGiverTotalRow(Rect row)
+        {
+            Text.Font = GameFont.Small;
+            GetMapTableColumns(row, out Rect labelCol, out Rect jobsCol, out Rect workCol);
+
+            Color prev = GUI.color;
+            GUI.color = new Color(0.85f, 0.85f, 0.85f);
+            Widgets.Label(labelCol, "WorkMonitor.MapTotal".Translate(stats.Group.Label));
+            LabelRight(jobsCol, stats.TotalMapOpenTasks.ToString());
+            LabelRight(workCol, WorkMonitorUtility.FormatWorkUnits(stats.TotalMapWorkLeft));
+            GUI.color = prev;
+        }
+
+        private static void GetColonistTableColumns(
             Rect row,
+            out Rect iconsCol,
             out Rect labelCol,
             out Rect kpiJobCol,
             out Rect kpiWorkCol,
@@ -251,15 +307,29 @@ namespace WorkMonitor.UI
             float jobsX = workX - ColumnGap - JobsWidth;
             float kpiWorkX = jobsX - ColumnGap - KpiWorkWidth;
             float kpiJobX = kpiWorkX - ColumnGap - KpiJobWidth;
-            float labelX = row.x;
+            float labelX = row.x + ColonistIconsWidth + 4f;
             float labelWidth = kpiJobX - ColumnGap - labelX;
 
-            labelCol = new Rect(labelX, row.y, Mathf.Max(labelWidth, 60f), row.height);
+            iconsCol = new Rect(row.x, row.y, ColonistIconsWidth, row.height);
+            labelCol = new Rect(labelX, row.y, Mathf.Max(labelWidth, 48f), row.height);
             kpiJobCol = new Rect(kpiJobX, row.y, KpiJobWidth, row.height);
             kpiWorkCol = new Rect(kpiWorkX, row.y, KpiWorkWidth, row.height);
             jobsCol = new Rect(jobsX, row.y, JobsWidth, row.height);
             workCol = new Rect(workX, row.y, WorkWidth, row.height);
             timeCol = new Rect(timeX, row.y, TimeWidth, row.height);
+        }
+
+        private static void GetMapTableColumns(Rect row, out Rect labelCol, out Rect jobsCol, out Rect workCol)
+        {
+            float timeX = row.xMax - TimeWidth;
+            float workX = timeX - ColumnGap - WorkWidth;
+            float jobsX = workX - ColumnGap - JobsWidth;
+            float labelX = row.x;
+            float labelWidth = jobsX - ColumnGap - labelX;
+
+            labelCol = new Rect(labelX, row.y, Mathf.Max(labelWidth, 60f), row.height);
+            jobsCol = new Rect(jobsX, row.y, JobsWidth, row.height);
+            workCol = new Rect(workX, row.y, WorkWidth, row.height);
         }
 
         private static string FormatPerHour(float value, bool integer)

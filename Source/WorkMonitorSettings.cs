@@ -17,6 +17,7 @@ namespace WorkMonitor
         public bool showSkillOnWorkGiverLabels = true;
         public string workGiverLabelFormat = "{skill}: {label}";
         public string skillRoleOverrides = "";
+        public int mapSampleIntervalHours = 6;
 
         public Vector2 monitorWindowSize = new Vector2(720f, 520f);
 
@@ -86,6 +87,7 @@ namespace WorkMonitor
             Scribe_Values.Look(ref showSkillOnWorkGiverLabels, "showSkillOnWorkGiverLabels", true);
             Scribe_Values.Look(ref workGiverLabelFormat, "workGiverLabelFormat", "{skill}: {label}");
             Scribe_Values.Look(ref skillRoleOverrides, "skillRoleOverrides", "");
+            Scribe_Values.Look(ref mapSampleIntervalHours, "mapSampleIntervalHours", 6);
             Scribe_Values.Look(ref monitorWindowSize, "monitorWindowSize", new Vector2(720f, 520f));
             skillRoleOverrideCache = null;
         }

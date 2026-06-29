@@ -2,14 +2,26 @@ using System.Collections.Generic;
 using RimWorld;
 using UnityEngine;
 using Verse;
+using Verse.AI;
 using WorkMonitor.Groups;
 
 namespace WorkMonitor.Tracking
 {
+    public enum WorkLeftTrackingMode
+    {
+        Snapshot,
+        BillIncremental
+    }
+
     public class ActiveWorkJob
     {
         public string workGiverDefName;
         public int startTick;
+        public bool tracksWorkLeft;
+        public float startWorkLeft;
+        public WorkLeftTrackingMode trackingMode;
+        public float lastBillWorkLeft = -1f;
+        public float accumulatedWorkUnits;
     }
 
     public class WorkActivityTracker : GameComponent
@@ -74,47 +86,118 @@ namespace WorkMonitor.Tracking
             PruneStaleData();
         }
 
-        public void RecordJobStart(Pawn pawn, WorkGiverDef workGiver, int tick)
+        public void RecordJobStart(Pawn pawn, WorkGiverDef workGiver, Job job, int tick)
         {
             if (pawn == null || workGiver == null || !pawn.IsColonist)
             {
                 return;
             }
 
-            FinalizeActiveJob(pawn, tick);
+            FinalizeActiveJob(pawn, tick, null, null);
 
             WorkActivityRecord record = GetOrCreateRecord(pawn.thingIDNumber, workGiver.defName);
             record.lastWorkTick = tick;
             record.jobCount++;
 
             int hour = tick / WorkMonitorSettings.TicksPerHour;
-            GetPawnWorkGiverHistory(pawn.thingIDNumber, workGiver.defName).GetOrCreateBucket(hour).jobCount++;
+            HourlyWorkBucket pawnHourBucket = GetPawnWorkGiverHistory(pawn.thingIDNumber, workGiver.defName).GetOrCreateBucket(hour);
+            pawnHourBucket.jobCount++;
+            if (!pawnHourBucket.pawnJobCount.ContainsKey(pawn.thingIDNumber))
+            {
+                pawnHourBucket.pawnJobCount[pawn.thingIDNumber] = 0;
+            }
+
+            pawnHourBucket.pawnJobCount[pawn.thingIDNumber]++;
 
             foreach (string groupKey in WorkGroupKeyResolver.ResolveGroupKeysForWorkGiver(workGiver))
             {
                 GetGroupHistory(groupKey).GetOrCreateBucket(hour).jobCount++;
             }
 
-            activeJobs[pawn.thingIDNumber] = new ActiveWorkJob
+            if (job?.bill != null)
             {
-                workGiverDefName = workGiver.defName,
-                startTick = tick
-            };
+                activeJobs[pawn.thingIDNumber] = new ActiveWorkJob
+                {
+                    workGiverDefName = workGiver.defName,
+                    startTick = tick,
+                    trackingMode = WorkLeftTrackingMode.BillIncremental,
+                    lastBillWorkLeft = -1f,
+                    accumulatedWorkUnits = 0f,
+                    tracksWorkLeft = false,
+                    startWorkLeft = 0f
+                };
+            }
+            else
+            {
+                bool tracksWorkLeft = WorkLeftResolver.TryGetWorkLeft(job, pawn, out float startWorkLeft);
+                activeJobs[pawn.thingIDNumber] = new ActiveWorkJob
+                {
+                    workGiverDefName = workGiver.defName,
+                    startTick = tick,
+                    trackingMode = WorkLeftTrackingMode.Snapshot,
+                    tracksWorkLeft = tracksWorkLeft,
+                    startWorkLeft = startWorkLeft
+                };
+            }
         }
 
-        public void RecordJobEnd(Pawn pawn, WorkGiverDef workGiver, int tick)
+        public void RecordJobEnd(Pawn pawn, WorkGiverDef workGiver, Job endingJob, int tick)
         {
             if (pawn == null)
             {
                 return;
             }
 
+            SampleBillWorkLeft(pawn, tick);
+
             if (workGiver == null && activeJobs.TryGetValue(pawn.thingIDNumber, out ActiveWorkJob active))
             {
                 workGiver = DefDatabase<WorkGiverDef>.GetNamedSilentFail(active.workGiverDefName);
             }
 
-            FinalizeActiveJob(pawn, tick, workGiver);
+            FinalizeActiveJob(pawn, tick, workGiver, endingJob);
+        }
+
+        public void SampleBillWorkLeft(Pawn pawn, int tick)
+        {
+            if (pawn == null || !activeJobs.TryGetValue(pawn.thingIDNumber, out ActiveWorkJob active))
+            {
+                return;
+            }
+
+            if (active.trackingMode != WorkLeftTrackingMode.BillIncremental)
+            {
+                return;
+            }
+
+            if (!WorkLeftResolver.TryGetBillDriverWorkLeft(pawn, out float currentWorkLeft))
+            {
+                return;
+            }
+
+            WorkGiverDef workGiver = DefDatabase<WorkGiverDef>.GetNamedSilentFail(active.workGiverDefName);
+            if (workGiver == null)
+            {
+                return;
+            }
+
+            if (active.lastBillWorkLeft < 0f)
+            {
+                active.lastBillWorkLeft = currentWorkLeft;
+                return;
+            }
+
+            if (currentWorkLeft < active.lastBillWorkLeft)
+            {
+                float delta = active.lastBillWorkLeft - currentWorkLeft;
+                active.lastBillWorkLeft = currentWorkLeft;
+                active.accumulatedWorkUnits += delta;
+                CreditWorkUnits(pawn, workGiver, tick, delta);
+            }
+            else if (currentWorkLeft > active.lastBillWorkLeft)
+            {
+                active.lastBillWorkLeft = currentWorkLeft;
+            }
         }
 
         public WorkActivityRecord GetRecord(int pawnId, string workGiverDefName)
@@ -161,28 +244,6 @@ namespace WorkMonitor.Tracking
             return buffer.SumWorkUnits(minHourIndex);
         }
 
-        public void RecordWorkUnits(Pawn pawn, WorkGiverDef workGiver, float units, int tick)
-        {
-            if (pawn == null || workGiver == null || units <= 0f || !pawn.IsColonist)
-            {
-                return;
-            }
-
-            WorkActivityRecord record = GetOrCreateRecord(pawn.thingIDNumber, workGiver.defName);
-            record.workUnitsSpent += units;
-            record.lastWorkTick = tick;
-
-            int hour = tick / WorkMonitorSettings.TicksPerHour;
-            HourlyWorkBucket pawnBucket = GetPawnWorkGiverHistory(pawn.thingIDNumber, workGiver.defName).GetOrCreateBucket(hour);
-            pawnBucket.AddWorkUnits(pawn.thingIDNumber, units);
-
-            foreach (string groupKey in WorkGroupKeyResolver.ResolveGroupKeysForWorkGiver(workGiver))
-            {
-                HourlyWorkBucket groupBucket = GetGroupHistory(groupKey).GetOrCreateBucket(hour);
-                groupBucket.AddWorkUnits(pawn.thingIDNumber, units);
-            }
-        }
-
         public WorkHistoryRingBuffer GetGroupHistory(string groupKey)
         {
             if (!groupHistory.TryGetValue(groupKey, out WorkHistoryRingBuffer buffer))
@@ -193,6 +254,18 @@ namespace WorkMonitor.Tracking
             }
 
             return buffer;
+        }
+
+        public bool TryGetPawnWorkGiverHistory(int pawnId, string workGiverDefName, out WorkHistoryRingBuffer buffer)
+        {
+            buffer = null;
+            if (!pawnWorkGiverHistory.TryGetValue(pawnId, out Dictionary<string, WorkHistoryRingBuffer> perWg)
+                || !perWg.TryGetValue(workGiverDefName, out buffer))
+            {
+                return false;
+            }
+
+            return true;
         }
 
         public void PruneStaleData()
@@ -302,12 +375,14 @@ namespace WorkMonitor.Tracking
             }
         }
 
-        private void FinalizeActiveJob(Pawn pawn, int tick, WorkGiverDef explicitWorkGiver = null)
+        private void FinalizeActiveJob(Pawn pawn, int tick, WorkGiverDef explicitWorkGiver, Job endingJob)
         {
             if (!activeJobs.TryGetValue(pawn.thingIDNumber, out ActiveWorkJob active))
             {
                 return;
             }
+
+            SampleBillWorkLeft(pawn, tick);
 
             WorkGiverDef workGiver = explicitWorkGiver ?? DefDatabase<WorkGiverDef>.GetNamedSilentFail(active.workGiverDefName);
             if (workGiver == null)
@@ -330,6 +405,20 @@ namespace WorkMonitor.Tracking
 
             pawnBucket.pawnTicksSpent[pawn.thingIDNumber] += elapsed;
 
+            float workDelta = 0f;
+            if (active.trackingMode == WorkLeftTrackingMode.Snapshot
+                && active.tracksWorkLeft
+                && WorkLeftResolver.TryGetWorkLeft(endingJob, pawn, out float endWorkLeft))
+            {
+                workDelta = Mathf.Max(0f, active.startWorkLeft - endWorkLeft);
+            }
+
+            if (workDelta > 0f)
+            {
+                record.workUnitsSpent += workDelta;
+                pawnBucket.AddWorkUnits(pawn.thingIDNumber, workDelta);
+            }
+
             foreach (string groupKey in WorkGroupKeyResolver.ResolveGroupKeysForWorkGiver(workGiver))
             {
                 HourlyWorkBucket groupBucket = GetGroupHistory(groupKey).GetOrCreateBucket(hour);
@@ -340,9 +429,33 @@ namespace WorkMonitor.Tracking
                 }
 
                 groupBucket.pawnTicksSpent[pawn.thingIDNumber] += elapsed;
+                if (workDelta > 0f)
+                {
+                    groupBucket.AddWorkUnits(pawn.thingIDNumber, workDelta);
+                }
             }
 
             activeJobs.Remove(pawn.thingIDNumber);
+        }
+
+        private void CreditWorkUnits(Pawn pawn, WorkGiverDef workGiver, int tick, float units)
+        {
+            if (units <= 0f)
+            {
+                return;
+            }
+
+            WorkActivityRecord record = GetOrCreateRecord(pawn.thingIDNumber, workGiver.defName);
+            record.workUnitsSpent += units;
+
+            int hour = tick / WorkMonitorSettings.TicksPerHour;
+            HourlyWorkBucket pawnBucket = GetPawnWorkGiverHistory(pawn.thingIDNumber, workGiver.defName).GetOrCreateBucket(hour);
+            pawnBucket.AddWorkUnits(pawn.thingIDNumber, units);
+
+            foreach (string groupKey in WorkGroupKeyResolver.ResolveGroupKeysForWorkGiver(workGiver))
+            {
+                GetGroupHistory(groupKey).GetOrCreateBucket(hour).AddWorkUnits(pawn.thingIDNumber, units);
+            }
         }
 
         private WorkHistoryRingBuffer GetPawnWorkGiverHistory(int pawnId, string workGiverDefName)

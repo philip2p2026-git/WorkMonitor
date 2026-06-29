@@ -9,11 +9,6 @@ namespace WorkMonitor.UI
     {
         private const float RowHeight = 30f;
         private const float StatusWidth = 22f;
-        private const float JobsWidth = 42f;
-        private const float TimeWidth = 50f;
-        private const float WorkedWidth = 52f;
-        private const float InterestWidth = 58f;
-        private const float ColumnGap = 10f;
 
         private Vector2 scroll;
         private List<WorkGroupStats> cachedStats = new List<WorkGroupStats>();
@@ -70,18 +65,26 @@ namespace WorkMonitor.UI
 
             Widgets.EndScrollView();
 
+            int totalOpenTasks = 0;
+            float totalMapWork = 0f;
             int totalJobs = 0;
-            int totalTicks = 0;
+            float totalWork = 0f;
             foreach (WorkGroupStats s in cachedStats)
             {
+                totalOpenTasks += s.TotalMapOpenTasks;
+                totalMapWork += s.TotalMapWorkLeft;
                 totalJobs += s.TotalJobCount;
-                totalTicks += s.TotalTicksSpent;
+                totalWork += s.TotalWorkUnits;
             }
 
-            string time = WorkMonitorUtility.FormatDuration(totalTicks, WorkMonitorMod.Settings?.showTimeInHours ?? true);
             Widgets.Label(
                 new Rect(rect.x, rect.yMax - 28f, rect.width, 24f),
-                "WorkMonitor.FooterSummary".Translate(cachedStats.Count, totalJobs, time));
+                "WorkMonitor.FooterSummary".Translate(
+                    cachedStats.Count,
+                    totalOpenTasks,
+                    WorkMonitorUtility.FormatWorkUnits(totalMapWork),
+                    totalJobs,
+                    WorkMonitorUtility.FormatWorkUnits(totalWork)));
 
             return selected;
         }
@@ -92,14 +95,10 @@ namespace WorkMonitor.UI
             Color prev = GUI.color;
             GUI.color = new Color(0.72f, 0.72f, 0.72f);
 
-            GetColumnRects(rect, out Rect statusCol, out Rect groupCol, out Rect jobsCol, out Rect timeCol, out Rect workedCol, out Rect interestCol);
-
-            Widgets.Label(statusCol, "WorkMonitor.Status".Translate());
-            Widgets.Label(groupCol, "WorkMonitor.Group".Translate());
-            LabelRight(jobsCol, "WorkMonitor.Jobs".Translate());
-            LabelRight(timeCol, "WorkMonitor.Time".Translate());
-            LabelRight(workedCol, "WorkMonitor.Worked".Translate());
-            LabelRight(interestCol, "WorkMonitor.Interest".Translate());
+            float metricsLeft = WorkMonitorTableColumns.OverviewMetricsLeftEdge(rect);
+            Widgets.Label(new Rect(rect.x, rect.y, StatusWidth, rect.height), "WorkMonitor.Status".Translate());
+            Widgets.Label(new Rect(rect.x + StatusWidth + 4f, rect.y, metricsLeft - rect.x - StatusWidth - 12f, rect.height), "WorkMonitor.Group".Translate());
+            WorkMonitorTableColumns.DrawOverviewMetricHeader(rect, LabelRight);
 
             GUI.color = prev;
         }
@@ -107,44 +106,23 @@ namespace WorkMonitor.UI
         private static void DrawRow(Rect row, WorkGroupStats stats)
         {
             Text.Font = GameFont.Small;
-            GetColumnRects(row, out Rect statusCol, out Rect groupCol, out Rect jobsCol, out Rect timeCol, out Rect workedCol, out Rect interestCol);
+            float metricsLeft = WorkMonitorTableColumns.OverviewMetricsLeftEdge(row);
 
             Color dot = WorkMonitorUiUtility.StatusColor(stats.Status);
             float dotSize = 10f;
             Widgets.DrawBoxSolid(
-                new Rect(statusCol.x + (statusCol.width - dotSize) * 0.5f, row.y + (row.height - dotSize) * 0.5f, dotSize, dotSize),
+                new Rect(row.x + (StatusWidth - dotSize) * 0.5f, row.y + (row.height - dotSize) * 0.5f, dotSize, dotSize),
                 dot);
 
-            Widgets.Label(groupCol, stats.Group.Label.Truncate(groupCol.width));
-            LabelRight(jobsCol, stats.TotalJobCount.ToString());
-            LabelRight(timeCol,
-                WorkMonitorUtility.FormatDuration(stats.TotalTicksSpent, WorkMonitorMod.Settings?.showTimeInHours ?? true));
-            LabelRight(workedCol, stats.WorkedCount + "/" + stats.EnabledCount);
-            LabelRight(interestCol, WorkMonitorUiUtility.FormatInterestRatio(stats));
-        }
+            Widgets.Label(
+                new Rect(row.x + StatusWidth + 4f, row.y, metricsLeft - row.x - StatusWidth - 12f, row.height),
+                stats.Group.Label.Truncate(metricsLeft - row.x - StatusWidth - 12f));
 
-        private static void GetColumnRects(
-            Rect row,
-            out Rect statusCol,
-            out Rect groupCol,
-            out Rect jobsCol,
-            out Rect timeCol,
-            out Rect workedCol,
-            out Rect interestCol)
-        {
-            float interestX = row.xMax - InterestWidth;
-            float workedX = interestX - ColumnGap - WorkedWidth;
-            float timeX = workedX - ColumnGap - TimeWidth;
-            float jobsX = timeX - ColumnGap - JobsWidth;
-            float groupX = row.x + StatusWidth + 4f;
-            float groupWidth = jobsX - ColumnGap - groupX;
-
-            statusCol = new Rect(row.x, row.y, StatusWidth, row.height);
-            groupCol = new Rect(groupX, row.y, Mathf.Max(groupWidth, 60f), row.height);
-            jobsCol = new Rect(jobsX, row.y, JobsWidth, row.height);
-            timeCol = new Rect(timeX, row.y, TimeWidth, row.height);
-            workedCol = new Rect(workedX, row.y, WorkedWidth, row.height);
-            interestCol = new Rect(interestX, row.y, InterestWidth, row.height);
+            WorkMonitorTableColumns.GetOverviewMetricColumns(row, out Rect existJobCol, out Rect existWorkCol, out Rect jobProcessedCol, out Rect workProcessedCol);
+            LabelRight(existJobCol, stats.TotalMapOpenTasks.ToString());
+            LabelRight(existWorkCol, WorkMonitorUtility.FormatWorkUnits(stats.TotalMapWorkLeft));
+            LabelRight(jobProcessedCol, stats.TotalJobCount.ToString());
+            LabelRight(workProcessedCol, WorkMonitorUtility.FormatWorkUnits(stats.TotalWorkUnits));
         }
 
         private static void LabelRight(Rect rect, string text)

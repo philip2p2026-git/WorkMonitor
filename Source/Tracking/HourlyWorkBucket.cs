@@ -11,6 +11,7 @@ namespace WorkMonitor.Tracking
         public float workUnitsSpent;
         public Dictionary<int, int> pawnTicksSpent = new Dictionary<int, int>();
         public Dictionary<int, float> pawnWorkUnitsSpent = new Dictionary<int, float>();
+        public Dictionary<int, int> pawnJobCount = new Dictionary<int, int>();
 
         public void AddJob(int pawnId, int ticks)
         {
@@ -49,8 +50,10 @@ namespace WorkMonitor.Tracking
             Scribe_Values.Look(ref workUnitsSpent, "workUnitsSpent", 0f);
             Scribe_Collections.Look(ref pawnTicksSpent, "pawnTicksSpent", LookMode.Value, LookMode.Value);
             Scribe_Collections.Look(ref pawnWorkUnitsSpent, "pawnWorkUnitsSpent", LookMode.Value, LookMode.Value);
+            Scribe_Collections.Look(ref pawnJobCount, "pawnJobCount", LookMode.Value, LookMode.Value);
             pawnTicksSpent ??= new Dictionary<int, int>();
             pawnWorkUnitsSpent ??= new Dictionary<int, float>();
+            pawnJobCount ??= new Dictionary<int, int>();
         }
     }
 }

@@ -63,5 +63,38 @@ namespace WorkMonitor.UI
             fill.width *= Mathf.Clamp01(percent / 100f);
             Widgets.DrawBoxSolid(fill, new Color(0.35f, 0.7f, 0.95f, 0.85f));
         }
+
+        public static string FormatWithShare(int value, int total)
+        {
+            if (total <= 0 || value <= 0)
+            {
+                return value.ToString();
+            }
+
+            int pct = Mathf.RoundToInt(value * 100f / total);
+            return value + " (" + pct + "%)";
+        }
+
+        public static string FormatWorkWithShare(float value, float total)
+        {
+            string formatted = WorkMonitorUtility.FormatWorkUnits(value);
+            if (total <= 0f || value <= 0f)
+            {
+                return formatted;
+            }
+
+            int pct = Mathf.RoundToInt(value * 100f / total);
+            return formatted + " (" + pct + "%)";
+        }
+
+        public static string FormatTimeShare(int pawnTicks, int groupTicks)
+        {
+            if (groupTicks <= 0 || pawnTicks <= 0)
+            {
+                return "—";
+            }
+
+            return Mathf.RoundToInt(pawnTicks * 100f / groupTicks) + "%";
+        }
     }
 }

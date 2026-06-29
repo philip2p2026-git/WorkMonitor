@@ -18,7 +18,7 @@ namespace WorkMonitor.Patches
             }
 
             WorkActivityTracker tracker = WorkActivityTracker.EnsureRegistered();
-            tracker?.RecordJobEnd(pawn, null, Find.TickManager.TicksGame);
+            tracker?.RecordJobEnd(pawn, null, __instance.curJob, Find.TickManager.TicksGame);
         }
 
         public static void Postfix(Pawn_JobTracker __instance, Job newJob)
@@ -30,14 +30,14 @@ namespace WorkMonitor.Patches
             }
 
             WorkActivityTracker tracker = WorkActivityTracker.EnsureRegistered();
-            tracker?.RecordJobStart(pawn, newJob.workGiverDef, Find.TickManager.TicksGame);
+            tracker?.RecordJobStart(pawn, newJob.workGiverDef, newJob, Find.TickManager.TicksGame);
         }
     }
 
     [HarmonyPatch(typeof(Pawn_JobTracker), nameof(Pawn_JobTracker.EndCurrentJob))]
     public static class Patch_RecordWorkEnd
     {
-        public static void Postfix(Pawn_JobTracker __instance)
+        public static void Prefix(Pawn_JobTracker __instance)
         {
             Pawn pawn = Traverse.Create(__instance).Field("pawn").GetValue<Pawn>();
             if (pawn == null)
@@ -45,9 +45,10 @@ namespace WorkMonitor.Patches
                 return;
             }
 
-            WorkGiverDef workGiver = __instance.curJob?.workGiverDef;
+            Job endingJob = __instance.curJob;
+            WorkGiverDef workGiver = endingJob?.workGiverDef;
             WorkActivityTracker tracker = WorkActivityTracker.EnsureRegistered();
-            tracker?.RecordJobEnd(pawn, workGiver, Find.TickManager.TicksGame);
+            tracker?.RecordJobEnd(pawn, workGiver, endingJob, Find.TickManager.TicksGame);
         }
     }
 }

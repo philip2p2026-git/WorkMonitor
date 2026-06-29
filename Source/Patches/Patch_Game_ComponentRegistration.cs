@@ -20,8 +20,9 @@ namespace WorkMonitor.Patches
 
         public static void Postfix(Game __instance)
         {
-            __instance.components.RemoveAll(c => c is WorkActivityTracker);
+            __instance.components.RemoveAll(c => c is WorkActivityTracker || c is MapWorkSampler);
             WorkActivityTracker.ClearInstance();
+            MapWorkSampler.ClearInstance();
         }
     }
 
@@ -31,6 +32,8 @@ namespace WorkMonitor.Patches
         public static void Postfix()
         {
             WorkActivityTracker.EnsureRegistered();
+            MapWorkSampler sampler = MapWorkSampler.EnsureRegistered();
+            sampler?.TrySampleIfDue(force: true);
         }
     }
 }

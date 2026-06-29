@@ -9,7 +9,7 @@ namespace WorkMonitor.Groups
     {
         public IEnumerable<WorkGroupSnapshot> GetGroups()
         {
-            foreach (WorkTypeDef workType in DefDatabase<WorkTypeDef>.AllDefsListForReading.OrderBy(w => w.label))
+            foreach (WorkTypeDef workType in DefDatabase<WorkTypeDef>.AllDefsListForReading.OrderByDescending(w => w.naturalPriority))
             {
                 if (workType.workGiversByPriority == null || workType.workGiversByPriority.Count == 0)
                 {
