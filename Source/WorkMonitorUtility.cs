@@ -1,0 +1,48 @@
+using System.Collections.Generic;
+using System.Linq;
+using RimWorld;
+using Verse;
+
+namespace WorkMonitor
+{
+    public static class WorkMonitorUtility
+    {
+        public static IEnumerable<Pawn> MonitorColonists()
+        {
+            Map map = Find.CurrentMap;
+            if (map == null)
+            {
+                yield break;
+            }
+
+            foreach (Pawn pawn in map.mapPawns.FreeColonists)
+            {
+                if (pawn.Spawned && !pawn.DevelopmentalStage.Baby())
+                {
+                    yield return pawn;
+                }
+            }
+        }
+
+        public static string FormatDuration(int ticks, bool asHours)
+        {
+            if (asHours)
+            {
+                float hours = ticks / (float)WorkMonitorSettings.TicksPerHour;
+                return "WorkMonitor.Hours".Translate(hours.ToString("0.#"));
+            }
+
+            return ticks.ToString();
+        }
+
+        public static int CurrentTicksGame()
+        {
+            return Find.TickManager.TicksGame;
+        }
+
+        public static int CurrentHourIndex()
+        {
+            return CurrentTicksGame() / WorkMonitorSettings.TicksPerHour;
+        }
+    }
+}

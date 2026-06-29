@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+	<WorkMonitor.ModName>Work Monitor</WorkMonitor.ModName>
+	<WorkMonitor.OpenMonitor>Open work monitor</WorkMonitor.OpenMonitor>
+	<WorkMonitor.OverviewTitle>Work Monitor — Overview</WorkMonitor.OverviewTitle>
+	<WorkMonitor.DetailTitle>{0} — Detail</WorkMonitor.DetailTitle>
+	<WorkMonitor.Back>Back</WorkMonitor.Back>
+	<WorkMonitor.HighlightInWorkTab>Highlight in Work Tab</WorkMonitor.HighlightInWorkTab>
+	<WorkMonitor.Status>Status</WorkMonitor.Status>
+	<WorkMonitor.Group>Group</WorkMonitor.Group>
+	<WorkMonitor.Jobs>Jobs</WorkMonitor.Jobs>
+	<WorkMonitor.Time>Time</WorkMonitor.Time>
+	<WorkMonitor.Worked>Worked</WorkMonitor.Worked>
+	<WorkMonitor.Interest>Interest</WorkMonitor.Interest>
+	<WorkMonitor.Capable>capable {0}</WorkMonitor.Capable>
+	<WorkMonitor.Enabled>enabled {0}</WorkMonitor.Enabled>
+	<WorkMonitor.WorkedCount>worked {0}</WorkMonitor.WorkedCount>
+	<WorkMonitor.InterestCount>{0} major · {1} minor</WorkMonitor.InterestCount>
+	<WorkMonitor.InterestShort>{0} major {1} minor</WorkMonitor.InterestShort>
+	<WorkMonitor.FooterSummary>{0} groups · {1} jobs · {2} total colony work</WorkMonitor.FooterSummary>
+	<WorkMonitor.WorkGivers>WorkGivers</WorkMonitor.WorkGivers>
+	<WorkMonitor.Colonists>Colonists (work among)</WorkMonitor.Colonists>
+	<WorkMonitor.Range>Range</WorkMonitor.Range>
+	<WorkMonitor.Metric>Metric</WorkMonitor.Metric>
+	<WorkMonitor.MetricJobCount>Job count</WorkMonitor.MetricJobCount>
+	<WorkMonitor.MetricTimeConsumed>Time consumed</WorkMonitor.MetricTimeConsumed>
+	<WorkMonitor.MetricWorkAmong>Work among</WorkMonitor.MetricWorkAmong>
+	<WorkMonitor.MetricRelativeShare>Relative work consumed</WorkMonitor.MetricRelativeShare>
+	<WorkMonitor.Hours>{0}h</WorkMonitor.Hours>
+	<WorkMonitor.LastHours>Last {0}h</WorkMonitor.LastHours>
+	<WorkMonitor.OtherGroup>Other</WorkMonitor.OtherGroup>
+	<WorkMonitor.NoGroups>No work groups found.</WorkMonitor.NoGroups>
+	<WorkMonitor.SettingsTitle>Work Monitor</WorkMonitor.SettingsTitle>
+	<WorkMonitor.SettingsStatsWindow>Stats rolling window (hours)</WorkMonitor.SettingsStatsWindow>
+	<WorkMonitor.SettingsChartHistory>Chart history (hours)</WorkMonitor.SettingsChartHistory>
+	<WorkMonitor.SettingsGreenHours>Green status threshold (hours)</WorkMonitor.SettingsGreenHours>
+	<WorkMonitor.SettingsYellowHours>Yellow status threshold (hours)</WorkMonitor.SettingsYellowHours>
+	<WorkMonitor.SettingsRefreshTicks>UI refresh interval (ticks)</WorkMonitor.SettingsRefreshTicks>
+	<WorkMonitor.SettingsShowTimeInHours>Display time in hours</WorkMonitor.SettingsShowTimeInHours>
+	<WorkMonitor.StatusGreen>Active</WorkMonitor.StatusGreen>
+	<WorkMonitor.StatusYellow>Stale</WorkMonitor.StatusYellow>
+	<WorkMonitor.StatusRed>Idle</WorkMonitor.StatusRed>
+	<WorkMonitor.StatusGrey>No capable colonists</WorkMonitor.StatusGrey>
+	<WorkMonitor.JobsTimeSummary>{0} jobs · {1}</WorkMonitor.JobsTimeSummary>
+	<WorkMonitor.WorkGiverRow>{0} — {1} jobs · {2}</WorkMonitor.WorkGiverRow>
+	<WorkMonitor.ColonistRow>{0} — {1} jobs · {2} — {3}</WorkMonitor.ColonistRow>
+	<WorkMonitor.PassionMajor>major</WorkMonitor.PassionMajor>
+	<WorkMonitor.PassionMinor>minor</WorkMonitor.PassionMinor>
+	<WorkMonitor.PassionNone>—</WorkMonitor.PassionNone>
+</LanguageData>

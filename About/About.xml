@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+	<name>Work Monitor</name>
+	<author>philip2p2026</author>
+	<packageId>philip2p2026.workmonitor</packageId>
+	<description>Read-only work activity dashboard for the Work Tab. See which work groups are active, who worked, passion interest, time spent, and charts over time. Does not change gameplay or priorities. Enhanced when Work Tab Groups is installed.</description>
+	<supportedVersions>
+		<li>1.6</li>
+	</supportedVersions>
+	<modDependencies>
+		<li>
+			<packageId>brrainz.harmony</packageId>
+			<displayName>Harmony</displayName>
+			<steamWorkshopUrl>steam://url/CommunityFilePage/2009463077</steamWorkshopUrl>
+		</li>
+		<li>
+			<packageId>Fluffy.WorkTab</packageId>
+			<displayName>Work Tab</displayName>
+			<steamWorkshopUrl>steam://url/CommunityFilePage/3453549086</steamWorkshopUrl>
+		</li>
+	</modDependencies>
+	<loadAfter>
+		<li>brrainz.harmony</li>
+		<li>Fluffy.WorkTab</li>
+		<li>philip2p2026.worktabgroups</li>
+	</loadAfter>
+</ModMetaData>
