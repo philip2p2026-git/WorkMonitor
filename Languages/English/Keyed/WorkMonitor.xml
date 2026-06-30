@@ -26,7 +26,7 @@
 	<WorkMonitor.JobProcessed>Job Processed</WorkMonitor.JobProcessed>
 	<WorkMonitor.WorkProcessed>est. Worked</WorkMonitor.WorkProcessed>
 	<WorkMonitor.ExistJobTip>Open tasks on the map (periodic sample).</WorkMonitor.ExistJobTip>
-	<WorkMonitor.ExistWorkTip>Work remaining on the map (periodic sample).</WorkMonitor.ExistWorkTip>
+	<WorkMonitor.ExistWorkTip>Estimated work remaining on open map tasks (periodic sample). Uses the same work-unit scale as colonist Work where trackable: bill/frame/mine work-left, sow harvest work, and repair job-driver equivalent (not full build cost or every empty zone cell).</WorkMonitor.ExistWorkTip>
 	<WorkMonitor.JobProcessedTip>Regular jobs started by colonists in the selected range (excludes endless station jobs).</WorkMonitor.JobProcessedTip>
 	<WorkMonitor.WorkProcessedTip>Work completed by colonists in the selected range (includes estimates when work-left is unavailable).</WorkMonitor.WorkProcessedTip>
 	<WorkMonitor.Groups>Groups</WorkMonitor.Groups>

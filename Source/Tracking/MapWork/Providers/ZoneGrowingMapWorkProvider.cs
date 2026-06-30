@@ -39,27 +39,16 @@ namespace WorkMonitor.Tracking.MapWork.Providers
                         continue;
                     }
 
-                    if (plant == null && sow != null && WantsSow(map, cell, growing))
+                    if (plant == null && sow != null
+                        && GrowerSowMapUtility.TryGetSowWork(map, cell, growing, out float sowWork, out _))
                     {
-                        ThingDef plantDef = growing.GetPlantDefToGrow();
-                        float work = plantDef?.plant != null ? plantDef.plant.sowWork : 0f;
                         targets.Add(new ScannedMapTarget(
                             "growsow:" + cell,
-                            work,
+                            sowWork,
                             new List<WorkGiverDef> { sow }));
                     }
                 }
             }
-        }
-
-        private static bool WantsSow(Map map, IntVec3 cell, Zone_Growing growing)
-        {
-            if (!cell.Standable(map) || cell.Fogged(map))
-            {
-                return false;
-            }
-
-            return growing.GetPlantDefToGrow() != null;
         }
     }
 }

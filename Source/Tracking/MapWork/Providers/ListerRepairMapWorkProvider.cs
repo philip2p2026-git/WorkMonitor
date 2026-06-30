@@ -14,27 +14,23 @@ namespace WorkMonitor.Tracking.MapWork.Providers
                 return;
             }
 
-            List<WorkGiverDef> workGivers = new List<WorkGiverDef> { workGiver };
-            HashSet<int> seen = new HashSet<int>();
-
-            foreach (Thing thing in map.listerThings.AllThings)
+            Faction playerFaction = Faction.OfPlayer;
+            if (playerFaction == null)
             {
-                if (thing == null || !thing.Spawned || !thing.def.useHitPoints || thing.Destroyed)
-                {
-                    continue;
-                }
+                return;
+            }
 
-                if (thing.HitPoints >= thing.MaxHitPoints)
-                {
-                    continue;
-                }
+            List<Thing> repairables = map.listerBuildingsRepairable.RepairableBuildings(playerFaction);
+            if (repairables == null || repairables.Count == 0)
+            {
+                return;
+            }
 
-                if (!thing.def.building?.repairable ?? true)
-                {
-                    continue;
-                }
+            List<WorkGiverDef> workGivers = new List<WorkGiverDef> { workGiver };
 
-                if (!seen.Add(thing.thingIDNumber))
+            foreach (Thing thing in repairables)
+            {
+                if (thing == null || !thing.Spawned || thing.Destroyed)
                 {
                     continue;
                 }

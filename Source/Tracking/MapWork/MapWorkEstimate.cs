@@ -6,6 +6,12 @@ namespace WorkMonitor.Tracking.MapWork
 {
     public static class MapWorkEstimate
     {
+        /// <summary>JobDriver_Repair warmup ticks — colonist-equivalent work units.</summary>
+        public const float RepairWarmupWork = 80f;
+
+        /// <summary>JobDriver_Repair TicksBetweenRepairs — work units per HP restored at speed 1.</summary>
+        public const float RepairWorkPerHp = 20f;
+
         public static float At100Percent(float workAmount, WorkTypeDef workType)
         {
             if (workAmount <= 0f)
@@ -84,9 +90,13 @@ namespace WorkMonitor.Tracking.MapWork
             return Mathf.Max(0f, remaining);
         }
 
+        /// <summary>
+        /// Colonist-aligned repair work: matches JobDriver_Repair tick model (warmup + 20 per missing HP),
+        /// equivalent to workTicks × ConstructionSpeed credited by WorkUnitEstimator.
+        /// </summary>
         public static float FromRepair(Thing thing)
         {
-            if (thing == null || thing.Destroyed)
+            if (thing == null || thing.Destroyed || !thing.def.useHitPoints)
             {
                 return 0f;
             }
@@ -97,13 +107,7 @@ namespace WorkMonitor.Tracking.MapWork
                 return 0f;
             }
 
-            float workPerHp = thing.def.GetStatValueAbstract(StatDefOf.WorkToBuild, thing.Stuff);
-            if (workPerHp <= 0f)
-            {
-                workPerHp = 100f;
-            }
-
-            return missing * workPerHp / Mathf.Max(1f, thing.MaxHitPoints);
+            return RepairWarmupWork + missing * RepairWorkPerHp;
         }
     }
 }
