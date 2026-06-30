@@ -8,6 +8,7 @@ namespace WorkMonitor.Groups
         public Pawn Pawn;
         public string Label;
         public int JobCount;
+        public int EndlessJobCount;
         public int TicksSpent;
         public int TravelTicksSpent;
         public int WorkTicksSpent;
@@ -22,6 +23,7 @@ namespace WorkMonitor.Groups
         public WorkGiverDef WorkGiver;
         public string Label;
         public int JobCount;
+        public int EndlessJobCount;
         public int TicksSpent;
         public int TravelTicksSpent;
         public int WorkTicksSpent;
@@ -34,6 +36,7 @@ namespace WorkMonitor.Groups
         public int MapOpenTasks;
         public float MapWorkLeft;
         public int JobCount;
+        public int EndlessJobCount;
         public int TicksSpent;
         public int TravelTicksSpent;
         public int WorkTicksSpent;
@@ -48,6 +51,7 @@ namespace WorkMonitor.Groups
         public WorkGiverDef WorkGiver;
         public string Label;
         public int JobCount;
+        public int EndlessJobCount;
         public int TravelTicksSpent;
         public int WorkTicksSpent;
         public float WorkUnitsSpent;
@@ -58,6 +62,7 @@ namespace WorkMonitor.Groups
         public WorkGroupSnapshot Group;
         public Pawn Pawn;
         public int JobCount;
+        public int EndlessJobCount;
         public int TravelTicksSpent;
         public int WorkTicksSpent;
         public float WorkUnitsSpent;
@@ -70,6 +75,7 @@ namespace WorkMonitor.Groups
         public string Label;
         public Passion TopPassion;
         public int TotalJobCount;
+        public int TotalEndlessJobCount;
         public int TotalTicksSpent;
         public int TotalTravelTicksSpent;
         public int TotalWorkTicksSpent;
@@ -87,6 +93,7 @@ namespace WorkMonitor.Groups
         public int MajorInterestCount;
         public int MinorInterestCount;
         public int TotalJobCount;
+        public int TotalEndlessJobCount;
         public int TotalTicksSpent;
         public float TotalWorkUnits;
         public int TotalMapOpenTasks;

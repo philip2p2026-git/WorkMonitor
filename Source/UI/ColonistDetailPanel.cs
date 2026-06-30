@@ -17,13 +17,15 @@ namespace WorkMonitor.UI
 
         private Vector2 scroll;
         private ColonistStats stats;
+        private MonitorRangeState boundRangeState;
         private readonly HashSet<string> expandedGroupKeys = new HashSet<string>();
         private readonly Dictionary<string, ColonistGroupWorkDetail> groupDetailCache = new Dictionary<string, ColonistGroupWorkDetail>();
         private Pawn pendingColonistSelection;
 
-        public void SetColonist(Pawn pawn, WorkGroupSnapshot initialGroup = null, bool openGroupDetail = false)
+        public void SetColonist(Pawn pawn, MonitorRangeState rangeState, WorkGroupSnapshot initialGroup = null, bool openGroupDetail = false)
         {
-            stats = ColonistStatsAggregator.Build(pawn);
+            boundRangeState = rangeState;
+            stats = ColonistStatsAggregator.Build(pawn, rangeState.RangeHours);
             expandedGroupKeys.Clear();
             groupDetailCache.Clear();
 
@@ -33,7 +35,7 @@ namespace WorkMonitor.UI
             }
         }
 
-        public void Draw(Rect rect, out bool back, out bool groupClicked, out WorkGroupSnapshot selectedGroup)
+        public void Draw(Rect rect, MonitorRangeState rangeState, out bool back, out bool groupClicked, out WorkGroupSnapshot selectedGroup)
         {
             back = false;
             groupClicked = false;
@@ -70,6 +72,19 @@ namespace WorkMonitor.UI
 
             TooltipHandler.TipRegion(inspectRect, "WorkMonitor.OpenColonistProfile".Translate());
 
+            float toolbarX = inspectRect.xMax + ColonistIconGap;
+            Text.Font = GameFont.Tiny;
+            if (Widgets.ButtonText(new Rect(toolbarX, rect.y, 96f, 26f), "WorkMonitor.LastHours".Translate(rangeState.RangeHours)))
+            {
+                rangeState.CycleRangeHours();
+                SetColonist(stats.Pawn, rangeState);
+            }
+
+            if (Widgets.ButtonText(new Rect(toolbarX + 100f, rect.y, 80f, 26f), "WorkMonitor.Refresh".Translate()))
+            {
+                SetColonist(stats.Pawn, rangeState);
+            }
+
             Rect header = new Rect(rect.x, rect.y + 32f, rect.width, 18f);
             DrawHeader(header);
 
@@ -78,7 +93,7 @@ namespace WorkMonitor.UI
             Rect viewRect = new Rect(0f, 0f, content.width - 16f, viewHeight);
             Widgets.BeginScrollView(content, ref scroll, viewRect);
             float y = 0f;
-            DrawGroupTable(new Rect(0f, y, viewRect.width, viewHeight), ref y, out groupClicked, out selectedGroup);
+            DrawGroupTable(new Rect(0f, y, viewRect.width, viewHeight), rangeState, ref y, out groupClicked, out selectedGroup);
             Widgets.EndScrollView();
 
             if (pendingColonistSelection != null)
@@ -86,7 +101,7 @@ namespace WorkMonitor.UI
                 HashSet<string> preservedExpansion = new HashSet<string>(expandedGroupKeys);
                 Pawn pawn = pendingColonistSelection;
                 pendingColonistSelection = null;
-                SetColonist(pawn);
+                SetColonist(pawn, rangeState);
                 foreach (string key in preservedExpansion)
                 {
                     expandedGroupKeys.Add(key);
@@ -102,7 +117,7 @@ namespace WorkMonitor.UI
                 height += RowHeight;
                 if (expandedGroupKeys.Contains(groupStat.Group.Key.StorageKey))
                 {
-                    ColonistGroupWorkDetail detail = GetGroupDetail(groupStat.Group);
+                    ColonistGroupWorkDetail detail = GetGroupDetail(groupStat.Group, boundRangeState);
                     height += detail.WorkGiverStats.Count * RowHeight;
                 }
             }
@@ -110,12 +125,12 @@ namespace WorkMonitor.UI
             return height;
         }
 
-        private ColonistGroupWorkDetail GetGroupDetail(WorkGroupSnapshot group)
+        private ColonistGroupWorkDetail GetGroupDetail(WorkGroupSnapshot group, MonitorRangeState rangeState)
         {
             string key = group.Key.StorageKey;
             if (!groupDetailCache.TryGetValue(key, out ColonistGroupWorkDetail detail))
             {
-                detail = ColonistStatsAggregator.BuildGroupDetail(stats.Pawn, group);
+                detail = ColonistStatsAggregator.BuildGroupDetail(stats.Pawn, group, rangeState.RangeHours);
                 groupDetailCache[key] = detail;
             }
 
@@ -137,7 +152,7 @@ namespace WorkMonitor.UI
             Widgets.Label(new Rect(rect.x, rect.y, rect.width, 16f), totalSummary);
         }
 
-        private void DrawGroupTable(Rect area, ref float y, out bool groupClicked, out WorkGroupSnapshot selectedGroup)
+        private void DrawGroupTable(Rect area, MonitorRangeState rangeState, ref float y, out bool groupClicked, out WorkGroupSnapshot selectedGroup)
         {
             groupClicked = false;
             selectedGroup = null;
@@ -186,14 +201,14 @@ namespace WorkMonitor.UI
 
                 if (expanded)
                 {
-                    DrawExpandedWorkGivers(area, groupStat.Group, ref y, ref rowIndex);
+                    DrawExpandedWorkGivers(area, groupStat.Group, rangeState, ref y, ref rowIndex);
                 }
             }
         }
 
-        private void DrawExpandedWorkGivers(Rect area, WorkGroupSnapshot group, ref float y, ref int rowIndex)
+        private void DrawExpandedWorkGivers(Rect area, WorkGroupSnapshot group, MonitorRangeState rangeState, ref float y, ref int rowIndex)
         {
-            ColonistGroupWorkDetail detail = GetGroupDetail(group);
+            ColonistGroupWorkDetail detail = GetGroupDetail(group, rangeState);
             bool showHours = WorkMonitorMod.Settings?.showTimeInHours ?? true;
             Rect columnRow = new Rect(area.x, y, area.width, RowHeight);
 
@@ -214,8 +229,9 @@ namespace WorkMonitor.UI
                 GUI.color = prev;
                 Text.Font = GameFont.Small;
 
-                WorkMonitorTableColumns.GetColonistGroupColumns(columnRow, out Rect jobCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol, out _);
+                WorkMonitorTableColumns.GetColonistGroupColumns(columnRow, out Rect jobCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol, out _);
                 LabelRight(jobCol, wg.JobCount.ToString());
+                LabelRight(endlessCol, wg.EndlessJobCount.ToString());
                 LabelRight(workCol, WorkMonitorUtility.FormatWorkUnits(wg.WorkUnitsSpent));
                 LabelRight(walkCol, WorkMonitorUtility.FormatDuration(wg.TravelTicksSpent, showHours));
                 LabelRight(activeWorkCol, WorkMonitorUtility.FormatDuration(wg.WorkTicksSpent, showHours));
@@ -233,9 +249,12 @@ namespace WorkMonitor.UI
 
             float metricsLeft = WorkMonitorTableColumns.ColonistGroupMetricsLeftEdge(row);
             Widgets.Label(new Rect(row.x + ExpandButtonWidth, row.y, metricsLeft - row.x - ExpandButtonWidth - 8f, row.height), "WorkMonitor.Group".Translate());
-            WorkMonitorTableColumns.GetColonistGroupColumns(row, out Rect jobCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol, out Rect shareCol);
+            WorkMonitorTableColumns.GetColonistGroupColumns(row, out Rect jobCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol, out Rect shareCol);
             LabelRight(jobCol, "WorkMonitor.Jobs".Translate());
+            LabelRight(endlessCol, "WorkMonitor.EndlessJobs".Translate());
+            TooltipHandler.TipRegion(endlessCol, "WorkMonitor.EndlessJobsTip".Translate());
             LabelRight(workCol, "WorkMonitor.Work".Translate());
+            TooltipHandler.TipRegion(workCol, "WorkMonitor.WorkEstimatedTip".Translate());
             LabelRight(walkCol, "WorkMonitor.Walk".Translate());
             LabelRight(activeWorkCol, "WorkMonitor.WorkTime".Translate());
             LabelRight(shareCol, "WorkMonitor.TimeShare".Translate());
@@ -248,10 +267,11 @@ namespace WorkMonitor.UI
             Text.Font = GameFont.Small;
             float metricsLeft = WorkMonitorTableColumns.ColonistGroupMetricsLeftEdge(row);
             Widgets.Label(new Rect(row.x + ExpandButtonWidth, row.y, metricsLeft - row.x - ExpandButtonWidth - 8f, row.height), groupStat.Group.Label.Truncate(metricsLeft - row.x - ExpandButtonWidth - 8f));
-            WorkMonitorTableColumns.GetColonistGroupColumns(row, out Rect jobCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol, out Rect shareCol);
+            WorkMonitorTableColumns.GetColonistGroupColumns(row, out Rect jobCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol, out Rect shareCol);
             bool showHours = WorkMonitorMod.Settings?.showTimeInHours ?? true;
 
             LabelRight(jobCol, groupStat.JobCount.ToString());
+            LabelRight(endlessCol, groupStat.EndlessJobCount.ToString());
             LabelRight(workCol, WorkMonitorUtility.FormatWorkUnits(groupStat.WorkUnitsSpent));
             LabelRight(walkCol, WorkMonitorUtility.FormatDuration(groupStat.TravelTicksSpent, showHours));
             LabelRight(activeWorkCol, WorkMonitorUtility.FormatDuration(groupStat.WorkTicksSpent, showHours));

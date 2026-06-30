@@ -15,6 +15,7 @@ namespace WorkMonitor.UI
         private const float KpiJobWidth = 42f;
         private const float KpiWorkWidth = 52f;
         private const float JobsWidth = 42f;
+        private const float EndlessJobWidth = 44f;
         private const float WorkWidth = 52f;
         private const float WalkWidth = 40f;
         private const float ActiveWorkWidth = 40f;
@@ -29,13 +30,13 @@ namespace WorkMonitor.UI
 
         public WorkGroupSnapshot CurrentGroup => stats?.Group;
 
-        public void SetGroup(WorkGroupSnapshot group)
+        public void SetGroup(WorkGroupSnapshot group, MonitorRangeState rangeState)
         {
-            allStats = WorkGroupStatsAggregator.BuildAll();
-            stats = WorkGroupStatsAggregator.Build(group);
+            allStats = WorkGroupStatsAggregator.BuildAll(rangeState.RangeHours);
+            stats = WorkGroupStatsAggregator.Build(group, rangeState.RangeHours);
         }
 
-        public void Draw(Rect rect, out bool back, out bool colonistClicked, out ColonistWorkStat selectedColonist, out WorkGroupSnapshot groupChanged)
+        public void Draw(Rect rect, MonitorRangeState rangeState, out bool back, out bool colonistClicked, out ColonistWorkStat selectedColonist, out WorkGroupSnapshot groupChanged)
         {
             back = false;
             colonistClicked = false;
@@ -67,11 +68,24 @@ namespace WorkMonitor.UI
                 });
             WorkMonitorDropdownUtility.DrawDropdown(dropdownRect, stats.Group.Label, groupOptions);
 
+            float toolbarX = dropdownRect.xMax + 6f;
+            Text.Font = GameFont.Tiny;
+            if (Widgets.ButtonText(new Rect(toolbarX, rect.y, 96f, 26f), "WorkMonitor.LastHours".Translate(rangeState.RangeHours)))
+            {
+                rangeState.CycleRangeHours();
+                SetGroup(stats.Group, rangeState);
+            }
+
+            if (Widgets.ButtonText(new Rect(toolbarX + 100f, rect.y, 80f, 26f), "WorkMonitor.Refresh".Translate()))
+            {
+                SetGroup(stats.Group, rangeState);
+            }
+
             Rect header = new Rect(rect.x, rect.y + 32f, rect.width, 52f);
             DrawHeader(header);
 
             Rect chartRect = new Rect(rect.x, header.yMax + 4f, rect.width, ChartHeight);
-            chartPanel.Draw(chartRect, stats, allStats);
+            chartPanel.Draw(chartRect, stats, allStats, rangeState, () => SetGroup(stats.Group, rangeState));
 
             Rect content = new Rect(rect.x, chartRect.yMax + 6f, rect.width, rect.yMax - chartRect.yMax - 12f);
             int rowCount = stats.ColonistStats.Count + stats.WorkGiverStats.Count + 1;
@@ -88,7 +102,7 @@ namespace WorkMonitor.UI
 
             if (pendingGroupSelection != null)
             {
-                SetGroup(pendingGroupSelection);
+                SetGroup(pendingGroupSelection, rangeState);
                 groupChanged = pendingGroupSelection;
                 pendingGroupSelection = null;
             }
@@ -139,7 +153,7 @@ namespace WorkMonitor.UI
             Text.Font = GameFont.Small;
             Rect titleRect = new Rect(area.x, y, area.width, 22f);
             Widgets.Label(titleRect, "WorkMonitor.Colonists".Translate());
-            TooltipHandler.TipRegion(titleRect, "WorkMonitor.ColonistsIconTip".Translate());
+            TooltipHandler.TipRegion(titleRect, "WorkMonitor.ColonistsTip".Translate());
             y += RowHeight;
 
             DrawColonistHeader(new Rect(area.x, y, area.width, RowHeight));
@@ -158,6 +172,7 @@ namespace WorkMonitor.UI
                     row,
                     out Rect iconsCol,
                     out Rect labelCol,
+                    out _,
                     out _,
                     out _,
                     out _,
@@ -237,6 +252,7 @@ namespace WorkMonitor.UI
                 out Rect kpiJobCol,
                 out Rect kpiWorkCol,
                 out Rect jobsCol,
+                out Rect endlessCol,
                 out Rect workCol,
                 out Rect walkCol,
                 out Rect activeWorkCol);
@@ -246,7 +262,11 @@ namespace WorkMonitor.UI
             LabelRight(kpiJobCol, "WorkMonitor.KpiJobs".Translate());
             LabelRight(kpiWorkCol, "WorkMonitor.KpiWork".Translate());
             LabelRight(jobsCol, "WorkMonitor.Jobs".Translate());
+            Rect endlessHeader = endlessCol;
+            LabelRight(endlessHeader, "WorkMonitor.EndlessJobs".Translate());
+            TooltipHandler.TipRegion(endlessHeader, "WorkMonitor.EndlessJobsTip".Translate());
             LabelRight(workCol, "WorkMonitor.Work".Translate());
+            TooltipHandler.TipRegion(workCol, "WorkMonitor.WorkEstimatedTip".Translate());
             LabelRight(walkCol, "WorkMonitor.Walk".Translate());
             LabelRight(activeWorkCol, "WorkMonitor.WorkTime".Translate());
 
@@ -265,6 +285,7 @@ namespace WorkMonitor.UI
                 out Rect kpiJobCol,
                 out Rect kpiWorkCol,
                 out Rect jobsCol,
+                out Rect endlessCol,
                 out Rect workCol,
                 out Rect walkCol,
                 out Rect activeWorkCol);
@@ -283,6 +304,7 @@ namespace WorkMonitor.UI
             LabelRight(kpiJobCol, FormatPerHour(colonist.JobsPerHour, integer: true));
             LabelRight(kpiWorkCol, FormatPerHour(colonist.WorkUnitsPerHour, integer: false));
             LabelRight(jobsCol, colonist.JobCount.ToString());
+            LabelRight(endlessCol, colonist.EndlessJobCount.ToString());
             LabelRight(workCol, WorkMonitorUtility.FormatWorkUnits(colonist.WorkUnitsSpent));
             LabelRight(
                 walkCol,
@@ -350,6 +372,7 @@ namespace WorkMonitor.UI
             out Rect kpiJobCol,
             out Rect kpiWorkCol,
             out Rect jobsCol,
+            out Rect endlessCol,
             out Rect workCol,
             out Rect walkCol,
             out Rect activeWorkCol)
@@ -357,7 +380,8 @@ namespace WorkMonitor.UI
             float activeWorkX = row.xMax - ActiveWorkWidth;
             float walkX = activeWorkX - ColumnGap - WalkWidth;
             float workX = walkX - ColumnGap - WorkWidth;
-            float jobsX = workX - ColumnGap - JobsWidth;
+            float endlessX = workX - ColumnGap - EndlessJobWidth;
+            float jobsX = endlessX - ColumnGap - JobsWidth;
             float kpiWorkX = jobsX - ColumnGap - KpiWorkWidth;
             float kpiJobX = kpiWorkX - ColumnGap - KpiJobWidth;
             float labelX = row.x + ColonistIconsWidth + 4f;
@@ -368,6 +392,7 @@ namespace WorkMonitor.UI
             kpiJobCol = new Rect(kpiJobX, row.y, KpiJobWidth, row.height);
             kpiWorkCol = new Rect(kpiWorkX, row.y, KpiWorkWidth, row.height);
             jobsCol = new Rect(jobsX, row.y, JobsWidth, row.height);
+            endlessCol = new Rect(endlessX, row.y, EndlessJobWidth, row.height);
             workCol = new Rect(workX, row.y, WorkWidth, row.height);
             walkCol = new Rect(walkX, row.y, WalkWidth, row.height);
             activeWorkCol = new Rect(activeWorkX, row.y, ActiveWorkWidth, row.height);

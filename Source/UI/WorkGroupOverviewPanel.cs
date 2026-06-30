@@ -13,8 +13,9 @@ namespace WorkMonitor.UI
         private Vector2 scroll;
         private List<WorkGroupStats> cachedStats = new List<WorkGroupStats>();
         private int lastRefreshTick;
+        private MonitorRangeState boundRangeState;
 
-        public void RefreshIfNeeded(bool force = false)
+        public void RefreshIfNeeded(MonitorRangeState rangeState, bool force = false)
         {
             int refresh = WorkMonitorMod.Settings?.refreshIntervalTicks ?? 60;
             if (!force && Find.TickManager.TicksGame - lastRefreshTick < refresh)
@@ -22,22 +23,42 @@ namespace WorkMonitor.UI
                 return;
             }
 
-            cachedStats = WorkGroupStatsAggregator.BuildAll();
+            boundRangeState = rangeState;
+            cachedStats = WorkGroupStatsAggregator.BuildAll(rangeState.RangeHours);
             lastRefreshTick = Find.TickManager.TicksGame;
         }
 
-        public WorkGroupSnapshot Draw(Rect rect, out bool clicked)
+        public WorkGroupSnapshot Draw(Rect rect, MonitorRangeState rangeState, out bool clicked)
         {
             clicked = false;
-            RefreshIfNeeded();
+            if (boundRangeState != rangeState)
+            {
+                RefreshIfNeeded(rangeState, force: true);
+            }
+            else
+            {
+                RefreshIfNeeded(rangeState);
+            }
 
             Text.Font = GameFont.Small;
-            Widgets.Label(new Rect(rect.x, rect.y, rect.width, 22f), "WorkMonitor.OverviewTitle".Translate());
+            Widgets.Label(new Rect(rect.x, rect.y, rect.width - 200f, 22f), "WorkMonitor.OverviewTitle".Translate());
 
-            Rect header = new Rect(rect.x, rect.y + 24f, rect.width, 20f);
+            Text.Font = GameFont.Tiny;
+            if (Widgets.ButtonText(new Rect(rect.xMax - 196f, rect.y, 96f, 24f), "WorkMonitor.LastHours".Translate(rangeState.RangeHours)))
+            {
+                rangeState.CycleRangeHours();
+                RefreshIfNeeded(rangeState, force: true);
+            }
+
+            if (Widgets.ButtonText(new Rect(rect.xMax - 96f, rect.y, 90f, 24f), "WorkMonitor.Refresh".Translate()))
+            {
+                RefreshIfNeeded(rangeState, force: true);
+            }
+
+            Rect header = new Rect(rect.x, rect.y + 28f, rect.width, 20f);
             DrawHeader(header);
 
-            Rect listRect = new Rect(rect.x, rect.y + 48f, rect.width, rect.height - 88f);
+            Rect listRect = new Rect(rect.x, rect.y + 52f, rect.width, rect.height - 92f);
             Rect viewRect = new Rect(0f, 0f, listRect.width - 16f, cachedStats.Count * RowHeight);
             Widgets.BeginScrollView(listRect, ref scroll, viewRect);
 

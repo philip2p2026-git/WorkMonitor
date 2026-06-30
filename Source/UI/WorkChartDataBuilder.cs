@@ -25,151 +25,157 @@ namespace WorkMonitor.UI
         public static void BuildWorkUnitsSeries(
             WorkHistoryRingBuffer history,
             int minHourIndex,
+            int rangeHours,
             out float[] values,
             out string[] labels)
         {
-            var buckets = history?.Buckets;
-            if (buckets == null || buckets.Count == 0)
-            {
-                values = new float[0];
-                labels = new string[0];
-                return;
-            }
-
-            int count = 0;
-            foreach (var b in buckets)
-            {
-                if (b.hourIndex >= minHourIndex)
-                {
-                    count++;
-                }
-            }
-
-            values = new float[count];
-            labels = new string[count];
-            int i = 0;
-            foreach (var b in buckets)
-            {
-                if (b.hourIndex < minHourIndex)
-                {
-                    continue;
-                }
-
-                values[i] = b.workUnitsSpent;
-                labels[i] = (b.hourIndex % 24).ToString() + "h";
-                i++;
-            }
+            BuildFixedHourlySeries(
+                history,
+                minHourIndex,
+                rangeHours,
+                bucket => bucket != null ? bucket.workUnitsSpent + bucket.estimatedWorkUnitsSpent : 0f,
+                out values,
+                out labels);
         }
 
         public static void BuildJobCountSeries(
             WorkHistoryRingBuffer history,
             int minHourIndex,
+            int rangeHours,
             out float[] values,
             out string[] labels)
         {
-            var buckets = history?.Buckets;
-            if (buckets == null || buckets.Count == 0)
-            {
-                values = new float[0];
-                labels = new string[0];
-                return;
-            }
-
-            int count = 0;
-            foreach (var b in buckets)
-            {
-                if (b.hourIndex >= minHourIndex)
-                {
-                    count++;
-                }
-            }
-
-            values = new float[count];
-            labels = new string[count];
-            int i = 0;
-            foreach (var b in buckets)
-            {
-                if (b.hourIndex < minHourIndex)
-                {
-                    continue;
-                }
-
-                values[i] = b.jobCount;
-                labels[i] = (b.hourIndex % 24).ToString() + "h";
-                i++;
-            }
+            BuildFixedHourlySeries(
+                history,
+                minHourIndex,
+                rangeHours,
+                bucket => bucket != null ? bucket.jobCount : 0f,
+                out values,
+                out labels);
         }
 
         public static void BuildMapOpenTasksSeries(
             WorkHistoryRingBuffer colonistHistory,
             string groupStorageKey,
             int minHourIndex,
-            out float[] values)
+            int rangeHours,
+            out float[] values,
+            out string[] labels)
         {
-            values = BuildMapMetricSeries(colonistHistory, minHourIndex, groupStorageKey, map: true);
+            BuildMapMetricSeries(colonistHistory, minHourIndex, rangeHours, groupStorageKey, map: true, out values, out labels);
         }
 
         public static void BuildMapWorkLeftSeries(
             WorkHistoryRingBuffer colonistHistory,
             string groupStorageKey,
             int minHourIndex,
-            out float[] values)
+            int rangeHours,
+            out float[] values,
+            out string[] labels)
         {
-            values = BuildMapMetricSeries(colonistHistory, minHourIndex, groupStorageKey, map: false);
+            BuildMapMetricSeries(colonistHistory, minHourIndex, rangeHours, groupStorageKey, map: false, out values, out labels);
         }
 
-        private static float[] BuildMapMetricSeries(
+        private static void BuildFixedHourlySeries(
+            WorkHistoryRingBuffer history,
+            int minHourIndex,
+            int rangeHours,
+            System.Func<HourlyWorkBucket, float> selector,
+            out float[] values,
+            out string[] labels)
+        {
+            values = new float[rangeHours];
+            labels = new string[rangeHours];
+            for (int i = 0; i < rangeHours; i++)
+            {
+                int hour = minHourIndex + i;
+                HourlyWorkBucket bucket = history?.GetBucket(hour);
+                values[i] = selector(bucket);
+                labels[i] = BuildRelativeHourLabel(i, rangeHours);
+            }
+        }
+
+        private static string BuildRelativeHourLabel(int index, int rangeHours)
+        {
+            if (index == rangeHours - 1)
+            {
+                return "now";
+            }
+
+            int hoursAgo = rangeHours - 1 - index;
+            return "-" + hoursAgo + "h";
+        }
+
+        private static void BuildMapMetricSeries(
             WorkHistoryRingBuffer colonistHistory,
             int minHourIndex,
+            int rangeHours,
             string groupStorageKey,
-            bool map)
+            bool map,
+            out float[] values,
+            out string[] labels)
         {
-            var buckets = colonistHistory?.Buckets;
-            if (buckets == null || buckets.Count == 0)
-            {
-                return new float[0];
-            }
+            values = new float[rangeHours];
+            labels = new string[rangeHours];
 
             MapWorkSampler sampler = MapWorkSampler.EnsureRegistered();
             IReadOnlyList<MapWorkSnapshot> mapHistory = sampler?.GetHistory();
-            if (mapHistory == null || mapHistory.Count == 0)
+            float lastValue = 0f;
+            int mapIndex = 0;
+
+            for (int i = 0; i < rangeHours; i++)
             {
-                int emptyCount = 0;
-                foreach (var b in buckets)
+                int hour = minHourIndex + i;
+                labels[i] = BuildRelativeHourLabel(i, rangeHours);
+
+                if (mapHistory != null)
                 {
-                    if (b.hourIndex >= minHourIndex)
+                    while (mapIndex < mapHistory.Count && mapHistory[mapIndex].hourIndex <= hour)
                     {
-                        emptyCount++;
+                        if (mapHistory[mapIndex].perGroupKey.TryGetValue(groupStorageKey, out MapWorkGroupSnapshot groupSnap))
+                        {
+                            lastValue = map ? groupSnap.openTaskCount : groupSnap.workLeftTotal;
+                        }
+
+                        mapIndex++;
                     }
                 }
 
-                return new float[emptyCount];
+                values[i] = lastValue;
+            }
+        }
+    }
+
+    public static class ChartAxisHelper
+    {
+        public static void DrawXAxisLabels(Rect plot, string[] labels)
+        {
+            if (labels == null || labels.Length == 0)
+            {
+                return;
             }
 
-            List<float> values = new List<float>();
-            float lastValue = 0f;
-            int mapIndex = 0;
-            foreach (var bucket in buckets)
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.UpperCenter;
+            Color prev = GUI.color;
+            GUI.color = new Color(0.7f, 0.7f, 0.7f);
+
+            int step = labels.Length > 24 ? 2 : 1;
+            float colWidth = plot.width / Mathf.Max(1, labels.Length);
+            Rect labelRow = new Rect(plot.x, plot.yMax + 2f, colWidth, 14f);
+            for (int i = 0; i < labels.Length; i++)
             {
-                if (bucket.hourIndex < minHourIndex)
+                if (i % step != 0 && i != labels.Length - 1)
                 {
                     continue;
                 }
 
-                while (mapIndex < mapHistory.Count && mapHistory[mapIndex].hourIndex <= bucket.hourIndex)
-                {
-                    if (mapHistory[mapIndex].perGroupKey.TryGetValue(groupStorageKey, out MapWorkGroupSnapshot groupSnap))
-                    {
-                        lastValue = map ? groupSnap.openTaskCount : groupSnap.workLeftTotal;
-                    }
-
-                    mapIndex++;
-                }
-
-                values.Add(lastValue);
+                Rect cell = new Rect(plot.x + i * colWidth, labelRow.y, colWidth, labelRow.height);
+                Widgets.Label(cell, labels[i]);
             }
 
-            return values.ToArray();
+            GUI.color = prev;
+            Text.Anchor = TextAnchor.UpperLeft;
         }
     }
 
@@ -183,6 +189,7 @@ namespace WorkMonitor.UI
             Rect rect,
             float[] colonistValues,
             float[] mapValues,
+            string[] xLabels,
             string title,
             string colonistLegend,
             string mapLegend)
@@ -196,7 +203,8 @@ namespace WorkMonitor.UI
             DrawLegendEntry(new Rect(rect.x + rect.width * 0.5f, legendY, rect.width * 0.5f - 6f, 14f), MapColor, mapLegend);
 
             const float axisWidth = 30f;
-            Rect plot = new Rect(rect.x + axisWidth + 4f, rect.y + 34f, rect.width - axisWidth - 12f, rect.height - 40f);
+            const float xAxisHeight = 16f;
+            Rect plot = new Rect(rect.x + axisWidth + 4f, rect.y + 34f, rect.width - axisWidth - 12f, rect.height - 40f - xAxisHeight);
             if (colonistValues == null || colonistValues.Length == 0)
             {
                 Widgets.Label(plot, "-");
@@ -212,6 +220,8 @@ namespace WorkMonitor.UI
             {
                 DrawSeries(plot, mapValues, yMax, MapColor);
             }
+
+            ChartAxisHelper.DrawXAxisLabels(plot, xLabels);
         }
 
         private static float ComputeYMax(float[] colonistValues, float[] mapValues, bool stacked)
@@ -327,6 +337,7 @@ namespace WorkMonitor.UI
             Rect rect,
             float[] colonistValues,
             float[] mapValues,
+            string[] xLabels,
             string title,
             string colonistLegend,
             string mapLegend)
@@ -340,7 +351,8 @@ namespace WorkMonitor.UI
             DrawLegendEntry(new Rect(rect.x + rect.width * 0.5f, legendY, rect.width * 0.5f - 6f, 14f), MapColor, mapLegend);
 
             const float axisWidth = 30f;
-            Rect plot = new Rect(rect.x + axisWidth + 4f, rect.y + 34f, rect.width - axisWidth - 12f, rect.height - 40f);
+            const float xAxisHeight = 16f;
+            Rect plot = new Rect(rect.x + axisWidth + 4f, rect.y + 34f, rect.width - axisWidth - 12f, rect.height - 40f - xAxisHeight);
             if (colonistValues == null || colonistValues.Length == 0)
             {
                 Widgets.Label(plot, "-");
@@ -378,6 +390,8 @@ namespace WorkMonitor.UI
                     Widgets.DrawBoxSolid(new Rect(x, plot.yMax - mapHeight - colonistHeight, sliceWidth, colonistHeight), ColonistColor);
                 }
             }
+
+            ChartAxisHelper.DrawXAxisLabels(plot, xLabels);
         }
 
         private static float ComputeStackedYMax(float[] colonistValues, float[] mapValues)

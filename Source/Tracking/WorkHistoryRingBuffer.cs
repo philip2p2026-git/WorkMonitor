@@ -42,6 +42,21 @@ namespace WorkMonitor.Tracking
             return buckets.Where(b => b.hourIndex >= minHourIndex).Sum(b => b.jobCount);
         }
 
+        public int SumEndlessJobCount(int minHourIndex)
+        {
+            return buckets.Where(b => b.hourIndex >= minHourIndex).Sum(b => b.endlessJobCount);
+        }
+
+        public float SumTotalWorkUnits(int minHourIndex)
+        {
+            return buckets.Where(b => b.hourIndex >= minHourIndex).Sum(b => b.workUnitsSpent + b.estimatedWorkUnitsSpent);
+        }
+
+        public HourlyWorkBucket GetBucket(int hourIndex)
+        {
+            return buckets.FirstOrDefault(b => b.hourIndex == hourIndex);
+        }
+
         public int SumTicksSpent(int minHourIndex)
         {
             return buckets.Where(b => b.hourIndex >= minHourIndex).Sum(b => b.ticksSpent);
@@ -49,7 +64,7 @@ namespace WorkMonitor.Tracking
 
         public float SumWorkUnits(int minHourIndex)
         {
-            return buckets.Where(b => b.hourIndex >= minHourIndex).Sum(b => b.workUnitsSpent);
+            return buckets.Where(b => b.hourIndex >= minHourIndex).Sum(b => b.workUnitsSpent + b.estimatedWorkUnitsSpent);
         }
 
         public int SumTravelTicksSpent(int minHourIndex)
@@ -70,6 +85,20 @@ namespace WorkMonitor.Tracking
                 if (bucket.pawnTravelTicksSpent.TryGetValue(pawnId, out int ticks))
                 {
                     sum += ticks;
+                }
+            }
+
+            return sum;
+        }
+
+        public int SumPawnEndlessJobs(int pawnId, int minHourIndex)
+        {
+            int sum = 0;
+            foreach (HourlyWorkBucket bucket in buckets.Where(b => b.hourIndex >= minHourIndex))
+            {
+                if (bucket.pawnEndlessJobCount.TryGetValue(pawnId, out int count))
+                {
+                    sum += count;
                 }
             }
 

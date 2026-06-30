@@ -7,15 +7,18 @@ namespace WorkMonitor.Tracking
     {
         public int hourIndex;
         public int jobCount;
+        public int endlessJobCount;
         public int ticksSpent;
         public int travelTicksSpent;
         public int workTicksSpent;
         public float workUnitsSpent;
+        public float estimatedWorkUnitsSpent;
         public Dictionary<int, int> pawnTicksSpent = new Dictionary<int, int>();
         public Dictionary<int, int> pawnTravelTicksSpent = new Dictionary<int, int>();
         public Dictionary<int, int> pawnWorkTicksSpent = new Dictionary<int, int>();
         public Dictionary<int, float> pawnWorkUnitsSpent = new Dictionary<int, float>();
         public Dictionary<int, int> pawnJobCount = new Dictionary<int, int>();
+        public Dictionary<int, int> pawnEndlessJobCount = new Dictionary<int, int>();
 
         public void AddJob(int pawnId, int ticks)
         {
@@ -90,24 +93,42 @@ namespace WorkMonitor.Tracking
             }
         }
 
+        public void AddEstimatedWorkUnits(int pawnId, float units)
+        {
+            estimatedWorkUnitsSpent += units;
+            if (pawnId >= 0)
+            {
+                if (!pawnWorkUnitsSpent.ContainsKey(pawnId))
+                {
+                    pawnWorkUnitsSpent[pawnId] = 0f;
+                }
+
+                pawnWorkUnitsSpent[pawnId] += units;
+            }
+        }
+
         public void ExposeData()
         {
             Scribe_Values.Look(ref hourIndex, "hourIndex");
             Scribe_Values.Look(ref jobCount, "jobCount");
+            Scribe_Values.Look(ref endlessJobCount, "endlessJobCount", 0);
             Scribe_Values.Look(ref ticksSpent, "ticksSpent");
             Scribe_Values.Look(ref travelTicksSpent, "travelTicksSpent", 0);
             Scribe_Values.Look(ref workTicksSpent, "workTicksSpent", 0);
             Scribe_Values.Look(ref workUnitsSpent, "workUnitsSpent", 0f);
+            Scribe_Values.Look(ref estimatedWorkUnitsSpent, "estimatedWorkUnitsSpent", 0f);
             Scribe_Collections.Look(ref pawnTicksSpent, "pawnTicksSpent", LookMode.Value, LookMode.Value);
             Scribe_Collections.Look(ref pawnTravelTicksSpent, "pawnTravelTicksSpent", LookMode.Value, LookMode.Value);
             Scribe_Collections.Look(ref pawnWorkTicksSpent, "pawnWorkTicksSpent", LookMode.Value, LookMode.Value);
             Scribe_Collections.Look(ref pawnWorkUnitsSpent, "pawnWorkUnitsSpent", LookMode.Value, LookMode.Value);
             Scribe_Collections.Look(ref pawnJobCount, "pawnJobCount", LookMode.Value, LookMode.Value);
+            Scribe_Collections.Look(ref pawnEndlessJobCount, "pawnEndlessJobCount", LookMode.Value, LookMode.Value);
             pawnTicksSpent ??= new Dictionary<int, int>();
             pawnTravelTicksSpent ??= new Dictionary<int, int>();
             pawnWorkTicksSpent ??= new Dictionary<int, int>();
             pawnWorkUnitsSpent ??= new Dictionary<int, float>();
             pawnJobCount ??= new Dictionary<int, int>();
+            pawnEndlessJobCount ??= new Dictionary<int, int>();
         }
     }
 }

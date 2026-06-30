@@ -17,6 +17,7 @@ namespace WorkMonitor.UI
         private readonly WorkGroupOverviewPanel overviewPanel = new WorkGroupOverviewPanel();
         private readonly WorkGroupDetailPanel detailPanel = new WorkGroupDetailPanel();
         private readonly ColonistDetailPanel colonistDetailPanel = new ColonistDetailPanel();
+        private readonly MonitorRangeState rangeState = new MonitorRangeState();
 
         private MonitorView view = MonitorView.Overview;
         private WorkGroupSnapshot selectedGroup;
@@ -33,11 +34,11 @@ namespace WorkMonitor.UI
         {
             if (view == MonitorView.Overview)
             {
-                WorkGroupSnapshot clicked = overviewPanel.Draw(rect, out bool rowClicked);
+                WorkGroupSnapshot clicked = overviewPanel.Draw(rect, rangeState, out bool rowClicked);
                 if (rowClicked && clicked != null)
                 {
                     selectedGroup = clicked;
-                    detailPanel.SetGroup(selectedGroup);
+                    detailPanel.SetGroup(selectedGroup, rangeState);
                     view = MonitorView.GroupDetail;
                 }
 
@@ -46,7 +47,7 @@ namespace WorkMonitor.UI
 
             if (view == MonitorView.GroupDetail)
             {
-                detailPanel.Draw(rect, out bool back, out bool colonistClicked, out ColonistWorkStat selectedColonistStat, out WorkGroupSnapshot groupChanged);
+                detailPanel.Draw(rect, rangeState, out bool back, out bool colonistClicked, out ColonistWorkStat selectedColonistStat, out WorkGroupSnapshot groupChanged);
                 if (groupChanged != null)
                 {
                     selectedGroup = groupChanged;
@@ -60,18 +61,18 @@ namespace WorkMonitor.UI
                 else if (colonistClicked && selectedColonistStat?.Pawn != null)
                 {
                     selectedColonist = selectedColonistStat.Pawn;
-                    colonistDetailPanel.SetColonist(selectedColonist, selectedGroup, openGroupDetail: true);
+                    colonistDetailPanel.SetColonist(selectedColonist, rangeState, selectedGroup, openGroupDetail: true);
                     view = MonitorView.ColonistDetail;
                 }
 
                 return;
             }
 
-            colonistDetailPanel.Draw(rect, out bool colonistBack, out bool groupClicked, out WorkGroupSnapshot groupFromColonist);
+            colonistDetailPanel.Draw(rect, rangeState, out bool colonistBack, out bool groupClicked, out WorkGroupSnapshot groupFromColonist);
             if (groupClicked && groupFromColonist != null)
             {
                 selectedGroup = groupFromColonist;
-                detailPanel.SetGroup(selectedGroup);
+                detailPanel.SetGroup(selectedGroup, rangeState);
                 view = MonitorView.GroupDetail;
             }
             else if (colonistBack)

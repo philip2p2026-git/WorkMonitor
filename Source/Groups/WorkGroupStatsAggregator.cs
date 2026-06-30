@@ -35,14 +35,13 @@ namespace WorkMonitor.Groups
 
     public static class WorkGroupStatsAggregator
     {
-        public static WorkGroupStats Build(WorkGroupSnapshot group)
+        public static WorkGroupStats Build(WorkGroupSnapshot group, int rangeHours)
         {
             WorkGroupStats stats = new WorkGroupStats { Group = group };
             List<Pawn> colonists = WorkMonitorUtility.MonitorColonists().ToList();
             WorkActivityTracker tracker = WorkActivityTracker.EnsureRegistered();
             int nowTick = WorkMonitorUtility.CurrentTicksGame();
-            int statsWindow = WorkMonitorMod.Settings?.StatsWindowTicks ?? WorkMonitorSettings.TicksPerHour * 24;
-            int minHour = WorkMonitorUtility.CurrentHourIndex() - (WorkMonitorMod.Settings?.statsWindowHours ?? 24);
+            int minHour = WorkMonitorUtility.CurrentHourIndex() - rangeHours;
             WorkHistoryRingBuffer history = tracker?.GetGroupHistory(group.Key.StorageKey);
             MapWorkSnapshot mapSnapshot = MapWorkSampler.EnsureRegistered()?.GetLatestSnapshot();
 
@@ -73,6 +72,7 @@ namespace WorkMonitor.Groups
                 }
 
                 int pawnJobs = 0;
+                int pawnEndlessJobs = 0;
                 int pawnTicks = 0;
                 int pawnTravel = 0;
                 int pawnWork = 0;
@@ -83,11 +83,13 @@ namespace WorkMonitor.Groups
                 {
                     WorkActivityRecord record = tracker?.GetRecord(pawn.thingIDNumber, wg.defName);
                     int wgJobs = tracker?.SumPawnWorkGiverJobs(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
+                    int wgEndless = tracker?.SumPawnWorkGiverEndlessJobs(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
                     int wgTicks = tracker?.SumPawnWorkGiverTicks(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
                     int wgTravel = tracker?.SumPawnWorkGiverTravelTicks(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
                     int wgWork = tracker?.SumPawnWorkGiverWorkTicks(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
                     float wgUnits = tracker?.SumPawnWorkGiverWorkUnits(pawn.thingIDNumber, wg.defName, minHour) ?? 0f;
                     pawnJobs += wgJobs;
+                    pawnEndlessJobs += wgEndless;
                     pawnTicks += wgTicks;
                     pawnTravel += wgTravel;
                     pawnWork += wgWork;
@@ -99,7 +101,7 @@ namespace WorkMonitor.Groups
                     }
                 }
 
-                if (pawnJobs > 0 || pawnTicks > 0)
+                if (pawnJobs > 0 || pawnEndlessJobs > 0 || pawnTicks > 0)
                 {
                     stats.WorkedCount++;
                 }
@@ -109,13 +111,14 @@ namespace WorkMonitor.Groups
                     mostRecentEnabledWorkTick = pawnLastTick;
                 }
 
-                if (pawnTicks > 0 || pawnJobs > 0)
+                if (pawnTicks > 0 || pawnJobs > 0 || pawnEndlessJobs > 0)
                 {
                     var colonistStat = new ColonistWorkStat
                     {
                         Pawn = pawn,
                         Label = pawn.LabelShort,
                         JobCount = pawnJobs,
+                        EndlessJobCount = pawnEndlessJobs,
                         TicksSpent = pawnTicks,
                         TravelTicksSpent = pawnTravel,
                         WorkTicksSpent = pawnWork,
@@ -126,6 +129,7 @@ namespace WorkMonitor.Groups
                 }
 
                 stats.TotalJobCount += pawnJobs;
+                stats.TotalEndlessJobCount += pawnEndlessJobs;
                 stats.TotalTicksSpent += pawnTicks;
                 stats.TotalWorkUnits += pawnWorkUnits;
             }
@@ -133,6 +137,7 @@ namespace WorkMonitor.Groups
             if (history != null)
             {
                 stats.TotalJobCount = history.SumJobCount(minHour);
+                stats.TotalEndlessJobCount = history.SumEndlessJobCount(minHour);
                 stats.TotalTicksSpent = history.SumTicksSpent(minHour);
                 stats.TotalWorkUnits = history.SumWorkUnits(minHour);
             }
@@ -180,9 +185,9 @@ namespace WorkMonitor.Groups
             return stats;
         }
 
-        public static List<WorkGroupStats> BuildAll()
+        public static List<WorkGroupStats> BuildAll(int rangeHours)
         {
-            return WorkGroupRegistry.GetAllGroups().Select(Build).ToList();
+            return WorkGroupRegistry.GetAllGroups().Select(g => Build(g, rangeHours)).ToList();
         }
 
         private static bool IsCapable(Pawn pawn, WorkGroupSnapshot group)

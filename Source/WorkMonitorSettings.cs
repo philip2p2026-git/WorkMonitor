@@ -29,6 +29,14 @@ namespace WorkMonitor
         public int GreenStatusTicks => greenStatusHours * TicksPerHour;
         public int YellowStatusTicks => yellowStatusHours * TicksPerHour;
 
+        public const int MaxRetentionHours = 72;
+
+        public int ResolveRetentionHours(int activeRangeHours = -1)
+        {
+            int range = activeRangeHours > 0 ? activeRangeHours : statsWindowHours;
+            return UnityEngine.Mathf.Clamp(UnityEngine.Mathf.Max(chartHistoryHours, range), 6, MaxRetentionHours);
+        }
+
         public bool TryGetSkillRoleOverride(string skillDefName, out string label)
         {
             label = null;

@@ -12,6 +12,7 @@ namespace WorkMonitor.UI
         private const float ColumnGap = 6f;
 
         private const float ColonistJobWidth = 36f;
+        private const float ColonistEndlessWidth = 40f;
         private const float ColonistWorkWidth = 44f;
         private const float ColonistWalkWidth = 40f;
         private const float ColonistActiveWorkWidth = 40f;
@@ -47,6 +48,7 @@ namespace WorkMonitor.UI
         public static void GetColonistGroupColumns(
             Rect row,
             out Rect jobCol,
+            out Rect endlessCol,
             out Rect workCol,
             out Rect walkCol,
             out Rect activeWorkCol,
@@ -56,9 +58,11 @@ namespace WorkMonitor.UI
             float activeWorkX = shareX - ColumnGap - ColonistActiveWorkWidth;
             float walkX = activeWorkX - ColumnGap - ColonistWalkWidth;
             float workX = walkX - ColumnGap - ColonistWorkWidth;
-            float jobX = workX - ColumnGap - ColonistJobWidth;
+            float endlessX = workX - ColumnGap - ColonistEndlessWidth;
+            float jobX = endlessX - ColumnGap - ColonistJobWidth;
 
             jobCol = new Rect(jobX, row.y, ColonistJobWidth, row.height);
+            endlessCol = new Rect(endlessX, row.y, ColonistEndlessWidth, row.height);
             workCol = new Rect(workX, row.y, ColonistWorkWidth, row.height);
             walkCol = new Rect(walkX, row.y, ColonistWalkWidth, row.height);
             activeWorkCol = new Rect(activeWorkX, row.y, ColonistActiveWorkWidth, row.height);
@@ -67,13 +71,14 @@ namespace WorkMonitor.UI
 
         public static float ColonistGroupMetricsLeftEdge(Rect row)
         {
-            GetColonistGroupColumns(row, out Rect jobCol, out _, out _, out _, out _);
+            GetColonistGroupColumns(row, out Rect jobCol, out _, out _, out _, out _, out _);
             return jobCol.x;
         }
 
         public static void GetColonistWorkGiverColumns(
             Rect row,
             out Rect jobCol,
+            out Rect endlessCol,
             out Rect workCol,
             out Rect walkCol,
             out Rect activeWorkCol)
@@ -81,9 +86,11 @@ namespace WorkMonitor.UI
             float activeWorkX = row.xMax - ColonistActiveWorkWidth;
             float walkX = activeWorkX - ColumnGap - ColonistWalkWidth;
             float workX = walkX - ColumnGap - ColonistWorkWidth;
-            float jobX = workX - ColumnGap - ColonistJobWidth;
+            float endlessX = workX - ColumnGap - ColonistEndlessWidth;
+            float jobX = endlessX - ColumnGap - ColonistJobWidth;
 
             jobCol = new Rect(jobX, row.y, ColonistJobWidth, row.height);
+            endlessCol = new Rect(endlessX, row.y, ColonistEndlessWidth, row.height);
             workCol = new Rect(workX, row.y, ColonistWorkWidth, row.height);
             walkCol = new Rect(walkX, row.y, ColonistWalkWidth, row.height);
             activeWorkCol = new Rect(activeWorkX, row.y, ColonistActiveWorkWidth, row.height);
@@ -91,7 +98,7 @@ namespace WorkMonitor.UI
 
         public static float ColonistWorkGiverMetricsLeftEdge(Rect row)
         {
-            GetColonistWorkGiverColumns(row, out Rect jobCol, out _, out _, out _);
+            GetColonistWorkGiverColumns(row, out Rect jobCol, out _, out _, out _, out _);
             return jobCol.x;
         }
 

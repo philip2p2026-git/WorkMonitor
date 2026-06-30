@@ -27,8 +27,8 @@
 	<WorkMonitor.WorkProcessed>Work Processed</WorkMonitor.WorkProcessed>
 	<WorkMonitor.ExistJobTip>Open tasks on the map (periodic sample).</WorkMonitor.ExistJobTip>
 	<WorkMonitor.ExistWorkTip>Work remaining on the map (periodic sample).</WorkMonitor.ExistWorkTip>
-	<WorkMonitor.JobProcessedTip>Jobs started by colonists in the stats window.</WorkMonitor.JobProcessedTip>
-	<WorkMonitor.WorkProcessedTip>Work completed by colonists in the stats window.</WorkMonitor.WorkProcessedTip>
+	<WorkMonitor.JobProcessedTip>Regular jobs started by colonists in the selected range (excludes endless station jobs).</WorkMonitor.JobProcessedTip>
+	<WorkMonitor.WorkProcessedTip>Work completed by colonists in the selected range (includes estimates when work-left is unavailable).</WorkMonitor.WorkProcessedTip>
 	<WorkMonitor.Groups>Groups</WorkMonitor.Groups>
 	<WorkMonitor.ColonistDetailTitle>{0} — Work</WorkMonitor.ColonistDetailTitle>
 	<WorkMonitor.ColonistSummary>{0} · {1} jobs · {2} work · {3}</WorkMonitor.ColonistSummary>
@@ -71,8 +71,12 @@
 	<WorkMonitor.OtherGroup>Other</WorkMonitor.OtherGroup>
 	<WorkMonitor.NoGroups>No work groups found.</WorkMonitor.NoGroups>
 	<WorkMonitor.SettingsTitle>Work Monitor</WorkMonitor.SettingsTitle>
-	<WorkMonitor.SettingsStatsWindow>Stats rolling window (hours)</WorkMonitor.SettingsStatsWindow>
-	<WorkMonitor.SettingsChartHistory>Chart history (hours)</WorkMonitor.SettingsChartHistory>
+	<WorkMonitor.SettingsDefaultRange>Default range hours</WorkMonitor.SettingsDefaultRange>
+	<WorkMonitor.SettingsChartHistory>History retention (hours)</WorkMonitor.SettingsChartHistory>
+	<WorkMonitor.Refresh>Refresh</WorkMonitor.Refresh>
+	<WorkMonitor.EndlessJobs>Endless</WorkMonitor.EndlessJobs>
+	<WorkMonitor.EndlessJobsTip>Station and long-running jobs: Research, Drill, Ground Penetrating Scan, Operate Scanner.</WorkMonitor.EndlessJobsTip>
+	<WorkMonitor.WorkEstimatedTip>Work includes measured work-left plus estimates from active work time × speed when work-left is unavailable.</WorkMonitor.WorkEstimatedTip>
 	<WorkMonitor.SettingsGreenHours>Green status threshold (hours)</WorkMonitor.SettingsGreenHours>
 	<WorkMonitor.SettingsYellowHours>Yellow status threshold (hours)</WorkMonitor.SettingsYellowHours>
 	<WorkMonitor.SettingsRefreshTicks>UI refresh interval (ticks)</WorkMonitor.SettingsRefreshTicks>

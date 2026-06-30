@@ -26,12 +26,12 @@ namespace WorkMonitor
             Listing_Standard listing = new Listing_Standard();
             listing.Begin(inRect);
 
-            listing.Label("WorkMonitor.SettingsStatsWindow".Translate());
+            listing.Label("WorkMonitor.SettingsDefaultRange".Translate());
             Settings.statsWindowHours = (int)listing.Slider(Settings.statsWindowHours, 6, 48);
             listing.Gap(6f);
 
             listing.Label("WorkMonitor.SettingsChartHistory".Translate());
-            Settings.chartHistoryHours = (int)listing.Slider(Settings.chartHistoryHours, 6, 48);
+            Settings.chartHistoryHours = (int)listing.Slider(Settings.chartHistoryHours, 6, WorkMonitorSettings.MaxRetentionHours);
             listing.Gap(6f);
 
             listing.Label("WorkMonitor.SettingsGreenHours".Translate());
