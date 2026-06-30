@@ -91,6 +91,13 @@ namespace WorkMonitor.UI
                 {
                     selectedColonist = selectedColonistStat.Pawn;
                     colonistDetailPanel.SetColonist(selectedColonist, rangeState, selectedGroup, openGroupDetail: true, returnGroup: selectedGroup, returnWorkGiver: selectedWorkGiver);
+                    view = MonitorView.ColonistDetail;
+                }
+
+                return;
+            }
+
+            colonistDetailPanel.Draw(rect, rangeState, out bool colonistBack, out bool groupClicked, out WorkGroupSnapshot groupFromColonist);
             if (groupClicked && groupFromColonist != null)
             {
                 selectedGroup = groupFromColonist;
