@@ -12,13 +12,19 @@ Read-only RimWorld mod that tracks colonist work activity and map backlog, organ
 | **Work type** (`WorkTypeDef`) | Work-tab column (Cooking, Construction, …). Contains ordered `workGiversByPriority`. Primary unit for **UI navigation** (see [UI views](#ui-views)). |
 | **Monitor row** | One row in the WorkType list. Usually one work type; with Work Tab Groups mod may be a custom bucket; unassigned mod work givers appear as **Other**. Code name: `WorkGroupSnapshot` (legacy “group” — avoid in UI copy). |
 | **Storage key** | Stable id for a monitor row: `WorkType:Cooking`, `CustomGroup:MyGroup`, `Other:Other`. Built by `WorkGroupKey.StorageKey`. |
-| **Job** | Countable colonist metric. Incremented on `Pawn_JobTracker.StartJob` when `workGiverDef` is set. |
-| **Work unit** | Numeric “work done” (bill `workLeft` deltas, frame/mine progress, etc.). Not all jobs produce work units. |
+| **Job** | Countable colonist metric. Incremented on `Pawn_JobTracker.StartJob` when `workGiverDef` is set and the work giver is **not** endless. |
+| **Endless job** | Station/long-running job start counted separately from regular jobs: Research, Drill, Ground Penetrating Scan, Operate Scanner (`EndlessWorkGiverUtility`). Shown in the **Endless** column. |
+| **Work unit** | Numeric “work done” (bill `workLeft` deltas, frame/mine progress, etc.). Not all jobs produce work units. Charts and sums include `estimatedWorkUnitsSpent` when actual tracking is unavailable. |
+| **Estimated work unit** | Work credited via `WorkUnitEstimator` (pawn work-speed stat × work ticks) when work-left tracking fails. Stored as `estimatedWorkUnitsSpent` on buckets/records. |
+| **Range** | UI-selected rolling window (`MonitorRangeState.RangeHours`) for tables and charts. Presets from 6 h through 5 years; shared across all monitor views. |
+| **Work day** | In-game day boundary for rollup and map new-today (`dayRolloverHour`, default midnight or morning). Distinct from UI range. |
+| **Tier buffer** | `WorkHistoryTierBuffer` — hourly/daily/quadrum/year colonist history with automatic rollup and caps. |
 | **Tick** | RimWorld time unit. **2500 ticks = 1 in-game hour** (`WorkMonitorSettings.TicksPerHour`). |
 | **Travel tick** | Tick spent while `pawn.pather.MovingNow` during an active job. |
 | **Work tick** | Tick spent not traveling during an active job. |
 | **Open task** (map) | One scannable backlog target at sample time (`openTaskCount++`). |
 | **Work left** (map) | Estimated remaining work on a target (`workLeftTotal += target.WorkLeft`). |
+| **New today** (map) | Subset of open tasks/work first seen on the current work day (`newTodayOpenTaskCount`, `newTodayWorkLeftTotal`). UI shows as `total(newToday)`. Day boundary uses `dayRolloverHour` and map longitude. |
 | **Countable** | Whether a metric is non-zero for a work giver. Colonist jobs: almost always yes. Map: only when a provider finds a target. |
 | **Work gatherable** | Whether work units can be measured. Colonist: bill incremental or snapshot work-left. Map: when `WorkLeft > 0` on the target. |
 | **Snapshot mode** | Non-bill jobs: `workDelta = max(0, startWorkLeft - endWorkLeft)` at job end. |
@@ -56,16 +62,17 @@ flowchart LR
     end
 
     subgraph ui [UI]
-        Aggregator["WorkGroupStatsAggregator.Build"] --> Panels["WorkType overview / detail / Colonist work detail"]
+        Range["MonitorRangeState"] --> Aggregator["WorkGroupStatsAggregator.Build(row, rangeHours)"]
+        Aggregator --> Panels["Overview / detail / work-giver detail / colonist detail"]
     end
 
     colonist --> Aggregator
     map --> Aggregator
 ```
 
-**Colonist stats** update immediately on job start/end and each driver tick.
+**Colonist stats** update immediately on job start/end and each driver tick. History rolls hourly → daily → quadrum → year in `WorkHistoryTierBuffer`.
 
-**Map stats** update on a configurable interval (1/2/3/6/12 in-game hours) for the current map only.
+**Map stats** update on a configurable interval (1/2/3/6/12 in-game hours) for the current map only. New-today subsets tracked per `DedupeKey` across samples.
 
 ---
 
@@ -76,10 +83,16 @@ Source/
 ├── WorkMonitorMod.cs          # Mod entry, Harmony, settings UI
 ├── WorkMonitorSettings.cs     # User settings
 ├── WorkMonitorUtility.cs      # Time formatting, colonist enumeration
-├── Groups/                    # Monitor rows (WorkGroup* — code legacy naming)
+├── Groups/                    # Monitor rows + stat aggregators (WorkGroup* — code legacy naming)
+│   ├── WorkGroupStatsAggregator.cs  # WorkGroupRegistry + WorkGroupStatsAggregator
+│   ├── ColonistStatsAggregator.cs
+│   └── WorkGiverStatsAggregator.cs
 ├── Tracking/
 │   ├── WorkActivityTracker.cs # Colonist job/work/tick tracking
+│   ├── WorkHistoryTierBuffer.cs # Hourly → daily → quadrum → year rollups
 │   ├── WorkLeftResolver.cs    # Read work-left from jobs, things, bills
+│   ├── EndlessWorkGiverUtility.cs
+│   ├── WorkUnitEstimator.cs   # Speed-based work estimates
 │   ├── MapWorkSampler.cs      # Periodic map snapshot
 │   ├── MapWorkSnapshot.cs     # Snapshot DTOs
 │   └── MapWork/
@@ -91,6 +104,11 @@ Source/
 │       └── Providers/         # One class per scan source
 ├── Patches/                   # Harmony hooks
 └── UI/                        # Monitor windows and tables
+    ├── WorkMonitorContentHost.cs
+    ├── MonitorRangeState.cs   # Range presets (6 h – 5 y)
+    ├── WorkMonitorTableColumns.cs
+    ├── WorkChartDataBuilder.cs
+    └── …panels (overview, detail, work-giver detail, colonist, chart)
 ```
 
 ---
@@ -103,18 +121,39 @@ Colonist-side tracker. Singleton via `Instance` / `EnsureRegistered()`.
 
 | Method | Purpose |
 |--------|---------|
-| `RecordJobStart(pawn, workGiver, job, tick)` | Finalize prior job, increment job counts, start `ActiveWorkJob` (bill or snapshot mode). |
+| `RecordJobStart(pawn, workGiver, job, tick)` | Finalize prior job, increment `jobCount` or `endlessJobCount`, start `ActiveWorkJob` (bill or snapshot mode). |
 | `RecordJobEnd(pawn, workGiver, endingJob, tick)` | Finalize active job: ticks, travel/work split, snapshot work delta, bill flush. |
 | `SampleBillWorkLeft(pawn, tick)` | Incremental bill work-left credit while job runs. |
 | `SampleJobTick(pawn, tick)` | Classify tick as travel vs work on active job. |
 | `GetRecord(pawnId, workGiverDefName)` | Lifetime `WorkActivityRecord` per pawn × work giver. |
-| `SumPawnWorkGiverJobs/Ticks/WorkUnits/TravelTicks/WorkTicks(...)` | Sum hourly buckets since `minHourIndex`. |
-| `GetGroupHistory(storageKey)` | Hourly ring buffer aggregated by monitor row. |
-| `PruneStaleData()` | Drop buckets older than `chartHistoryHours`. |
+| `SumPawnWorkGiverJobs/Ticks/WorkUnits/TravelTicks/WorkTicks/EndlessJobs(...)` | Sum **hourly** buckets only since `minHourIndex` (see [Data retention](#data-retention)). |
+| `GetGroupHistory(storageKey)` | `WorkHistoryTierBuffer` aggregated by monitor row. |
+| `PruneStaleData()` | Drop buckets older than retention; roll hourly → daily → quadrum → year. |
 
 **`ActiveWorkJob`** fields: `workGiverDefName`, `startTick`, `travelTicks`, `workTicks`, `trackingMode`, `tracksWorkLeft`, `startWorkLeft`, `lastBillWorkLeft`, `accumulatedWorkUnits`.
 
-**`WorkActivityRecord`** fields: `lastWorkTick`, `jobCount`, `ticksSpent`, `travelTicksSpent`, `workTicksSpent`, `workUnitsSpent`.
+**`WorkActivityRecord`** fields: `lastWorkTick`, `jobCount`, `endlessJobCount`, `ticksSpent`, `travelTicksSpent`, `workTicksSpent`, `workUnitsSpent`, `estimatedWorkUnitsSpent`.
+
+### `WorkHistoryTierBuffer` (`IExposable`)
+
+Multi-resolution colonist history. See [Data retention](#data-retention) for rollup chain, caps, and query rules.
+
+| Method | Purpose |
+|--------|---------|
+| `GetOrCreateBucket(hourIndex)` | Hourly bucket for live recording. |
+| `SumJobCount/SumEndlessJobCount/SumTicksSpent/SumWorkUnits/...` | Range sums across hourly + daily + quadrum + year (group buffers). |
+| `SumPawnJobCount/SumPawnTicks/...` | Hourly buckets only (pawn buffers). |
+| `RollupIfBoundaryCrossed(absTick, longitude)` | Merge completed periods into coarser tiers. |
+| `EstimateHourlyFromDaily(...)` | Interpolate chart points when hourly data was pruned. |
+| `Configure(hourlyRetentionHours)` | Cap hourly list length (6–72). |
+
+### `EndlessWorkGiverUtility` (static)
+
+`IsEndless(workGiver)` — true for `Research`, `Drill`, `GroundPenetratingScan`, `OperateScanner`.
+
+### `WorkUnitEstimator` (static)
+
+`TryEstimateWorkUnits(pawn, workGiver, job, workTicks, out units)` — credits work from pawn speed stat when work-left tracking is unavailable (common for endless station jobs).
 
 ### `WorkLeftResolver` (static)
 
@@ -132,9 +171,10 @@ Colonist-side tracker. Singleton via `Instance` / `EnsureRegistered()`.
 | `TrySampleIfDue(force)` | Sample current map when hour aligns with `mapSampleIntervalHours`. |
 | `BuildSnapshot(map, hourIndex, sampleTick)` | Run all providers, dedupe, roll up per work giver and monitor row. |
 | `GetLatestSnapshot()` | Most recent `MapWorkSnapshot`. |
+| `GetHistory()` | Retained snapshot list for map charts (see [Map snapshot history](#map-snapshot-history)). |
 | `NormalizeInterval(hours)` | Clamp to 1, 2, 3, 6, or 12. |
 
-**`MapWorkSnapshot`** contains `perWorkGiver` and `perGroupKey` dicts of `openTaskCount` + `workLeftTotal`, plus `hourIndex` and `sampleTick`.
+**`MapWorkSnapshot`** contains `perWorkGiver` and `perGroupKey` dicts. Each entry has `openTaskCount`, `newTodayOpenTaskCount`, `workLeftTotal`, `newTodayWorkLeftTotal`, plus snapshot `hourIndex` and `sampleTick`. `MapWorkSampler` tracks `taskFirstSeenDayId` per `DedupeKey` for new-today attribution.
 
 ### `MapWorkAttribution` (static)
 
@@ -166,29 +206,163 @@ Helpers for provider work-left estimates: `FromFrame`, `FromMineable`, `FromFilt
 |------|---------|
 | `WorkGroupKey` | `ForWorkType`, `ForCustomGroup`, `ForOther` → `StorageKey`. |
 | `WorkGroupSnapshot` | `Key`, `Label`, `WorkGivers`, `UniqueWorkTypes`, `PrimaryWorkType`. |
-| `WorkGroupRegistry.GetAllGroups()` | Monitor rows for WorkType list (work types + custom + Other). |
+| `WorkGroupRegistry.GetAllGroups()` | Cached monitor rows (250-tick cache): work types + custom + Other. Defined in `WorkGroupStatsAggregator.cs`. |
 | `WorkGroupKeyResolver.ResolveGroupKeysForWorkGiver(wg)` | Work type key + optional custom row key. |
-| `WorkGroupStatsAggregator.Build(row)` | Merges colonist history + map snapshot into `WorkGroupStats`. |
+| `WorkGroupStatsAggregator.Build(row, rangeHours)` | Merges colonist history + map snapshot into `WorkGroupStats`. |
+| `WorkGroupStatsAggregator.BuildAll(rangeHours)` | All rows for overview/charts. |
+| `ColonistStatsAggregator.Build(pawn, rangeHours)` | Per-colonist rollup across monitor rows. |
+| `ColonistStatsAggregator.BuildGroupDetail(pawn, group, rangeHours)` | Per–work-giver breakdown for one colonist × row (expanded rows). |
+| `WorkGiverStatsAggregator.Build(group, workGiver, rangeHours)` | Single work-giver detail stats. |
 | `WorkActivityStatus` | `Grey`, `Red`, `Yellow`, `Green`. |
 
+Stat DTOs in `WorkGroupStats.cs`: `WorkGroupStats`, `ColonistWorkStat`, `WorkGiverStat`, `ColonistGroupWorkDetail`, `WorkGiverDetailStats`, etc. All include `EndlessJobCount` where job starts apply.
+
+### `MonitorRangeState` (`Source/UI/`)
+
+Shared range selector on every monitor view. `RangeHours` drives aggregator `minHour` (`MinHourIndex = CurrentHourIndex() - RangeHours`) and chart span.
+
+#### UI range presets
+
+| Preset | `RangeHours` | In-game span | Chart resolution |
+|--------|-------------|--------------|------------------|
+| 6 h | 6 | 6 hours | Hourly (`UsesHourlyChart`) |
+| 12 h | 12 | 12 hours | Hourly |
+| 24 h | 24 | 1 day | Hourly |
+| 48 h | 48 | 2 days | Hourly |
+| 7 d | 168 | 7 days | Daily (`UsesDailyChart`) |
+| 14 d | 336 | 14 days | Daily |
+| 4 quadrums | 1440 | ~1 RimWorld year (60 days) | Daily buckets in tables; charts use daily series where implemented |
+| 8 quadrums | 2880 | ~2 years | Coarser `WorkHistoryTierBuffer` tiers for group totals |
+| 3 years | 4320 | 3 years | Coarser tiers |
+| 5 years | 7200 | 5 years | Coarser tiers |
+
+Default preset: `WorkMonitorSettings.defaultRangePreset` (24 h).
+
+Charts: colonist job/work series use hourly points when `UsesHourlyChart` (≤ 48 h), else `BuildDailySeries` (up to 14 day-buckets). Map chart series always use hourly steps over `rangeHours` but are limited by [map snapshot history](#map-snapshot-history) (≤ 80 samples).
+
+---
+
+## Data retention
+
+Colonist and map metrics use different storage layers. The UI range can be longer than fine-grained history; tables and charts degrade gracefully.
+
+### Storage layers
+
+| Layer | Location | Granularity | Typical use |
+|-------|----------|-------------|-------------|
+| **Lifetime record** | `WorkActivityRecord` per pawn × work giver | All-time totals | `lastWorkTick`, status color, never pruned while colonist tracked |
+| **Group tier buffer** | `WorkHistoryTierBuffer` per monitor-row `storageKey` | Hourly → daily → quadrum → year | Group totals, charts, `GetGroupHistory().Sum*` |
+| **Pawn tier buffer** | `WorkHistoryTierBuffer` per pawn × work giver | Hourly only (72 h cap) | `SumPawnWorkGiver*` for colonist/work-giver table rows |
+| **Map snapshot history** | `MapWorkSampler.historyBuffer` | One sample per map interval | Map chart time series (hold-forward) |
+| **Map latest** | `MapWorkSampler.latestSnapshot` | Current sample | Table **ExistJob** / **ExistWork** columns |
+| **New-today tracking** | `MapWorkSampler.taskFirstSeenDayId` | Per `DedupeKey`, current save | `newToday*` fields until target disappears |
+
+### Colonist tier rollup
+
+Triggered each prune tick via `WorkHistoryTierBuffer.RollupIfBoundaryCrossed` (uses map longitude + `dayRolloverHour`).
+
+```mermaid
+flowchart TB
+    Hourly["HourlyWorkBucket\n(per game hour)"]
+    Daily["DailyWorkBucket\n(completed work days)"]
+    Quadrum["QuadrumWorkBucket\n(completed quadrums)"]
+    Year["YearWorkBucket\n(completed years)"]
+
+    Hourly -->|"day boundary crossed"| Daily
+    Daily -->|"quadrum boundary crossed"| Quadrum
+    Quadrum -->|"year boundary crossed"| Year
+```
+
+| Tier | Bucket type | Rolled up when | Default cap (setting) | Approx. max span at default |
+|------|-------------|----------------|----------------------|----------------------------|
+| **Hourly** | `HourlyWorkBucket` | Live recording; pruned after 72 h | `MaxRetentionHours` = **72** (hard constant) | 3 days |
+| **Daily** | `DailyWorkBucket` | Completed work day &lt; current day | `maxDailyBuckets` = **20** | ~20 days |
+| **Quadrum** | `QuadrumWorkBucket` | Completed quadrum &lt; current quadrum | `maxQuadrumBuckets` = **12** | ~12 quadrums (~3 RimWorld years) |
+| **Year** | `YearWorkBucket` | Completed year &lt; current year | `maxYearBuckets` = **7** (or unlimited) | ~7 years |
+
+When a tier exceeds its cap, the **oldest** bucket is dropped (`RemoveAt(0)`).
+
+**Work day** id: `year * 1000 + dayOfYear` after shifting `absTick` by `dayRolloverHour` (`0` = midnight, `8` = morning — mod settings toggle). Used for daily rollup and map new-today.
+
+### Retention settings
+
+| Setting | Default | Effect |
+|---------|---------|--------|
+| `chartHistoryHours` | 24 | Floor for `ResolveRetentionHours()` (6–72); mod settings slider |
+| `statsWindowHours` | 24 | Legacy span; used when no active UI range passed to `ResolveRetentionHours` |
+| `maxDailyBuckets` | 20 | Max completed daily buckets kept |
+| `maxQuadrumBuckets` | 12 | Max completed quadrum buckets kept |
+| `maxYearBuckets` | 7 | Max completed year buckets kept |
+| `yearHistoryUnlimited` | false | When true, year buckets are never capped |
+| `dayRolloverHour` | 0 | When the work day rolls over for rollup and map new-today |
+
+`ResolveRetentionHours(activeRangeHours)` = `clamp(max(chartHistoryHours, min(range, 72)), 6, 72)` — always ≤ 72 h; governs pawn-buffer `Configure()` on create.
+
+### Prune schedule
+
+`WorkActivityTracker.PruneStaleData()` runs on `GameComponentTick` (every 250 ticks) and when the game hour changes:
+
+1. **Group buffers** — `RollupIfBoundaryCrossed` → `Configure(72)` → `PruneHourlyRetention` (drop hourly older than 72 h).
+2. **Pawn buffers** — `ConfigurePawnHistory()` (72 h) → `PruneHourlyRetention`.
+3. **Stale colonists** — remove pawn records and pawn tier buffers when pawn leaves colony.
+
+Group-level `SumJobCount` / `SumWorkUnits` / etc. query hourly + daily + quadrum + year tiers (see `SumFloat` in `WorkHistoryTierBuffer`). **Per-pawn** `SumPawn*` methods only sum **hourly** buckets — colonist and work-giver table rows are accurate for ranges ≤ **72 h**; longer UI ranges show full group totals but per-colonist breakdown may under-count older activity.
+
+`WorkGroupStatsAggregator` overwrites group `Total*` fields from `GetGroupHistory().Sum*` when available; colonist rows still use per-pawn hourly sums.
+
+### Map snapshot history
+
+| Rule | Value |
+|------|-------|
+| Sample cadence | `mapSampleIntervalHours`: 1, 2, 3, 6, or 12 in-game hours |
+| History drop | Remove snapshots with `hourIndex` &lt; `CurrentHourIndex() - 72` |
+| Hard list cap | `MaxRetentionHours + 8` = **80** snapshots max |
+| Chart behavior | Hold-last-value forward per hour slot (`BuildMapMetricSeries`) |
+
+Map table columns always read **latest** snapshot only (not range-summed). Map charts can show backlog trends over the retained window (~72 h of hourly slots, subject to sample interval).
+
+### Range vs. what you actually see
+
+| UI range | Group table totals | Per-colonist / per-WG rows | Colonist chart | Map chart |
+|----------|-------------------|---------------------------|----------------|-----------|
+| ≤ 48 h | Full tier sum | Full hourly detail | Hourly points | Hourly hold-forward (~72 h data) |
+| 7–14 d | Full tier sum | Partial (hourly only, ≤ 72 h) | Daily buckets | Hourly slots (sparse samples) |
+| ≥ 4 quadrums | Full tier sum (coarse) | Partial (hourly only) | Daily series; coarser for very long spans | Mostly sparse / flat outside 72 h window |
+
+### Time constants
+
+| Constant | Value |
+|----------|-------|
+| `WorkMonitorSettings.TicksPerHour` | 2500 |
+| `MaxRetentionHours` | 72 (hard cap on hourly colonist + map history window) |
+| RimWorld day | 24 h = 24 hour-indices |
+| RimWorld quadrum | 15 days |
+| RimWorld year | 60 days = 1440 h (= `MonitorRangePreset.Quadrums4` span) |
+
+---
 ### `WorkMonitorUtility` (static)
 
-`MonitorColonists()`, `CurrentHourIndex()`, `CurrentTicksGame()`, `FormatDuration()`, `FormatWorkUnits()`, `FormatSampleAge()`.
+`MonitorColonists()`, `CurrentHourIndex()`, `CurrentTicksGame()`, `FormatDuration()`, `FormatWorkUnits()`, `FormatSampleAge()`, `FormatGameDateTime()`, `DayRolloverHour()`, `GetWorkDayId()`.
 
 ### `WorkMonitorSettings`
 
 | Setting | Default | Purpose |
 |---------|---------|---------|
-| `statsWindowHours` | 24 | Rolling window for colonist stats in tables. |
-| `chartHistoryHours` | 24 | Hourly bucket retention. |
+| `statsWindowHours` | 24 | Legacy/default span; superseded in UI by `MonitorRangeState`. |
+| `chartHistoryHours` | 24 | Minimum history retention floor. |
+| `defaultRangePreset` | 24 h | Initial `MonitorRangeState` preset. |
 | `greenStatusHours` / `yellowStatusHours` | 6 / 12 | Status color thresholds. |
-| `refreshIntervalTicks` | 60 | UI refresh cadence. |
+| `refreshIntervalTicks` | 60 | Overview panel refresh cadence. |
 | `mapSampleIntervalHours` | 6 | Map sampler interval (1/2/3/6/12). |
+| `dayRolloverHour` | 0 | In-game hour when “today” resets for map new-today counts. |
+| `maxDailyBuckets` / `maxQuadrumBuckets` / `maxYearBuckets` | 20 / 12 / 7 | Coarse history caps. |
+| `yearHistoryUnlimited` | false | Disable year-bucket cap when true. |
 | `showTimeInHours` | true | Display ticks as hours. |
 | `showSkillOnWorkGiverLabels` | true | Prefix work giver labels with skill. |
 | `workGiverLabelFormat` | `{skill}: {label}` | Label template. |
 | `skillRoleOverrides` | `""` | `SkillDef=label` comma list. |
 | `workGiverSkillOverrides` | `""` | `WorkGiverDef=true/false` comma list. |
+| `monitorWindowSize` | 720×520 | Standalone monitor window size. |
 
 ---
 
@@ -225,6 +399,8 @@ Registered in `MapWorkProviderRegistry.All` (order matters only for collection; 
 
 **Yes** for any colonist job where `job.workGiverDef != null`, hooked from `Pawn_JobTracker.StartJob`.
 
+**Endless jobs** (separate counter): `Research`, `Drill`, `GroundPenetratingScan`, `OperateScanner`. Increment `endlessJobCount` instead of `jobCount`. UI **Jobs** column excludes endless; **Endless** column shows them.
+
 ### Work units (gatherable)
 
 | Job kind | Mechanism | Work = 0 when |
@@ -234,7 +410,9 @@ Registered in `MapWorkProviderRegistry.All` (order matters only for collection; 
 
 Work-left sources (in order): bill driver → reflected `workLeft` on `JobDriver` → job target `Frame` / `UnfinishedThing` / `Mineable`.
 
-Jobs like haul, clean, tend, research, flick, etc. record **jobs and ticks** but typically **work units = 0**.
+Jobs like haul, clean, tend, flick, etc. record **jobs and ticks** but typically **work units = 0** unless estimated.
+
+When work-left tracking fails but work ticks were recorded, `WorkUnitEstimator` may credit **`estimatedWorkUnitsSpent`** (included in `SumWorkUnits` and charts).
 
 ### Ticks
 
@@ -251,6 +429,10 @@ Each unique `ScannedMapTarget` (after `DedupeKey` filter) adds **1** to `openTas
 ### Work gatherable
 
 Same target adds `WorkLeft` to `workLeftTotal`. Many providers use **0 work left** for pure “task exists” targets (haul, refuel, drill ready, frame delivery, hunt designation).
+
+### New today
+
+On first sighting of a `DedupeKey`, `MapWorkSampler` records `taskFirstSeenDayId`. Targets whose first-seen day equals the current work day increment `newTodayOpenTaskCount` and `newTodayWorkLeftTotal` (in addition to totals). Stale keys not in the latest snapshot are removed from tracking.
 
 ### Attribution quirks
 
@@ -283,19 +465,20 @@ The monitor is hosted by `WorkMonitorContentHost` inside the History **Work** ta
 
 **UI naming uses work type**, not “group”. Code still uses `WorkGroup*` types (`WorkGroupSnapshot`, `WorkGroupDetailPanel`, …) for monitor rows — that is implementation naming only; do not use “group” in player-facing labels.
 
-### The three views
+### The four views
 
 | UI name | Content | `MonitorView` | `ColonistDetailView` | Panel(s) | Translation key |
 |---------|---------|---------------|----------------------|----------|-----------------|
 | **WorkType overview** | **WorkType list** — all monitor rows with status and map/colonist KPIs | `Overview` | — | `WorkGroupOverviewPanel` | `WorkMonitor.OverviewTitle` |
-| **WorkType detail** | **Charts**, **Colonist list** (work done), **WorkGiver list** (map backlog) for one row | `GroupDetail` | — | `WorkGroupDetailPanel`, `WorkGroupChartPanel` | `WorkMonitor.DetailTitle` (`{workType} — Detail`) |
+| **WorkType detail** | **Charts**, expandable **Colonist list**, **WorkGiver list** (map backlog) for one row | `GroupDetail` | — | `WorkGroupDetailPanel`, `WorkGroupChartPanel` | `WorkMonitor.DetailTitle` (`{workType} — Detail`) |
+| **WorkGiver detail** | Charts + colonist table for one work giver within a row | `WorkGiverDetail` | — | `WorkGiverDetailPanel`, `WorkGroupChartPanel` | (work giver label in dropdown) |
 | **Colonist work detail** | **Work list** — per–work-giver breakdown for one colonist | `ColonistDetail` | `GroupWorkDetail` | `ColonistDetailPanel` | `WorkMonitor.ColonistWorkDetailTitle` (`{colonist} — {workType}`) |
 
 **Enum definitions** (`Source/UI/`):
 
 ```csharp
 // WorkMonitorContentHost.cs
-public enum MonitorView { Overview, GroupDetail, ColonistDetail }
+public enum MonitorView { Overview, GroupDetail, WorkGiverDetail, ColonistDetail }
 
 // ColonistDetailPanel.cs
 public enum ColonistDetailView { GroupsSummary, GroupWorkDetail }
@@ -312,9 +495,18 @@ WorkType overview (WorkType list)
         │ click row
         ▼
 WorkType detail (chart · colonist list · work giver list)
-        │ colonist work icon
+        │ click work giver row (map or expanded colonist sub-row)
+        ▼
+WorkGiver detail (chart · colonist list for one WG)
+        │ colonist row / work icon
         ▼
 Colonist work detail (work list)
+        │ Back → WorkGiver detail (if opened from WG) or WorkType detail
+        ▼
+WorkType detail
+        │ colonist row (non-expanded click) or work icon
+        ▼
+Colonist work detail
         │ Back
         ▼
 WorkType detail
@@ -323,7 +515,9 @@ WorkType detail
 WorkType overview
 ```
 
-Opening **colonist work detail** from WorkType detail pre-selects that work type. The colonist panel may briefly show a work-type summary when backing out internally (`ColonistDetailView.GroupsSummary`); the named UI destination is still **Colonist work detail → Work list**.
+**WorkType detail colonist table:** expand/collapse per colonist (▶/▼) to show per–work-giver metrics; **Expand all** / **Collapse all** toggles all rows. Expanded rows use `ColonistStatsAggregator.BuildGroupDetail`. KPI columns show jobs/h and work/h for the selected range.
+
+Opening **colonist work detail** from WorkType or WorkGiver detail pre-selects that work type (and work giver when applicable). Back from colonist detail returns to WorkGiver detail when `returnWorkGiver` was set.
 
 ### Entry points
 
@@ -332,31 +526,39 @@ Opening **colonist work detail** from WorkType detail pre-selects that work type
 | Open History → Work tab | **WorkType overview** |
 | Click a WorkType row | **WorkType detail** for that row |
 | WorkType dropdown on detail | Switch detail row without returning to overview |
+| Range dropdown (any view) | Change `MonitorRangeState`; rebuilds stats/charts |
 | Highlight button | `WorkTabHighlightController.HighlightGroup` — jumps to Work tab |
-| Colonist work icon on WorkType detail | **Colonist work detail** (pawn + current work type) |
+| Click work giver row (map table or expanded colonist sub-row) | **WorkGiver detail** |
+| WorkGiver dropdown on WorkGiver detail | Switch work giver within current row |
+| Colonist row click / work icon | **Colonist work detail** (pawn + current work type) |
 | Colonist dropdown | Switch pawn; preserves work-type scope when possible |
 
 ### UI source files
 
 | File | Role | `MonitorView` | `ColonistDetailView` |
 |------|------|---------------|----------------------|
-| `WorkMonitorContentHost.cs` | View routing | all | — |
+| `WorkMonitorContentHost.cs` | View routing, shared `MonitorRangeState` | all | — |
+| `MonitorRangeState.cs` | Range presets and span hours | — | — |
+| `WorkMonitorTableColumns.cs` | Shared column rects for colonist/work-giver tables | — | — |
 | `WorkGroupOverviewPanel.cs` | WorkType overview — WorkType list | `Overview` | — |
 | `WorkGroupDetailPanel.cs` | WorkType detail — colonist list + map WorkGiver list | `GroupDetail` | — |
-| `WorkGroupChartPanel.cs` | WorkType detail — charts (child of detail panel) | `GroupDetail` | — |
+| `WorkGroupChartPanel.cs` | Charts (dual colonist/map stream, new-today stack) | `GroupDetail`, `WorkGiverDetail` | — |
+| `WorkGiverDetailPanel.cs` | WorkGiver detail — single-WG colonist breakdown | `WorkGiverDetail` | — |
 | `ColonistDetailPanel.cs` | Colonist work detail — work list | `ColonistDetail` | `GroupWorkDetail` (also `GroupsSummary` internally) |
+| `WorkChartDataBuilder.cs` | Chart series from tier buffers + map history | — | — |
 | `WorkGroupMonitorWindow.cs` | Standalone window (Work tab monitor button) | hosts `WorkMonitorContentHost` | — |
 
 ---
 
 ## UI data flow
 
-1. `WorkGroupRegistry.GetAllGroups()` — monitor rows for the WorkType list.
-2. `WorkGroupStatsAggregator.Build(row)` — colonist sums from `WorkActivityTracker` hourly buffers + map row from `MapWorkSampler.GetLatestSnapshot()`.
-3. Map columns in work-giver rows show `openTaskCount` as **Jobs** and `workLeftTotal` as **Work** (backlog, not spent).
-4. Colonist columns show jobs/ticks/work **spent** in `statsWindowHours`.
+1. `MonitorRangeState` — user-selected span; `MinHourIndex = CurrentHourIndex() - RangeHours`.
+2. `WorkGroupRegistry.GetAllGroups()` — monitor rows for the WorkType list (250-tick cache).
+3. `WorkGroupStatsAggregator.Build(row, rangeHours)` — colonist sums from `WorkActivityTracker` tier buffers + map row from `MapWorkSampler.GetLatestSnapshot()`. Group-level totals prefer `GetGroupHistory(storageKey)` when present.
+4. Map columns in work-giver rows: **ExistJob** / **ExistWork** = `openTaskCount` / `workLeftTotal` with `total(newToday)` suffix; colonist **Jobs** / **Endless** / **Work** / **Walk** / **Work time** = spent metrics in range.
+5. Charts (`WorkChartDataBuilder`) read `WorkHistoryTierBuffer` + `MapWorkSampler.GetHistory()`; resolution and retention limits in [Data retention](#data-retention).
 
-Detail panels use `ColonistStatsAggregator` and chart builders under `Source/UI/`.
+Detail panels use `ColonistStatsAggregator`, `WorkGiverStatsAggregator`, and `WorkChartDataBuilder` under `Source/UI/`.
 
 ---
 
@@ -378,10 +580,13 @@ Optional integration: **Work Tab Groups** mod (`philip2p2026.worktabgroups`) add
 1. Map sample is **current map only**; no multi-map aggregation.
 2. Map stats are **stale** between samples (age shown via `FormatSampleAge`).
 3. Haul/refuel/drill-ready/etc. contribute **open tasks** but often **0 work left**.
-4. Colonist **work units** are unavailable for most non-bill, non-work-left jobs.
-5. Research/scanner colonist work is job-count only unless driver exposes `workLeft`.
+4. Colonist **work units** are unavailable for most non-bill, non-work-left jobs (estimates may apply via `WorkUnitEstimator`).
+5. Research/scanner colonist work uses **endless** job counts; work units may be estimated from speed × ticks.
 6. `StudyArchotechStructures` / `Hack` may credit work if reflection finds `workLeft` — not verified.
 7. Work-type status uses **most recent work tick among enabled capable colonists**, not map backlog.
+8. Hourly colonist buckets cap at **72 hours** (`MaxRetentionHours`); longer UI ranges use rolled-up daily/quadrum/year buckets for **group totals** only — per-colonist rows sum hourly buckets and under-count beyond 72 h (see [Data retention](#data-retention)).
+9. Map **new today** resets by work-day boundary, not necessarily midnight on the UI clock.
+10. Map chart time series cannot extend beyond ~**72 h** of retained snapshots regardless of UI range.
 
 ---
 
