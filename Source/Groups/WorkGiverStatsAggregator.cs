@@ -45,6 +45,7 @@ namespace WorkMonitor.Groups
                 detail.TotalEndlessJobCount += endless;
                 detail.TotalTravelTicks += travel;
                 detail.TotalWorkTicks += work;
+                detail.TotalTicksSpent += ticks;
                 detail.TotalWorkUnits += units;
 
                 Pawn pawn = ColonistWorkQuery.TryResolvePawn(pawnId);

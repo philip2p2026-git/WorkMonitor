@@ -431,6 +431,7 @@ namespace WorkMonitor.UI
                     detail.TotalJobCount,
                     detail.TotalEndlessJobCount,
                     detail.TotalWorkUnits,
+                    detail.TotalTicksSpent,
                     detail.TotalTravelTicks,
                     detail.TotalWorkTicks,
                     showHours,
@@ -545,6 +546,7 @@ namespace WorkMonitor.UI
                     wg.JobCount,
                     wg.EndlessJobCount,
                     wg.WorkUnitsSpent,
+                    wg.TicksSpent,
                     wg.TravelTicksSpent,
                     wg.WorkTicksSpent,
                     showHours,
@@ -613,6 +615,7 @@ namespace WorkMonitor.UI
             int jobCount,
             int endlessCount,
             float workUnits,
+            int ticksSpent,
             int travelTicks,
             int workTicks,
             bool showHours,
@@ -628,8 +631,8 @@ namespace WorkMonitor.UI
                 out _,
                 out _,
                 out Rect labelCol,
-                out _,
-                out _,
+                out Rect kpiJobCol,
+                out Rect kpiWorkCol,
                 out Rect jobsCol,
                 out Rect endlessCol,
                 out Rect workCol,
@@ -647,7 +650,7 @@ namespace WorkMonitor.UI
             GUI.color = new Color(0.8f, 0.8f, 0.8f);
             if (labelIndentFromArea.HasValue)
             {
-                float labelWidth = jobsCol.x - area.x - labelIndentFromArea.Value - 8f;
+                float labelWidth = kpiJobCol.x - area.x - labelIndentFromArea.Value - 8f;
                 Widgets.Label(
                     new Rect(area.x + labelIndentFromArea.Value, columnRow.y, labelWidth, columnRow.height),
                     label.Truncate(labelWidth));
@@ -659,6 +662,11 @@ namespace WorkMonitor.UI
 
             GUI.color = prev;
 
+            float hours = ticksSpent / (float)WorkMonitorSettings.TicksPerHour;
+            float jobsPerHour = hours > 0f ? jobCount / hours : 0f;
+            float workUnitsPerHour = hours > 0f ? workUnits / hours : 0f;
+            WorkMonitorUiUtility.LabelRightWorkGiverStatValue(kpiJobCol, FormatPerHour(jobsPerHour, integer: true));
+            WorkMonitorUiUtility.LabelRightWorkGiverStatValue(kpiWorkCol, FormatPerHour(workUnitsPerHour, integer: false));
             WorkMonitorUiUtility.LabelRightWorkGiverStatValue(jobsCol, jobCount.ToString());
             WorkMonitorUiUtility.LabelRightWorkGiverStatValue(endlessCol, endlessCount.ToString());
             WorkMonitorUiUtility.LabelRightWorkGiverStatValue(workCol, WorkMonitorUtility.FormatWorkUnits(workUnits));
@@ -739,11 +747,8 @@ namespace WorkMonitor.UI
                 workGiverFirst
                     ? "WorkMonitor.WorkGiver".Translate()
                     : "WorkMonitor.Colonist".Translate());
-            if (!workGiverFirst)
-            {
-                LabelRight(kpiJobCol, "WorkMonitor.KpiJobs".Translate());
-                LabelRight(kpiWorkCol, "WorkMonitor.KpiWork".Translate());
-            }
+            LabelRight(kpiJobCol, "WorkMonitor.KpiJobs".Translate());
+            LabelRight(kpiWorkCol, "WorkMonitor.KpiWork".Translate());
 
             LabelRight(jobsCol, "WorkMonitor.Jobs".Translate());
             Rect endlessHeader = endlessCol;

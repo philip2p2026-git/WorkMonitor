@@ -102,6 +102,7 @@ namespace WorkMonitor.Groups
         public int TotalEndlessJobCount;
         public int TotalTravelTicks;
         public int TotalWorkTicks;
+        public int TotalTicksSpent;
         public float TotalWorkUnits;
         public int MapOpenTasks;
         public int MapNewTodayOpenTasks;
