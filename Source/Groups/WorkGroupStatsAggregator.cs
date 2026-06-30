@@ -150,9 +150,11 @@ namespace WorkMonitor.Groups
                     mapSnapshot.perWorkGiver.TryGetValue(wg.defName, out mapSnap);
                 }
 
+                int wgJobs = 0;
                 int wgEndless = 0;
                 foreach (Pawn pawn in colonists)
                 {
+                    wgJobs += tracker?.SumPawnWorkGiverJobs(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
                     wgEndless += tracker?.SumPawnWorkGiverEndlessJobs(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
                 }
 
@@ -160,6 +162,7 @@ namespace WorkMonitor.Groups
                 {
                     WorkGiver = wg,
                     Label = WorkGiverLabelUtility.Format(wg),
+                    JobCount = wgJobs,
                     EndlessJobCount = wgEndless,
                     MapOpenTasks = mapSnap?.openTaskCount ?? 0,
                     MapNewTodayOpenTasks = mapSnap?.newTodayOpenTaskCount ?? 0,

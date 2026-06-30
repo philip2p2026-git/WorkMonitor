@@ -480,14 +480,18 @@ namespace WorkMonitor.UI
             Color prev = GUI.color;
             GUI.color = new Color(0.72f, 0.72f, 0.72f);
 
-            GetMapTableColumns(row, out Rect labelCol, out Rect jobsCol, out Rect workCol, out Rect endlessCol);
+            GetMapTableColumns(row, out Rect labelCol, out Rect mapJobsCol, out Rect mapWorkCol, out Rect colonistJobsCol, out Rect endlessCol);
 
             Widgets.Label(labelCol, "WorkMonitor.WorkGiver".Translate());
-            LabelRight(jobsCol, "WorkMonitor.Jobs".Translate());
-            LabelRight(workCol, "WorkMonitor.Work".Translate());
+            LabelRight(mapJobsCol, "WorkMonitor.ExistJob".Translate());
+            TooltipHandler.TipRegion(mapJobsCol, "WorkMonitor.ExistJobTip".Translate());
+            LabelRight(mapWorkCol, "WorkMonitor.ExistWork".Translate());
+            TooltipHandler.TipRegion(mapWorkCol, "WorkMonitor.ExistWorkTip".Translate());
+            LabelRight(colonistJobsCol, "WorkMonitor.Jobs".Translate());
+            TooltipHandler.TipRegion(colonistJobsCol, "WorkMonitor.JobProcessedTip".Translate());
             Rect endlessHeader = endlessCol;
             LabelRight(endlessHeader, "WorkMonitor.EndlessJobs".Translate());
-            TooltipHandler.TipRegion(endlessHeader, "WorkMonitor.MapEndlessTip".Translate());
+            TooltipHandler.TipRegion(endlessHeader, "WorkMonitor.EndlessJobsTip".Translate());
 
             GUI.color = prev;
         }
@@ -496,7 +500,7 @@ namespace WorkMonitor.UI
         {
             clicked = false;
             Text.Font = GameFont.Small;
-            GetMapTableColumns(row, out Rect labelCol, out Rect jobsCol, out Rect workCol, out Rect endlessCol);
+            GetMapTableColumns(row, out Rect labelCol, out Rect mapJobsCol, out Rect mapWorkCol, out Rect colonistJobsCol, out Rect endlessCol);
 
             if (Widgets.ButtonInvisible(row))
             {
@@ -504,42 +508,46 @@ namespace WorkMonitor.UI
             }
 
             Widgets.Label(labelCol, wg.Label.Truncate(labelCol.width));
-            string jobsText = WorkMonitorUiUtility.FormatMapOpenTasks(wg.MapOpenTasks, wg.MapNewTodayOpenTasks);
-            string workText = WorkMonitorUiUtility.FormatMapWorkLeft(wg.MapWorkLeft, wg.MapNewTodayWorkLeft);
-            LabelRight(jobsCol, jobsText);
-            TooltipHandler.TipRegion(jobsCol, "WorkMonitor.MapJobsNewTodayTip".Translate(jobsText));
-            LabelRight(workCol, workText);
-            TooltipHandler.TipRegion(workCol, "WorkMonitor.MapWorkNewTodayTip".Translate(workText));
+            string mapJobsText = WorkMonitorUiUtility.FormatMapOpenTasks(wg.MapOpenTasks, wg.MapNewTodayOpenTasks);
+            string mapWorkText = WorkMonitorUiUtility.FormatMapWorkLeft(wg.MapWorkLeft, wg.MapNewTodayWorkLeft);
+            LabelRight(mapJobsCol, mapJobsText);
+            TooltipHandler.TipRegion(mapJobsCol, "WorkMonitor.MapJobsNewTodayTip".Translate(mapJobsText));
+            LabelRight(mapWorkCol, mapWorkText);
+            TooltipHandler.TipRegion(mapWorkCol, "WorkMonitor.MapWorkNewTodayTip".Translate(mapWorkText));
+            LabelRight(colonistJobsCol, wg.JobCount.ToString());
             LabelRight(endlessCol, wg.EndlessJobCount.ToString());
         }
 
         private void DrawWorkGiverTotalRow(Rect row)
         {
             Text.Font = GameFont.Small;
-            GetMapTableColumns(row, out Rect labelCol, out Rect jobsCol, out Rect workCol, out Rect endlessCol);
+            GetMapTableColumns(row, out Rect labelCol, out Rect mapJobsCol, out Rect mapWorkCol, out Rect colonistJobsCol, out Rect endlessCol);
 
             Color prev = GUI.color;
             GUI.color = new Color(0.85f, 0.85f, 0.85f);
             Widgets.Label(labelCol, "WorkMonitor.MapTotal".Translate(stats.Group.Label));
-            string jobsText = WorkMonitorUiUtility.FormatMapOpenTasks(stats.TotalMapOpenTasks, stats.TotalMapNewTodayOpenTasks);
-            string workText = WorkMonitorUiUtility.FormatMapWorkLeft(stats.TotalMapWorkLeft, stats.TotalMapNewTodayWorkLeft);
-            LabelRight(jobsCol, jobsText);
-            LabelRight(workCol, workText);
+            string mapJobsText = WorkMonitorUiUtility.FormatMapOpenTasks(stats.TotalMapOpenTasks, stats.TotalMapNewTodayOpenTasks);
+            string mapWorkText = WorkMonitorUiUtility.FormatMapWorkLeft(stats.TotalMapWorkLeft, stats.TotalMapNewTodayWorkLeft);
+            LabelRight(mapJobsCol, mapJobsText);
+            LabelRight(mapWorkCol, mapWorkText);
+            LabelRight(colonistJobsCol, stats.TotalJobCount.ToString());
             LabelRight(endlessCol, stats.TotalEndlessJobCount.ToString());
             GUI.color = prev;
         }
 
-        private static void GetMapTableColumns(Rect row, out Rect labelCol, out Rect jobsCol, out Rect workCol, out Rect endlessCol)
+        private static void GetMapTableColumns(Rect row, out Rect labelCol, out Rect mapJobsCol, out Rect mapWorkCol, out Rect colonistJobsCol, out Rect endlessCol)
         {
             float endlessX = row.xMax - EndlessJobWidth;
-            float workX = endlessX - ColumnGap - WorkWidth;
-            float jobsX = workX - ColumnGap - JobsWidth;
+            float colonistJobsX = endlessX - ColumnGap - JobsWidth;
+            float mapWorkX = colonistJobsX - ColumnGap - WorkWidth;
+            float mapJobsX = mapWorkX - ColumnGap - JobsWidth;
             float labelX = row.x;
-            float labelWidth = jobsX - ColumnGap - labelX;
+            float labelWidth = mapJobsX - ColumnGap - labelX;
 
             labelCol = new Rect(labelX, row.y, Mathf.Max(labelWidth, 60f), row.height);
-            jobsCol = new Rect(jobsX, row.y, JobsWidth, row.height);
-            workCol = new Rect(workX, row.y, WorkWidth, row.height);
+            mapJobsCol = new Rect(mapJobsX, row.y, JobsWidth, row.height);
+            mapWorkCol = new Rect(mapWorkX, row.y, WorkWidth, row.height);
+            colonistJobsCol = new Rect(colonistJobsX, row.y, JobsWidth, row.height);
             endlessCol = new Rect(endlessX, row.y, EndlessJobWidth, row.height);
         }
 
