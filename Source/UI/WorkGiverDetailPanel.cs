@@ -12,8 +12,8 @@ namespace WorkMonitor.UI
         private const float RowHeight = 24f;
         private const float ChartHeight = 168f;
         private const float ColonistIconSize = WorkMonitorTableColumns.ColonistIconSize;
-        private const float JobsWidth = 42f;
-        private const float WorkWidth = 52f;
+        private const float JobsWidth = 63f;
+        private const float WorkWidth = 78f;
         private const float ColumnGap = 10f;
         private const float WorkGiverDropdownWidth = 180f;
 

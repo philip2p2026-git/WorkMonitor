@@ -162,7 +162,17 @@ namespace WorkMonitor.UI
 
         public static void DrawColonistPortrait(Rect row, ColonistWorkStat colonist)
         {
-            Pawn pawn = colonist.Pawn ?? ColonistWorkQuery.TryResolvePawn(colonist.PawnId);
+            DrawColonistPortrait(row, colonist.PawnId, colonist.Pawn, colonist.IsAbsent);
+        }
+
+        public static void DrawColonistPortrait(Rect row, ColonistStats stats)
+        {
+            DrawColonistPortrait(row, stats.PawnId, stats.Pawn, stats.IsAbsent);
+        }
+
+        private static void DrawColonistPortrait(Rect row, int pawnId, Pawn pawn, bool isAbsent)
+        {
+            pawn ??= ColonistWorkQuery.TryResolvePawn(pawnId);
             if (pawn == null)
             {
                 return;
@@ -174,7 +184,7 @@ namespace WorkMonitor.UI
                 ColonistPortraitSize,
                 ColonistPortraitSize);
             Color prev = GUI.color;
-            if (colonist.IsAbsent)
+            if (isAbsent)
             {
                 GUI.color = new Color(1f, 1f, 1f, 0.45f);
             }

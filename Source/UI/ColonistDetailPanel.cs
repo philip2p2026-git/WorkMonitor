@@ -88,7 +88,18 @@ namespace WorkMonitor.UI
                 return;
             }
 
-            Rect dropdownRect = new Rect(rect.x + backWidth + 6f, rect.y, ColonistDropdownWidth, 26f);
+            Rect portraitRect = new Rect(
+                rect.x + backWidth + 6f,
+                rect.y + (26f - WorkMonitorUiUtility.ColonistPortraitSize) * 0.5f,
+                WorkMonitorUiUtility.ColonistPortraitSize,
+                WorkMonitorUiUtility.ColonistPortraitSize);
+            WorkMonitorUiUtility.DrawColonistPortrait(portraitRect, stats);
+
+            Rect dropdownRect = new Rect(
+                portraitRect.xMax + ColonistIconGap,
+                rect.y,
+                ColonistDropdownWidth,
+                26f);
             int minHour = WorkMonitorUtility.CurrentHourIndex() - rangeState.RangeHours;
             WorkActivityTracker tracker = WorkActivityTracker.EnsureRegistered();
             List<FloatMenuOption> colonistOptions = new List<FloatMenuOption>();
@@ -303,19 +314,17 @@ namespace WorkMonitor.UI
         {
             ColonistGroupWorkDetail detail = GetGroupDetail(group, rangeState);
             bool showHours = WorkMonitorMod.Settings?.showTimeInHours ?? true;
-            Rect columnRow = new Rect(area.x, y, area.width, RowHeight);
 
             foreach (ColonistWorkGiverStat wg in detail.WorkGiverStats)
             {
-                Rect row = new Rect(area.x + WorkGiverIndent, y, area.width - WorkGiverIndent, RowHeight);
-                WorkMonitorUiUtility.DrawRowBackground(row, MonitorRowKind.WorkGiver, rowIndex);
+                Rect columnRow = new Rect(area.x, y, area.width, RowHeight);
+                WorkMonitorUiUtility.DrawRowBackground(columnRow, MonitorRowKind.WorkGiver, rowIndex);
 
-                columnRow.y = y;
                 float metricsLeft = WorkMonitorTableColumns.ColonistWorkGiverMetricsLeftEdge(columnRow);
                 Text.Font = GameFont.Tiny;
                 Color prev = GUI.color;
                 GUI.color = new Color(0.8f, 0.8f, 0.8f);
-                Widgets.Label(new Rect(area.x + WorkGiverIndent, row.y, metricsLeft - area.x - WorkGiverIndent - 8f, row.height), wg.Label.Truncate(metricsLeft - area.x - WorkGiverIndent - 8f));
+                Widgets.Label(new Rect(area.x + WorkGiverIndent, columnRow.y, metricsLeft - area.x - WorkGiverIndent - 8f, columnRow.height), wg.Label.Truncate(metricsLeft - area.x - WorkGiverIndent - 8f));
                 GUI.color = prev;
                 Text.Font = GameFont.Small;
 

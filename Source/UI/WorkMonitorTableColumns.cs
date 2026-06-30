@@ -5,30 +5,30 @@ namespace WorkMonitor.UI
 {
     public static class WorkMonitorTableColumns
     {
-        private const float ExistJobWidth = 44f;
-        private const float ExistWorkWidth = 52f;
-        private const float JobProcessedWidth = 72f;
-        private const float WorkProcessedWidth = 76f;
+        private const float ExistJobWidth = 66f;
+        private const float ExistWorkWidth = 78f;
+        private const float JobProcessedWidth = 108f;
+        private const float WorkProcessedWidth = 114f;
         private const float ColumnGap = 6f;
 
-        private const float ColonistJobWidth = 36f;
-        private const float ColonistEndlessWidth = 40f;
-        private const float ColonistWorkWidth = 44f;
-        private const float ColonistWalkWidth = 40f;
-        private const float ColonistActiveWorkWidth = 40f;
-        private const float ColonistShareWidth = 48f;
+        private const float ColonistJobWidth = 54f;
+        private const float ColonistEndlessWidth = 60f;
+        private const float ColonistWorkWidth = 66f;
+        private const float ColonistWalkWidth = 60f;
+        private const float ColonistActiveWorkWidth = 60f;
+        private const float ColonistShareWidth = 72f;
 
-        private const float GroupDetailWalkWidth = 40f;
-        private const float GroupDetailActiveWorkWidth = 40f;
+        private const float GroupDetailWalkWidth = 60f;
+        private const float GroupDetailActiveWorkWidth = 60f;
 
         public const float ExpandButtonWidth = 20f;
         public const float ColonistIconSize = 18f;
         public const float ColonistIconGap = 4f;
-        private const float GroupDetailKpiJobWidth = 42f;
-        private const float GroupDetailKpiWorkWidth = 52f;
-        private const float GroupDetailJobsWidth = 42f;
-        private const float GroupDetailEndlessWidth = 44f;
-        private const float GroupDetailWorkWidth = 52f;
+        private const float GroupDetailKpiJobWidth = 63f;
+        private const float GroupDetailKpiWorkWidth = 78f;
+        private const float GroupDetailJobsWidth = 63f;
+        private const float GroupDetailEndlessWidth = 66f;
+        private const float GroupDetailWorkWidth = 78f;
         private const float GroupDetailColumnGap = 10f;
 
         public static void GetGroupDetailColonistTableColumns(
