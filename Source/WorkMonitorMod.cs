@@ -10,6 +10,7 @@ namespace WorkMonitor
 {
     public class WorkMonitorMod : Mod
     {
+        private const float SettingsContentHeight = 580f;
         private const float SettingsRowHeight = 28f;
         private const float SettingsSectionGap = 10f;
         private const float SettingsControlGap = 6f;
@@ -33,17 +34,15 @@ namespace WorkMonitor
         public override void DoSettingsWindowContents(Rect inRect)
         {
             float contentWidth = inRect.width - 20f;
-            Listing_Standard listing = new Listing_Standard();
-            Rect viewRect = new Rect(0f, 0f, contentWidth, 10000f);
-            listing.Begin(viewRect);
-            DrawSettingsContents(listing);
-            listing.End();
-            viewRect.height = listing.CurHeight + 24f;
+            Rect viewRect = new Rect(0f, 0f, contentWidth, SettingsContentHeight);
 
             Widgets.BeginScrollView(inRect, ref settingsScrollPosition, viewRect);
+
+            Listing_Standard listing = new Listing_Standard();
             listing.Begin(viewRect);
             DrawSettingsContents(listing);
             listing.End();
+
             Widgets.EndScrollView();
         }
 
