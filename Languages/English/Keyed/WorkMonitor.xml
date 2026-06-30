@@ -40,7 +40,13 @@
 	<WorkMonitor.ColonistWorkDetailTitle>{0} — {1}</WorkMonitor.ColonistWorkDetailTitle>
 	<WorkMonitor.WorkGiversColonist>WorkGivers</WorkMonitor.WorkGiversColonist>
 	<WorkMonitor.BackToGroups>Back</WorkMonitor.BackToGroups>
+	<WorkMonitor.BackToGroup>Back to {0}</WorkMonitor.BackToGroup>
+	<WorkMonitor.BackToWorkGiver>Back to {0}</WorkMonitor.BackToWorkGiver>
 	<WorkMonitor.TimeShare>Time %</WorkMonitor.TimeShare>
+	<WorkMonitor.TimeShareTip>Share of this colonist's total monitored work time in the selected range. WorkGiver rows sum to their parent work type.</WorkMonitor.TimeShareTip>
+	<WorkMonitor.ExpandAll>Expand all</WorkMonitor.ExpandAll>
+	<WorkMonitor.CollapseAll>Collapse all</WorkMonitor.CollapseAll>
+	<WorkMonitor.MapEndlessTip>Colonist endless job starts in the selected range (not map backlog).</WorkMonitor.MapEndlessTip>
 	<WorkMonitor.ColonistsIconTip>Info opens colonist bio. Click a row to open colonist work breakdown.</WorkMonitor.ColonistsIconTip>
 	<WorkMonitor.OpenColonistProfile>Open colonist bio</WorkMonitor.OpenColonistProfile>
 	<WorkMonitor.OpenColonistWork>Open colonist work view</WorkMonitor.OpenColonistWork>

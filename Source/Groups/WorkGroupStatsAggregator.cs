@@ -150,10 +150,17 @@ namespace WorkMonitor.Groups
                     mapSnapshot.perWorkGiver.TryGetValue(wg.defName, out mapSnap);
                 }
 
+                int wgEndless = 0;
+                foreach (Pawn pawn in colonists)
+                {
+                    wgEndless += tracker?.SumPawnWorkGiverEndlessJobs(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
+                }
+
                 stats.WorkGiverStats.Add(new WorkGiverStat
                 {
                     WorkGiver = wg,
                     Label = WorkGiverLabelUtility.Format(wg),
+                    EndlessJobCount = wgEndless,
                     MapOpenTasks = mapSnap?.openTaskCount ?? 0,
                     MapNewTodayOpenTasks = mapSnap?.newTodayOpenTaskCount ?? 0,
                     MapWorkLeft = mapSnap?.workLeftTotal ?? 0f,

@@ -132,37 +132,17 @@ namespace WorkMonitor.UI
             WorkChartDataBuilder.BuildJobCountSeries(history, minHour, rangeHours, rangeState.UsesHourlyChart, out float[] colonistJobs, out string[] jobLabels);
             WorkChartDataBuilder.BuildMapOpenTasksSeriesForWorkGiver(wgDefName, minHour, rangeHours, out float[] mapJobs, out float[] mapNewJobs, out _);
 
-            if (DisplayMode == WorkChartDisplayMode.Stream)
-            {
-                DualStreamChart.Draw(new Rect(rect.x, rect.y, cellW, rect.height), colonistJobs, mapJobs, mapNewJobs, jobLabels,
-                    "WorkMonitor.MetricJobCount".Translate(), "WorkMonitor.JobProcessed".Translate(), "WorkMonitor.ExistJob".Translate(),
-                    "WorkMonitor.ChartExistJob".Translate(), "WorkMonitor.ChartNewJobToday".Translate());
-            }
-            else
-            {
-                DualLineChart.Draw(new Rect(rect.x, rect.y, cellW, rect.height), colonistJobs, mapJobs, mapNewJobs, jobLabels,
-                    "WorkMonitor.MetricJobCount".Translate(), "WorkMonitor.JobProcessed".Translate(), "WorkMonitor.ExistJob".Translate(),
-                    "WorkMonitor.ChartExistJob".Translate(), "WorkMonitor.ChartNewJobToday".Translate());
-            }
+            DualStreamChart.Draw(new Rect(rect.x, rect.y, cellW, rect.height), colonistJobs, mapJobs, mapNewJobs, jobLabels,
+                "WorkMonitor.MetricJobCount".Translate(), "WorkMonitor.JobProcessed".Translate(), "WorkMonitor.ExistJob".Translate(),
+                "WorkMonitor.ChartExistJob".Translate(), "WorkMonitor.ChartNewJobToday".Translate());
 
             WorkChartDataBuilder.BuildWorkUnitsSeries(history, minHour, rangeHours, rangeState.UsesHourlyChart, out float[] colonistWork, out string[] workLabels);
             WorkChartDataBuilder.BuildMapWorkLeftSeriesForWorkGiver(wgDefName, minHour, rangeHours, out float[] mapWork, out float[] mapNewWork, out _);
 
-            if (DisplayMode == WorkChartDisplayMode.Stream)
-            {
-                DualStreamChart.Draw(new Rect(rect.x + cellW + gap, rect.y, cellW, rect.height), colonistWork, mapWork, mapNewWork, workLabels,
-                    "WorkMonitor.MetricWorkUnits".Translate(), "WorkMonitor.WorkProcessed".Translate(), "WorkMonitor.ExistWork".Translate(),
-                    "WorkMonitor.ChartExistWork".Translate(), "WorkMonitor.ChartNewWorkToday".Translate());
-            }
-            else
-            {
-                DualLineChart.Draw(new Rect(rect.x + cellW + gap, rect.y, cellW, rect.height), colonistWork, mapWork, mapNewWork, workLabels,
-                    "WorkMonitor.MetricWorkUnits".Translate(), "WorkMonitor.WorkProcessed".Translate(), "WorkMonitor.ExistWork".Translate(),
-                    "WorkMonitor.ChartExistWork".Translate(), "WorkMonitor.ChartNewWorkToday".Translate());
-            }
+            DualStreamChart.Draw(new Rect(rect.x + cellW + gap, rect.y, cellW, rect.height), colonistWork, mapWork, mapNewWork, workLabels,
+                "WorkMonitor.MetricWorkUnits".Translate(), "WorkMonitor.WorkProcessed".Translate(), "WorkMonitor.ExistWork".Translate(),
+                "WorkMonitor.ChartExistWork".Translate(), "WorkMonitor.ChartNewWorkToday".Translate());
         }
-
-        private WorkChartDisplayMode DisplayMode = WorkChartDisplayMode.Line;
 
         private void DrawColonistTable(Rect area, ref float y, out bool colonistClicked, out ColonistWorkStat selectedColonist)
         {

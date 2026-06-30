@@ -56,6 +56,7 @@ namespace WorkMonitor.Groups
         public string Label;
         public int JobCount;
         public int EndlessJobCount;
+        public int TicksSpent;
         public int TravelTicksSpent;
         public int WorkTicksSpent;
         public float WorkUnitsSpent;

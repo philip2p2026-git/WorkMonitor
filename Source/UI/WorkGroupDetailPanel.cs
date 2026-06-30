@@ -193,9 +193,17 @@ namespace WorkMonitor.UI
             selectedWorkGiver = null;
 
             Text.Font = GameFont.Small;
-            Rect titleRect = new Rect(area.x, y, area.width, 22f);
+            const float expandAllWidth = 76f;
+            Rect titleRect = new Rect(area.x, y, area.width - expandAllWidth - 4f, 22f);
             Widgets.Label(titleRect, "WorkMonitor.Colonists".Translate());
             TooltipHandler.TipRegion(titleRect, "WorkMonitor.ColonistsTip".Translate());
+            string expandLabel = AllColonistsExpanded()
+                ? "WorkMonitor.CollapseAll".Translate()
+                : "WorkMonitor.ExpandAll".Translate();
+            if (Widgets.ButtonText(new Rect(area.xMax - expandAllWidth, y, expandAllWidth, 22f), expandLabel))
+            {
+                ToggleExpandAllColonists();
+            }
             y += RowHeight;
 
             DrawColonistHeader(new Rect(area.x, y, area.width, RowHeight));
@@ -265,6 +273,38 @@ namespace WorkMonitor.UI
             }
         }
 
+        private bool AllColonistsExpanded()
+        {
+            if (stats.ColonistStats.Count == 0)
+            {
+                return true;
+            }
+
+            foreach (ColonistWorkStat colonist in stats.ColonistStats)
+            {
+                if (!expandedColonistIds.Contains(colonist.Pawn.thingIDNumber))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private void ToggleExpandAllColonists()
+        {
+            if (AllColonistsExpanded())
+            {
+                expandedColonistIds.Clear();
+                return;
+            }
+
+            foreach (ColonistWorkStat colonist in stats.ColonistStats)
+            {
+                expandedColonistIds.Add(colonist.Pawn.thingIDNumber);
+            }
+        }
+
         private void DrawExpandedWorkGivers(Rect area, Pawn pawn, MonitorRangeState rangeState, ref float y, ref int rowIndex, out bool workGiverClicked, out WorkGiverDef selectedWorkGiver)
         {
             workGiverClicked = false;
@@ -295,7 +335,7 @@ namespace WorkMonitor.UI
                 GUI.color = prev;
                 Text.Font = GameFont.Small;
 
-                WorkMonitorTableColumns.GetColonistWorkGiverColumns(columnRow, out Rect jobCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol);
+                WorkMonitorTableColumns.GetColonistWorkGiverColumns(columnRow, out Rect jobCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol, out _);
                 LabelRight(jobCol, wg.JobCount.ToString());
                 LabelRight(endlessCol, wg.EndlessJobCount.ToString());
                 LabelRight(workCol, WorkMonitorUtility.FormatWorkUnits(wg.WorkUnitsSpent));
@@ -440,11 +480,14 @@ namespace WorkMonitor.UI
             Color prev = GUI.color;
             GUI.color = new Color(0.72f, 0.72f, 0.72f);
 
-            GetMapTableColumns(row, out Rect labelCol, out Rect jobsCol, out Rect workCol);
+            GetMapTableColumns(row, out Rect labelCol, out Rect jobsCol, out Rect workCol, out Rect endlessCol);
 
             Widgets.Label(labelCol, "WorkMonitor.WorkGiver".Translate());
             LabelRight(jobsCol, "WorkMonitor.Jobs".Translate());
             LabelRight(workCol, "WorkMonitor.Work".Translate());
+            Rect endlessHeader = endlessCol;
+            LabelRight(endlessHeader, "WorkMonitor.EndlessJobs".Translate());
+            TooltipHandler.TipRegion(endlessHeader, "WorkMonitor.MapEndlessTip".Translate());
 
             GUI.color = prev;
         }
@@ -453,7 +496,7 @@ namespace WorkMonitor.UI
         {
             clicked = false;
             Text.Font = GameFont.Small;
-            GetMapTableColumns(row, out Rect labelCol, out Rect jobsCol, out Rect workCol);
+            GetMapTableColumns(row, out Rect labelCol, out Rect jobsCol, out Rect workCol, out Rect endlessCol);
 
             if (Widgets.ButtonInvisible(row))
             {
@@ -467,12 +510,13 @@ namespace WorkMonitor.UI
             TooltipHandler.TipRegion(jobsCol, "WorkMonitor.MapJobsNewTodayTip".Translate(jobsText));
             LabelRight(workCol, workText);
             TooltipHandler.TipRegion(workCol, "WorkMonitor.MapWorkNewTodayTip".Translate(workText));
+            LabelRight(endlessCol, wg.EndlessJobCount.ToString());
         }
 
         private void DrawWorkGiverTotalRow(Rect row)
         {
             Text.Font = GameFont.Small;
-            GetMapTableColumns(row, out Rect labelCol, out Rect jobsCol, out Rect workCol);
+            GetMapTableColumns(row, out Rect labelCol, out Rect jobsCol, out Rect workCol, out Rect endlessCol);
 
             Color prev = GUI.color;
             GUI.color = new Color(0.85f, 0.85f, 0.85f);
@@ -481,12 +525,14 @@ namespace WorkMonitor.UI
             string workText = WorkMonitorUiUtility.FormatMapWorkLeft(stats.TotalMapWorkLeft, stats.TotalMapNewTodayWorkLeft);
             LabelRight(jobsCol, jobsText);
             LabelRight(workCol, workText);
+            LabelRight(endlessCol, stats.TotalEndlessJobCount.ToString());
             GUI.color = prev;
         }
 
-        private static void GetMapTableColumns(Rect row, out Rect labelCol, out Rect jobsCol, out Rect workCol)
+        private static void GetMapTableColumns(Rect row, out Rect labelCol, out Rect jobsCol, out Rect workCol, out Rect endlessCol)
         {
-            float workX = row.xMax - WorkWidth;
+            float endlessX = row.xMax - EndlessJobWidth;
+            float workX = endlessX - ColumnGap - WorkWidth;
             float jobsX = workX - ColumnGap - JobsWidth;
             float labelX = row.x;
             float labelWidth = jobsX - ColumnGap - labelX;
@@ -494,6 +540,7 @@ namespace WorkMonitor.UI
             labelCol = new Rect(labelX, row.y, Mathf.Max(labelWidth, 60f), row.height);
             jobsCol = new Rect(jobsX, row.y, JobsWidth, row.height);
             workCol = new Rect(workX, row.y, WorkWidth, row.height);
+            endlessCol = new Rect(endlessX, row.y, EndlessJobWidth, row.height);
         }
 
         private static void GetColonistTableColumns(

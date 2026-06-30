@@ -128,11 +128,12 @@ namespace WorkMonitor.Groups
             {
                 int jobs = tracker?.SumPawnWorkGiverJobs(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
                 int endless = tracker?.SumPawnWorkGiverEndlessJobs(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
+                int ticks = tracker?.SumPawnWorkGiverTicks(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
                 int travel = tracker?.SumPawnWorkGiverTravelTicks(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
                 int work = tracker?.SumPawnWorkGiverWorkTicks(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
                 float units = tracker?.SumPawnWorkGiverWorkUnits(pawn.thingIDNumber, wg.defName, minHour) ?? 0f;
 
-                if (jobs <= 0 && endless <= 0 && travel <= 0 && work <= 0 && units <= 0f)
+                if (jobs <= 0 && endless <= 0 && ticks <= 0 && travel <= 0 && work <= 0 && units <= 0f)
                 {
                     continue;
                 }
@@ -143,6 +144,7 @@ namespace WorkMonitor.Groups
                     Label = WorkGiverLabelUtility.Format(wg),
                     JobCount = jobs,
                     EndlessJobCount = endless,
+                    TicksSpent = ticks,
                     TravelTicksSpent = travel,
                     WorkTicksSpent = work,
                     WorkUnitsSpent = units

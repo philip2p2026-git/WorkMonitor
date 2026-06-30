@@ -71,7 +71,8 @@ namespace WorkMonitor.UI
                 else if (colonistClicked && selectedColonistStat?.Pawn != null)
                 {
                     selectedColonist = selectedColonistStat.Pawn;
-                    colonistDetailPanel.SetColonist(selectedColonist, rangeState, selectedGroup, openGroupDetail: true);
+                    selectedWorkGiver = null;
+                    colonistDetailPanel.SetColonist(selectedColonist, rangeState, selectedGroup, openGroupDetail: true, returnGroup: selectedGroup);
                     view = MonitorView.ColonistDetail;
                 }
 
@@ -89,14 +90,7 @@ namespace WorkMonitor.UI
                 else if (colonistClicked && selectedColonistStat?.Pawn != null)
                 {
                     selectedColonist = selectedColonistStat.Pawn;
-                    colonistDetailPanel.SetColonist(selectedColonist, rangeState, selectedGroup, openGroupDetail: true);
-                    view = MonitorView.ColonistDetail;
-                }
-
-                return;
-            }
-
-            colonistDetailPanel.Draw(rect, rangeState, out bool colonistBack, out bool groupClicked, out WorkGroupSnapshot groupFromColonist);
+                    colonistDetailPanel.SetColonist(selectedColonist, rangeState, selectedGroup, openGroupDetail: true, returnGroup: selectedGroup, returnWorkGiver: selectedWorkGiver);
             if (groupClicked && groupFromColonist != null)
             {
                 selectedGroup = groupFromColonist;

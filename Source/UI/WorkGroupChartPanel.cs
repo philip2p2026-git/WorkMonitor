@@ -9,8 +9,6 @@ namespace WorkMonitor.UI
 {
     public class WorkGroupChartPanel
     {
-        public WorkChartDisplayMode DisplayMode = WorkChartDisplayMode.Line;
-
         public void Draw(Rect rect, WorkGroupStats stats, List<WorkGroupStats> allStats, MonitorRangeState rangeState, System.Action onRangeChanged)
         {
             Text.Font = GameFont.Tiny;
@@ -19,16 +17,6 @@ namespace WorkMonitor.UI
                 new Rect(rect.x + 52f, rect.y, 110f, 24f),
                 rangeState,
                 onRangeChanged);
-
-            string modeLabel = DisplayMode == WorkChartDisplayMode.Stream
-                ? "WorkMonitor.ChartModeStream".Translate()
-                : "WorkMonitor.ChartModeLine".Translate();
-            if (Widgets.ButtonText(new Rect(rect.x + 168f, rect.y, 90f, 24f), modeLabel))
-            {
-                DisplayMode = DisplayMode == WorkChartDisplayMode.Line
-                    ? WorkChartDisplayMode.Stream
-                    : WorkChartDisplayMode.Line;
-            }
 
             WorkActivityTracker tracker = WorkActivityTracker.EnsureRegistered();
             WorkHistoryTierBuffer history = tracker?.GetGroupHistory(stats.Group.Key.StorageKey);
@@ -82,14 +70,7 @@ namespace WorkMonitor.UI
             string mapExistingLegend,
             string mapNewTodayLegend)
         {
-            if (DisplayMode == WorkChartDisplayMode.Stream)
-            {
-                DualStreamChart.Draw(rect, colonistValues, mapValues, mapNewTodayValues, xLabels, title, colonistLegend, mapLegend, mapExistingLegend, mapNewTodayLegend);
-            }
-            else
-            {
-                DualLineChart.Draw(rect, colonistValues, mapValues, mapNewTodayValues, xLabels, title, colonistLegend, mapLegend, mapExistingLegend, mapNewTodayLegend);
-            }
+            DualStreamChart.Draw(rect, colonistValues, mapValues, mapNewTodayValues, xLabels, title, colonistLegend, mapLegend, mapExistingLegend, mapNewTodayLegend);
         }
     }
 }

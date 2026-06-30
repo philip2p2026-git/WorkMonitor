@@ -14,18 +14,29 @@ namespace WorkMonitor.UI
         private const float ColonistIconGap = 4f;
         private const float ExpandButtonWidth = 20f;
         private const float WorkGiverIndent = 16f;
+        private const float ExpandAllWidth = 76f;
 
         private Vector2 scroll;
         private ColonistStats stats;
         private MonitorRangeState boundRangeState;
+        private WorkGroupSnapshot returnGroup;
+        private WorkGiverDef returnWorkGiver;
         private readonly HashSet<string> expandedGroupKeys = new HashSet<string>();
         private readonly Dictionary<string, ColonistGroupWorkDetail> groupDetailCache = new Dictionary<string, ColonistGroupWorkDetail>();
         private Pawn pendingColonistSelection;
 
-        public void SetColonist(Pawn pawn, MonitorRangeState rangeState, WorkGroupSnapshot initialGroup = null, bool openGroupDetail = false)
+        public void SetColonist(
+            Pawn pawn,
+            MonitorRangeState rangeState,
+            WorkGroupSnapshot initialGroup = null,
+            bool openGroupDetail = false,
+            WorkGroupSnapshot returnGroup = null,
+            WorkGiverDef returnWorkGiver = null)
         {
             boundRangeState = rangeState;
             stats = ColonistStatsAggregator.Build(pawn, rangeState.RangeHours);
+            this.returnGroup = returnGroup ?? initialGroup;
+            this.returnWorkGiver = returnWorkGiver;
             expandedGroupKeys.Clear();
             groupDetailCache.Clear();
 
@@ -46,14 +57,21 @@ namespace WorkMonitor.UI
                 return;
             }
 
+            string backLabel = returnWorkGiver != null
+                ? "WorkMonitor.BackToWorkGiver".Translate(WorkGiverLabelUtility.Format(returnWorkGiver))
+                : returnGroup != null
+                    ? "WorkMonitor.BackToGroup".Translate(returnGroup.Label)
+                    : "WorkMonitor.Back".Translate();
+            float backWidth = Mathf.Min(Mathf.Max(Text.CalcSize(backLabel).x + 16f, 90f), 200f);
+
             Text.Font = GameFont.Small;
-            if (Widgets.ButtonText(new Rect(rect.x, rect.y, 90f, 26f), "WorkMonitor.Back".Translate()))
+            if (Widgets.ButtonText(new Rect(rect.x, rect.y, backWidth, 26f), backLabel))
             {
                 back = true;
                 return;
             }
 
-            Rect dropdownRect = new Rect(rect.x + 96f, rect.y, ColonistDropdownWidth, 26f);
+            Rect dropdownRect = new Rect(rect.x + backWidth + 6f, rect.y, ColonistDropdownWidth, 26f);
             List<FloatMenuOption> colonistOptions = WorkMonitorDropdownUtility.BuildOptions(
                 WorkMonitorUtility.MonitorColonists(),
                 p => p.LabelShort,
@@ -77,11 +95,11 @@ namespace WorkMonitor.UI
             WorkMonitorDropdownUtility.DrawRangeDropdown(
                 new Rect(toolbarX, rect.y, 110f, 26f),
                 rangeState,
-                () => SetColonist(stats.Pawn, rangeState));
+                () => SetColonist(stats.Pawn, rangeState, returnGroup: returnGroup, returnWorkGiver: returnWorkGiver));
 
             if (Widgets.ButtonText(new Rect(toolbarX + 100f, rect.y, 80f, 26f), "WorkMonitor.Refresh".Translate()))
             {
-                SetColonist(stats.Pawn, rangeState);
+                SetColonist(stats.Pawn, rangeState, returnGroup: returnGroup, returnWorkGiver: returnWorkGiver);
             }
 
             Rect header = new Rect(rect.x, rect.y + 32f, rect.width, 18f);
@@ -100,7 +118,7 @@ namespace WorkMonitor.UI
                 HashSet<string> preservedExpansion = new HashSet<string>(expandedGroupKeys);
                 Pawn pawn = pendingColonistSelection;
                 pendingColonistSelection = null;
-                SetColonist(pawn, rangeState);
+                SetColonist(pawn, rangeState, returnGroup: returnGroup, returnWorkGiver: returnWorkGiver);
                 foreach (string key in preservedExpansion)
                 {
                     expandedGroupKeys.Add(key);
@@ -156,7 +174,15 @@ namespace WorkMonitor.UI
             groupClicked = false;
             selectedGroup = null;
             Text.Font = GameFont.Small;
-            Widgets.Label(new Rect(area.x, y, area.width, 22f), "WorkMonitor.Groups".Translate());
+            Rect titleRect = new Rect(area.x, y, area.width - ExpandAllWidth - 4f, 22f);
+            Widgets.Label(titleRect, "WorkMonitor.Groups".Translate());
+            string expandLabel = AllGroupsExpanded()
+                ? "WorkMonitor.CollapseAll".Translate()
+                : "WorkMonitor.ExpandAll".Translate();
+            if (Widgets.ButtonText(new Rect(area.xMax - ExpandAllWidth, y, ExpandAllWidth, 22f), expandLabel))
+            {
+                ToggleExpandAllGroups();
+            }
             y += RowHeight;
 
             DrawGroupHeader(new Rect(area.x, y, area.width, RowHeight));
@@ -205,6 +231,38 @@ namespace WorkMonitor.UI
             }
         }
 
+        private bool AllGroupsExpanded()
+        {
+            if (stats.GroupStats.Count == 0)
+            {
+                return true;
+            }
+
+            foreach (ColonistGroupStat groupStat in stats.GroupStats)
+            {
+                if (!expandedGroupKeys.Contains(groupStat.Group.Key.StorageKey))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private void ToggleExpandAllGroups()
+        {
+            if (AllGroupsExpanded())
+            {
+                expandedGroupKeys.Clear();
+                return;
+            }
+
+            foreach (ColonistGroupStat groupStat in stats.GroupStats)
+            {
+                expandedGroupKeys.Add(groupStat.Group.Key.StorageKey);
+            }
+        }
+
         private void DrawExpandedWorkGivers(Rect area, WorkGroupSnapshot group, MonitorRangeState rangeState, ref float y, ref int rowIndex)
         {
             ColonistGroupWorkDetail detail = GetGroupDetail(group, rangeState);
@@ -220,7 +278,7 @@ namespace WorkMonitor.UI
                 }
 
                 columnRow.y = y;
-                float metricsLeft = WorkMonitorTableColumns.ColonistGroupMetricsLeftEdge(columnRow);
+                float metricsLeft = WorkMonitorTableColumns.ColonistWorkGiverMetricsLeftEdge(columnRow);
                 Text.Font = GameFont.Tiny;
                 Color prev = GUI.color;
                 GUI.color = new Color(0.8f, 0.8f, 0.8f);
@@ -228,12 +286,13 @@ namespace WorkMonitor.UI
                 GUI.color = prev;
                 Text.Font = GameFont.Small;
 
-                WorkMonitorTableColumns.GetColonistGroupColumns(columnRow, out Rect jobCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol, out _);
+                WorkMonitorTableColumns.GetColonistWorkGiverColumns(columnRow, out Rect jobCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol, out Rect shareCol);
                 LabelRight(jobCol, wg.JobCount.ToString());
                 LabelRight(endlessCol, wg.EndlessJobCount.ToString());
                 LabelRight(workCol, WorkMonitorUtility.FormatWorkUnits(wg.WorkUnitsSpent));
                 LabelRight(walkCol, WorkMonitorUtility.FormatDuration(wg.TravelTicksSpent, showHours));
                 LabelRight(activeWorkCol, WorkMonitorUtility.FormatDuration(wg.WorkTicksSpent, showHours));
+                LabelRight(shareCol, WorkMonitorUiUtility.FormatTimeShare(wg.TicksSpent, stats.TotalTicksSpent));
 
                 y += RowHeight;
                 rowIndex++;
@@ -257,11 +316,12 @@ namespace WorkMonitor.UI
             LabelRight(walkCol, "WorkMonitor.Walk".Translate());
             LabelRight(activeWorkCol, "WorkMonitor.WorkTime".Translate());
             LabelRight(shareCol, "WorkMonitor.TimeShare".Translate());
+            TooltipHandler.TipRegion(shareCol, "WorkMonitor.TimeShareTip".Translate());
 
             GUI.color = prev;
         }
 
-        private static void DrawGroupRow(Rect row, ColonistGroupStat groupStat)
+        private void DrawGroupRow(Rect row, ColonistGroupStat groupStat)
         {
             Text.Font = GameFont.Small;
             float metricsLeft = WorkMonitorTableColumns.ColonistGroupMetricsLeftEdge(row);
@@ -274,7 +334,7 @@ namespace WorkMonitor.UI
             LabelRight(workCol, WorkMonitorUtility.FormatWorkUnits(groupStat.WorkUnitsSpent));
             LabelRight(walkCol, WorkMonitorUtility.FormatDuration(groupStat.TravelTicksSpent, showHours));
             LabelRight(activeWorkCol, WorkMonitorUtility.FormatDuration(groupStat.WorkTicksSpent, showHours));
-            LabelRight(shareCol, WorkMonitorUiUtility.FormatTimeShare(groupStat.TicksSpent, groupStat.GroupTicksSpent));
+            LabelRight(shareCol, WorkMonitorUiUtility.FormatTimeShare(groupStat.TicksSpent, stats.TotalTicksSpent));
         }
 
         private static void LabelRight(Rect rect, string text)
