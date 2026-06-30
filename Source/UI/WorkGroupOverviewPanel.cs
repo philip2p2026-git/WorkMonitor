@@ -142,12 +142,12 @@ namespace WorkMonitor.UI
             WorkMonitorTableColumns.GetOverviewMetricColumns(row, out Rect existJobCol, out Rect existWorkCol, out Rect jobProcessedCol, out Rect workProcessedCol);
             string jobsText = WorkMonitorUiUtility.FormatMapOpenTasks(stats.TotalMapOpenTasks, stats.TotalMapNewTodayOpenTasks);
             string workText = WorkMonitorUiUtility.FormatMapWorkLeft(stats.TotalMapWorkLeft, stats.TotalMapNewTodayWorkLeft);
-            LabelRight(existJobCol, jobsText);
+            WorkMonitorUiUtility.LabelRightStatValue(existJobCol, jobsText);
             TooltipHandler.TipRegion(existJobCol, "WorkMonitor.MapJobsNewTodayTip".Translate(jobsText));
-            LabelRight(existWorkCol, workText);
+            WorkMonitorUiUtility.LabelRightStatValue(existWorkCol, workText);
             TooltipHandler.TipRegion(existWorkCol, "WorkMonitor.MapWorkNewTodayTip".Translate(workText));
-            LabelRight(jobProcessedCol, stats.TotalJobCount.ToString());
-            LabelRight(workProcessedCol, WorkMonitorUtility.FormatWorkUnits(stats.TotalWorkUnits));
+            WorkMonitorUiUtility.LabelRightStatValue(jobProcessedCol, stats.TotalJobCount.ToString());
+            WorkMonitorUiUtility.LabelRightStatValue(workProcessedCol, WorkMonitorUtility.FormatWorkUnits(stats.TotalWorkUnits));
         }
 
         private static void LabelRight(Rect rect, string text)

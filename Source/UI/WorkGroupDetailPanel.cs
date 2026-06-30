@@ -18,6 +18,7 @@ namespace WorkMonitor.UI
         private const float GroupDropdownWidth = 160f;
         private const float ExpandButtonWidth = WorkMonitorTableColumns.ExpandButtonWidth;
         private const float WorkGiverIndent = 16f;
+        private const float ExpandAllWidth = 76f;
 
         private readonly WorkGroupChartPanel chartPanel = new WorkGroupChartPanel();
         private Vector2 scroll;
@@ -187,20 +188,20 @@ namespace WorkMonitor.UI
             selectedWorkGiver = null;
 
             Text.Font = GameFont.Small;
-            const float expandAllWidth = 76f;
-            Rect titleRect = new Rect(area.x, y, area.width - expandAllWidth - 4f, 22f);
+            float tableWidth = area.width - ExpandAllWidth - 4f;
+            Rect titleRect = new Rect(area.x, y, tableWidth, 22f);
             Widgets.Label(titleRect, "WorkMonitor.Colonists".Translate());
             TooltipHandler.TipRegion(titleRect, "WorkMonitor.ColonistsTip".Translate());
             string expandLabel = AllColonistsExpanded()
                 ? "WorkMonitor.CollapseAll".Translate()
                 : "WorkMonitor.ExpandAll".Translate();
-            if (Widgets.ButtonText(new Rect(area.xMax - expandAllWidth, y, expandAllWidth, 22f), expandLabel))
+            if (Widgets.ButtonText(new Rect(area.xMax - ExpandAllWidth, y, ExpandAllWidth, 22f), expandLabel))
             {
                 ToggleExpandAllColonists();
             }
             y += RowHeight;
 
-            DrawColonistHeader(new Rect(area.x, y, area.width, RowHeight));
+            DrawColonistHeader(new Rect(area.x, y, tableWidth, RowHeight));
             y += RowHeight;
 
             int rowIndex = 0;
@@ -209,7 +210,7 @@ namespace WorkMonitor.UI
                 int pawnId = colonist.PawnId;
                 bool expanded = expandedColonistIds.Contains(pawnId);
 
-                Rect row = new Rect(area.x, y, area.width, RowHeight);
+                Rect row = new Rect(area.x, y, tableWidth, RowHeight);
                 WorkMonitorUiUtility.DrawRowBackground(row, MonitorRowKind.Colonist, rowIndex);
 
                 Rect expandRect = new Rect(row.x, row.y, ExpandButtonWidth, row.height);
@@ -255,7 +256,7 @@ namespace WorkMonitor.UI
 
                 if (expanded)
                 {
-                    DrawExpandedWorkGivers(area, colonist.PawnId, rangeState, ref y, ref rowIndex, out bool wgClicked, out WorkGiverDef wg);
+                    DrawExpandedWorkGivers(area, tableWidth, colonist.PawnId, rangeState, ref y, ref rowIndex, out bool wgClicked, out WorkGiverDef wg);
                     if (wgClicked)
                     {
                         workGiverClicked = true;
@@ -297,7 +298,7 @@ namespace WorkMonitor.UI
             }
         }
 
-        private void DrawExpandedWorkGivers(Rect area, int pawnId, MonitorRangeState rangeState, ref float y, ref int rowIndex, out bool workGiverClicked, out WorkGiverDef selectedWorkGiver)
+        private void DrawExpandedWorkGivers(Rect area, float tableWidth, int pawnId, MonitorRangeState rangeState, ref float y, ref int rowIndex, out bool workGiverClicked, out WorkGiverDef selectedWorkGiver)
         {
             workGiverClicked = false;
             selectedWorkGiver = null;
@@ -306,7 +307,7 @@ namespace WorkMonitor.UI
 
             foreach (ColonistWorkGiverStat wg in detail.WorkGiverStats)
             {
-                Rect columnRow = new Rect(area.x, y, area.width, RowHeight);
+                Rect columnRow = new Rect(area.x, y, tableWidth, RowHeight);
                 WorkMonitorUiUtility.DrawRowBackground(columnRow, MonitorRowKind.WorkGiver, rowIndex);
 
                 Rect labelRow = new Rect(area.x + WorkGiverIndent, y, area.width - WorkGiverIndent, RowHeight);
@@ -322,14 +323,13 @@ namespace WorkMonitor.UI
                 GUI.color = new Color(0.8f, 0.8f, 0.8f);
                 Widgets.Label(new Rect(area.x + WorkGiverIndent, columnRow.y, metricsLeft - area.x - WorkGiverIndent - 8f, columnRow.height), wg.Label.Truncate(metricsLeft - area.x - WorkGiverIndent - 8f));
                 GUI.color = prev;
-                Text.Font = GameFont.Small;
 
                 WorkMonitorTableColumns.GetColonistWorkGiverColumns(columnRow, out Rect jobCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol, out _);
-                LabelRight(jobCol, wg.JobCount.ToString());
-                LabelRight(endlessCol, wg.EndlessJobCount.ToString());
-                LabelRight(workCol, WorkMonitorUtility.FormatWorkUnits(wg.WorkUnitsSpent));
-                LabelRight(walkCol, WorkMonitorUtility.FormatDuration(wg.TravelTicksSpent, showHours));
-                LabelRight(activeWorkCol, WorkMonitorUtility.FormatDuration(wg.WorkTicksSpent, showHours));
+                WorkMonitorUiUtility.LabelRightStatValue(jobCol, wg.JobCount.ToString());
+                WorkMonitorUiUtility.LabelRightStatValue(endlessCol, wg.EndlessJobCount.ToString());
+                WorkMonitorUiUtility.LabelRightStatValue(workCol, WorkMonitorUtility.FormatWorkUnits(wg.WorkUnitsSpent));
+                WorkMonitorUiUtility.LabelRightStatValue(walkCol, WorkMonitorUtility.FormatDuration(wg.TravelTicksSpent, showHours));
+                WorkMonitorUiUtility.LabelRightStatValue(activeWorkCol, WorkMonitorUtility.FormatDuration(wg.WorkTicksSpent, showHours));
 
                 y += RowHeight;
                 rowIndex++;
@@ -459,15 +459,15 @@ namespace WorkMonitor.UI
                 TooltipHandler.TipRegion(inspectRect, "WorkMonitor.ColonistAbsentTip".Translate());
             }
 
-            LabelRight(kpiJobCol, FormatPerHour(colonist.JobsPerHour, integer: true));
-            LabelRight(kpiWorkCol, FormatPerHour(colonist.WorkUnitsPerHour, integer: false));
-            LabelRight(jobsCol, colonist.JobCount.ToString());
-            LabelRight(endlessCol, colonist.EndlessJobCount.ToString());
-            LabelRight(workCol, WorkMonitorUtility.FormatWorkUnits(colonist.WorkUnitsSpent));
-            LabelRight(
+            WorkMonitorUiUtility.LabelRightStatValue(kpiJobCol, FormatPerHour(colonist.JobsPerHour, integer: true));
+            WorkMonitorUiUtility.LabelRightStatValue(kpiWorkCol, FormatPerHour(colonist.WorkUnitsPerHour, integer: false));
+            WorkMonitorUiUtility.LabelRightStatValue(jobsCol, colonist.JobCount.ToString());
+            WorkMonitorUiUtility.LabelRightStatValue(endlessCol, colonist.EndlessJobCount.ToString());
+            WorkMonitorUiUtility.LabelRightStatValue(workCol, WorkMonitorUtility.FormatWorkUnits(colonist.WorkUnitsSpent));
+            WorkMonitorUiUtility.LabelRightStatValue(
                 walkCol,
                 WorkMonitorUtility.FormatDuration(colonist.TravelTicksSpent, WorkMonitorMod.Settings?.showTimeInHours ?? true));
-            LabelRight(
+            WorkMonitorUiUtility.LabelRightStatValue(
                 activeWorkCol,
                 WorkMonitorUtility.FormatDuration(colonist.WorkTicksSpent, WorkMonitorMod.Settings?.showTimeInHours ?? true));
             return false;
@@ -509,12 +509,12 @@ namespace WorkMonitor.UI
             Widgets.Label(labelCol, wg.Label.Truncate(labelCol.width));
             string mapJobsText = WorkMonitorUiUtility.FormatMapOpenTasks(wg.MapOpenTasks, wg.MapNewTodayOpenTasks);
             string mapWorkText = WorkMonitorUiUtility.FormatMapWorkLeft(wg.MapWorkLeft, wg.MapNewTodayWorkLeft);
-            LabelRight(mapJobsCol, mapJobsText);
+            WorkMonitorUiUtility.LabelRightStatValue(mapJobsCol, mapJobsText);
             TooltipHandler.TipRegion(mapJobsCol, "WorkMonitor.MapJobsNewTodayTip".Translate(mapJobsText));
-            LabelRight(mapWorkCol, mapWorkText);
+            WorkMonitorUiUtility.LabelRightStatValue(mapWorkCol, mapWorkText);
             TooltipHandler.TipRegion(mapWorkCol, "WorkMonitor.MapWorkNewTodayTip".Translate(mapWorkText));
-            LabelRight(colonistJobsCol, wg.JobCount.ToString());
-            LabelRight(endlessCol, wg.EndlessJobCount.ToString());
+            WorkMonitorUiUtility.LabelRightStatValue(colonistJobsCol, wg.JobCount.ToString());
+            WorkMonitorUiUtility.LabelRightStatValue(endlessCol, wg.EndlessJobCount.ToString());
         }
 
         private void DrawWorkGiverTotalRow(Rect row)
@@ -527,10 +527,10 @@ namespace WorkMonitor.UI
             Widgets.Label(labelCol, "WorkMonitor.MapTotal".Translate(stats.Group.Label));
             string mapJobsText = WorkMonitorUiUtility.FormatMapOpenTasks(stats.TotalMapOpenTasks, stats.TotalMapNewTodayOpenTasks);
             string mapWorkText = WorkMonitorUiUtility.FormatMapWorkLeft(stats.TotalMapWorkLeft, stats.TotalMapNewTodayWorkLeft);
-            LabelRight(mapJobsCol, mapJobsText);
-            LabelRight(mapWorkCol, mapWorkText);
-            LabelRight(colonistJobsCol, stats.TotalJobCount.ToString());
-            LabelRight(endlessCol, stats.TotalEndlessJobCount.ToString());
+            WorkMonitorUiUtility.LabelRightStatValue(mapJobsCol, mapJobsText);
+            WorkMonitorUiUtility.LabelRightStatValue(mapWorkCol, mapWorkText);
+            WorkMonitorUiUtility.LabelRightStatValue(colonistJobsCol, stats.TotalJobCount.ToString());
+            WorkMonitorUiUtility.LabelRightStatValue(endlessCol, stats.TotalEndlessJobCount.ToString());
             GUI.color = prev;
         }
 

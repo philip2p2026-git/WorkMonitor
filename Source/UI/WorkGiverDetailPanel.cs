@@ -176,8 +176,8 @@ namespace WorkMonitor.UI
             Widgets.Label(new Rect(row.x, row.y, row.width * 0.4f, row.height), "WorkMonitor.WorkGiversMap".Translate());
             string jobsText = WorkMonitorUiUtility.FormatMapOpenTasks(stats.MapOpenTasks, stats.MapNewTodayOpenTasks);
             string workText = WorkMonitorUiUtility.FormatMapWorkLeft(stats.MapWorkLeft, stats.MapNewTodayWorkLeft);
-            LabelRight(new Rect(row.xMax - WorkWidth - ColumnGap - JobsWidth, row.y, JobsWidth, row.height), jobsText);
-            LabelRight(new Rect(row.xMax - WorkWidth, row.y, WorkWidth, row.height), workText);
+            WorkMonitorUiUtility.LabelRightStatValue(new Rect(row.xMax - WorkWidth - ColumnGap - JobsWidth, row.y, JobsWidth, row.height), jobsText);
+            WorkMonitorUiUtility.LabelRightStatValue(new Rect(row.xMax - WorkWidth, row.y, WorkWidth, row.height), workText);
         }
 
         private static void DrawColonistHeader(Rect row)
@@ -224,13 +224,13 @@ namespace WorkMonitor.UI
             }
 
             WorkMonitorUiUtility.DrawColonistLabel(labelCol, colonist);
-            LabelRight(kpiJobCol, FormatPerHour(colonist.JobsPerHour, integer: true));
-            LabelRight(kpiWorkCol, FormatPerHour(colonist.WorkUnitsPerHour, integer: false));
-            LabelRight(jobsCol, colonist.JobCount.ToString());
-            LabelRight(endlessCol, colonist.EndlessJobCount.ToString());
-            LabelRight(workCol, WorkMonitorUtility.FormatWorkUnits(colonist.WorkUnitsSpent));
-            LabelRight(walkCol, WorkMonitorUtility.FormatDuration(colonist.TravelTicksSpent, WorkMonitorMod.Settings?.showTimeInHours ?? true));
-            LabelRight(activeWorkCol, WorkMonitorUtility.FormatDuration(colonist.WorkTicksSpent, WorkMonitorMod.Settings?.showTimeInHours ?? true));
+            WorkMonitorUiUtility.LabelRightStatValue(kpiJobCol, FormatPerHour(colonist.JobsPerHour, integer: true));
+            WorkMonitorUiUtility.LabelRightStatValue(kpiWorkCol, FormatPerHour(colonist.WorkUnitsPerHour, integer: false));
+            WorkMonitorUiUtility.LabelRightStatValue(jobsCol, colonist.JobCount.ToString());
+            WorkMonitorUiUtility.LabelRightStatValue(endlessCol, colonist.EndlessJobCount.ToString());
+            WorkMonitorUiUtility.LabelRightStatValue(workCol, WorkMonitorUtility.FormatWorkUnits(colonist.WorkUnitsSpent));
+            WorkMonitorUiUtility.LabelRightStatValue(walkCol, WorkMonitorUtility.FormatDuration(colonist.TravelTicksSpent, WorkMonitorMod.Settings?.showTimeInHours ?? true));
+            WorkMonitorUiUtility.LabelRightStatValue(activeWorkCol, WorkMonitorUtility.FormatDuration(colonist.WorkTicksSpent, WorkMonitorMod.Settings?.showTimeInHours ?? true));
         }
 
         private static void GetColonistTableColumns(

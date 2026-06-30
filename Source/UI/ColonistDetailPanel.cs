@@ -224,7 +224,8 @@ namespace WorkMonitor.UI
             groupClicked = false;
             selectedGroup = null;
             Text.Font = GameFont.Small;
-            Rect titleRect = new Rect(area.x, y, area.width - ExpandAllWidth - 4f, 22f);
+            float tableWidth = area.width - ExpandAllWidth - 4f;
+            Rect titleRect = new Rect(area.x, y, tableWidth, 22f);
             Widgets.Label(titleRect, "WorkMonitor.Groups".Translate());
             string expandLabel = AllGroupsExpanded()
                 ? "WorkMonitor.CollapseAll".Translate()
@@ -235,7 +236,7 @@ namespace WorkMonitor.UI
             }
             y += RowHeight;
 
-            DrawGroupHeader(new Rect(area.x, y, area.width, RowHeight));
+            DrawGroupHeader(new Rect(area.x, y, tableWidth, RowHeight));
             y += RowHeight;
 
             int rowIndex = 0;
@@ -244,7 +245,7 @@ namespace WorkMonitor.UI
                 string storageKey = groupStat.Group.Key.StorageKey;
                 bool expanded = expandedGroupKeys.Contains(storageKey);
 
-                Rect row = new Rect(area.x, y, area.width, RowHeight);
+                Rect row = new Rect(area.x, y, tableWidth, RowHeight);
                 WorkMonitorUiUtility.DrawRowBackground(row, MonitorRowKind.WorkType, rowIndex);
 
                 Rect expandRect = new Rect(row.x, row.y, ExpandButtonWidth, row.height);
@@ -273,7 +274,7 @@ namespace WorkMonitor.UI
 
                 if (expanded)
                 {
-                    DrawExpandedWorkGivers(area, groupStat.Group, rangeState, ref y, ref rowIndex);
+                    DrawExpandedWorkGivers(area, tableWidth, groupStat.Group, rangeState, ref y, ref rowIndex);
                 }
             }
         }
@@ -310,14 +311,14 @@ namespace WorkMonitor.UI
             }
         }
 
-        private void DrawExpandedWorkGivers(Rect area, WorkGroupSnapshot group, MonitorRangeState rangeState, ref float y, ref int rowIndex)
+        private void DrawExpandedWorkGivers(Rect area, float tableWidth, WorkGroupSnapshot group, MonitorRangeState rangeState, ref float y, ref int rowIndex)
         {
             ColonistGroupWorkDetail detail = GetGroupDetail(group, rangeState);
             bool showHours = WorkMonitorMod.Settings?.showTimeInHours ?? true;
 
             foreach (ColonistWorkGiverStat wg in detail.WorkGiverStats)
             {
-                Rect columnRow = new Rect(area.x, y, area.width, RowHeight);
+                Rect columnRow = new Rect(area.x, y, tableWidth, RowHeight);
                 WorkMonitorUiUtility.DrawRowBackground(columnRow, MonitorRowKind.WorkGiver, rowIndex);
 
                 float metricsLeft = WorkMonitorTableColumns.ColonistWorkGiverMetricsLeftEdge(columnRow);
@@ -326,15 +327,14 @@ namespace WorkMonitor.UI
                 GUI.color = new Color(0.8f, 0.8f, 0.8f);
                 Widgets.Label(new Rect(area.x + WorkGiverIndent, columnRow.y, metricsLeft - area.x - WorkGiverIndent - 8f, columnRow.height), wg.Label.Truncate(metricsLeft - area.x - WorkGiverIndent - 8f));
                 GUI.color = prev;
-                Text.Font = GameFont.Small;
 
                 WorkMonitorTableColumns.GetColonistWorkGiverColumns(columnRow, out Rect jobCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol, out Rect shareCol);
-                LabelRight(jobCol, wg.JobCount.ToString());
-                LabelRight(endlessCol, wg.EndlessJobCount.ToString());
-                LabelRight(workCol, WorkMonitorUtility.FormatWorkUnits(wg.WorkUnitsSpent));
-                LabelRight(walkCol, WorkMonitorUtility.FormatDuration(wg.TravelTicksSpent, showHours));
-                LabelRight(activeWorkCol, WorkMonitorUtility.FormatDuration(wg.WorkTicksSpent, showHours));
-                LabelRight(shareCol, WorkMonitorUiUtility.FormatTimeShare(wg.TicksSpent, stats.TotalTicksSpent));
+                WorkMonitorUiUtility.LabelRightStatValue(jobCol, wg.JobCount.ToString());
+                WorkMonitorUiUtility.LabelRightStatValue(endlessCol, wg.EndlessJobCount.ToString());
+                WorkMonitorUiUtility.LabelRightStatValue(workCol, WorkMonitorUtility.FormatWorkUnits(wg.WorkUnitsSpent));
+                WorkMonitorUiUtility.LabelRightStatValue(walkCol, WorkMonitorUtility.FormatDuration(wg.TravelTicksSpent, showHours));
+                WorkMonitorUiUtility.LabelRightStatValue(activeWorkCol, WorkMonitorUtility.FormatDuration(wg.WorkTicksSpent, showHours));
+                WorkMonitorUiUtility.LabelRightStatValue(shareCol, WorkMonitorUiUtility.FormatTimeShare(wg.TicksSpent, stats.TotalTicksSpent));
 
                 y += RowHeight;
                 rowIndex++;
@@ -371,12 +371,12 @@ namespace WorkMonitor.UI
             WorkMonitorTableColumns.GetColonistGroupColumns(row, out Rect jobCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol, out Rect shareCol);
             bool showHours = WorkMonitorMod.Settings?.showTimeInHours ?? true;
 
-            LabelRight(jobCol, groupStat.JobCount.ToString());
-            LabelRight(endlessCol, groupStat.EndlessJobCount.ToString());
-            LabelRight(workCol, WorkMonitorUtility.FormatWorkUnits(groupStat.WorkUnitsSpent));
-            LabelRight(walkCol, WorkMonitorUtility.FormatDuration(groupStat.TravelTicksSpent, showHours));
-            LabelRight(activeWorkCol, WorkMonitorUtility.FormatDuration(groupStat.WorkTicksSpent, showHours));
-            LabelRight(shareCol, WorkMonitorUiUtility.FormatTimeShare(groupStat.TicksSpent, stats.TotalTicksSpent));
+            WorkMonitorUiUtility.LabelRightStatValue(jobCol, groupStat.JobCount.ToString());
+            WorkMonitorUiUtility.LabelRightStatValue(endlessCol, groupStat.EndlessJobCount.ToString());
+            WorkMonitorUiUtility.LabelRightStatValue(workCol, WorkMonitorUtility.FormatWorkUnits(groupStat.WorkUnitsSpent));
+            WorkMonitorUiUtility.LabelRightStatValue(walkCol, WorkMonitorUtility.FormatDuration(groupStat.TravelTicksSpent, showHours));
+            WorkMonitorUiUtility.LabelRightStatValue(activeWorkCol, WorkMonitorUtility.FormatDuration(groupStat.WorkTicksSpent, showHours));
+            WorkMonitorUiUtility.LabelRightStatValue(shareCol, WorkMonitorUiUtility.FormatTimeShare(groupStat.TicksSpent, stats.TotalTicksSpent));
         }
 
         private static void LabelRight(Rect rect, string text)

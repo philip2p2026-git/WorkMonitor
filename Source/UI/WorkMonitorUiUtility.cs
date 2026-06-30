@@ -126,6 +126,19 @@ namespace WorkMonitor.UI
         public const float ColonistPortraitSize = 22f;
         private const float WorkTypeAccentWidth = 3f;
 
+        public static void LabelRightStatValue(Rect rect, string text)
+        {
+            GameFont prevFont = Text.Font;
+            TextAnchor prevAnchor = Text.Anchor;
+
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.MiddleRight;
+            Widgets.Label(rect, text.Truncate(rect.width));
+
+            Text.Anchor = prevAnchor;
+            Text.Font = prevFont;
+        }
+
         public static void DrawRowBackground(Rect row, MonitorRowKind kind, int rowIndex)
         {
             if (kind == MonitorRowKind.Total)
