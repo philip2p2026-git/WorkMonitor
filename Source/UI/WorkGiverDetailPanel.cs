@@ -11,15 +11,9 @@ namespace WorkMonitor.UI
     {
         private const float RowHeight = 24f;
         private const float ChartHeight = 168f;
-        private const float ColonistIconSize = 18f;
-        private const float ColonistIconsWidth = ColonistIconSize;
-        private const float KpiJobWidth = 42f;
-        private const float KpiWorkWidth = 52f;
+        private const float ColonistIconSize = WorkMonitorTableColumns.ColonistIconSize;
         private const float JobsWidth = 42f;
-        private const float EndlessJobWidth = 44f;
         private const float WorkWidth = 52f;
-        private const float WalkWidth = 40f;
-        private const float ActiveWorkWidth = 40f;
         private const float ColumnGap = 10f;
         private const float WorkGiverDropdownWidth = 180f;
 
@@ -160,12 +154,9 @@ namespace WorkMonitor.UI
             foreach (ColonistWorkStat colonist in stats.ColonistStats)
             {
                 Rect row = new Rect(area.x, y, area.width, RowHeight);
-                if (rowIndex % 2 == 1)
-                {
-                    Widgets.DrawBoxSolid(row, new Color(1f, 1f, 1f, 0.03f));
-                }
+                WorkMonitorUiUtility.DrawRowBackground(row, MonitorRowKind.Colonist, rowIndex);
 
-                GetColonistTableColumns(row, out Rect iconsCol, out Rect labelCol, out _, out _, out _, out _, out _, out _, out _);
+                GetColonistTableColumns(row, out Rect portraitCol, out Rect iconsCol, out Rect labelCol, out _, out _, out _, out _, out _, out _, out _);
                 Rect clickRect = new Rect(labelCol.x, row.y, row.xMax - labelCol.x, row.height);
                 if (Widgets.ButtonInvisible(clickRect))
                 {
@@ -194,9 +185,10 @@ namespace WorkMonitor.UI
             Text.Font = GameFont.Tiny;
             Color prev = GUI.color;
             GUI.color = new Color(0.72f, 0.72f, 0.72f);
-            GetColonistTableColumns(row, out Rect iconsCol, out Rect labelCol, out Rect kpiJobCol, out Rect kpiWorkCol, out Rect jobsCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol);
-            Widgets.Label(iconsCol, "");
+            GetColonistTableColumns(row, out Rect portraitCol, out Rect iconsCol, out Rect labelCol, out Rect kpiJobCol, out Rect kpiWorkCol, out Rect jobsCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol);
+            Widgets.Label(portraitCol, "");
             Widgets.Label(labelCol, "WorkMonitor.Colonist".Translate());
+            Widgets.Label(iconsCol, "");
             LabelRight(kpiJobCol, "WorkMonitor.KpiJobs".Translate());
             LabelRight(kpiWorkCol, "WorkMonitor.KpiWork".Translate());
             LabelRight(jobsCol, "WorkMonitor.Jobs".Translate());
@@ -210,7 +202,8 @@ namespace WorkMonitor.UI
         private static void DrawColonistRow(Rect row, ColonistWorkStat colonist, Rect iconsCol)
         {
             Text.Font = GameFont.Small;
-            GetColonistTableColumns(row, out _, out Rect labelCol, out Rect kpiJobCol, out Rect kpiWorkCol, out Rect jobsCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol);
+            GetColonistTableColumns(row, out Rect portraitCol, out _, out Rect labelCol, out Rect kpiJobCol, out Rect kpiWorkCol, out Rect jobsCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol);
+            WorkMonitorUiUtility.DrawColonistPortrait(portraitCol, colonist);
             Rect inspectRect = new Rect(iconsCol.x, row.y + (row.height - ColonistIconSize) * 0.5f, ColonistIconSize, ColonistIconSize);
             if (!colonist.IsAbsent)
             {
@@ -240,27 +233,31 @@ namespace WorkMonitor.UI
             LabelRight(activeWorkCol, WorkMonitorUtility.FormatDuration(colonist.WorkTicksSpent, WorkMonitorMod.Settings?.showTimeInHours ?? true));
         }
 
-        private static void GetColonistTableColumns(Rect row, out Rect iconsCol, out Rect labelCol, out Rect kpiJobCol, out Rect kpiWorkCol, out Rect jobsCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol)
+        private static void GetColonistTableColumns(
+            Rect row,
+            out Rect portraitCol,
+            out Rect iconsCol,
+            out Rect labelCol,
+            out Rect kpiJobCol,
+            out Rect kpiWorkCol,
+            out Rect jobsCol,
+            out Rect endlessCol,
+            out Rect workCol,
+            out Rect walkCol,
+            out Rect activeWorkCol)
         {
-            float activeWorkX = row.xMax - ActiveWorkWidth;
-            float walkX = activeWorkX - ColumnGap - WalkWidth;
-            float workX = walkX - ColumnGap - WorkWidth;
-            float endlessX = workX - ColumnGap - EndlessJobWidth;
-            float jobsX = endlessX - ColumnGap - JobsWidth;
-            float kpiWorkX = jobsX - ColumnGap - KpiWorkWidth;
-            float kpiJobX = kpiWorkX - ColumnGap - KpiJobWidth;
-            float labelX = row.x + ColonistIconsWidth + 4f;
-            float labelWidth = kpiJobX - ColumnGap - labelX;
-
-            iconsCol = new Rect(row.x, row.y, ColonistIconsWidth, row.height);
-            labelCol = new Rect(labelX, row.y, Mathf.Max(labelWidth, 48f), row.height);
-            kpiJobCol = new Rect(kpiJobX, row.y, KpiJobWidth, row.height);
-            kpiWorkCol = new Rect(kpiWorkX, row.y, KpiWorkWidth, row.height);
-            jobsCol = new Rect(jobsX, row.y, JobsWidth, row.height);
-            endlessCol = new Rect(endlessX, row.y, EndlessJobWidth, row.height);
-            workCol = new Rect(workX, row.y, WorkWidth, row.height);
-            walkCol = new Rect(walkX, row.y, WalkWidth, row.height);
-            activeWorkCol = new Rect(activeWorkX, row.y, ActiveWorkWidth, row.height);
+            WorkMonitorTableColumns.GetWorkGiverDetailColonistTableColumns(
+                row,
+                out portraitCol,
+                out iconsCol,
+                out labelCol,
+                out kpiJobCol,
+                out kpiWorkCol,
+                out jobsCol,
+                out endlessCol,
+                out workCol,
+                out walkCol,
+                out activeWorkCol);
         }
 
         private static string FormatPerHour(float value, bool integer)

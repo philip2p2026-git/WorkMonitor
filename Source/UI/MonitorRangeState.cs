@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using UnityEngine;
 using Verse;
 using WorkMonitor;
 
@@ -74,6 +75,25 @@ namespace WorkMonitor.UI
                 MonitorRangePreset.Years5 => 7200,
                 _ => 24
             };
+        }
+
+        public static MonitorRangePreset PresetAtIndex(int index)
+        {
+            int clamped = Mathf.Clamp(index, 0, AllPresetsList.Length - 1);
+            return AllPresetsList[clamped];
+        }
+
+        public static int IndexOfPreset(MonitorRangePreset preset)
+        {
+            for (int i = 0; i < AllPresetsList.Length; i++)
+            {
+                if (AllPresetsList[i] == preset)
+                {
+                    return i;
+                }
+            }
+
+            return 2;
         }
 
         public static string PresetToLabel(MonitorRangePreset preset)

@@ -73,10 +73,7 @@ namespace WorkMonitor.UI
                     selected = stats.Group;
                 }
 
-                if (rowIndex % 2 == 1)
-                {
-                    Widgets.DrawBoxSolid(row, new Color(1f, 1f, 1f, 0.03f));
-                }
+                WorkMonitorUiUtility.DrawRowBackground(row, MonitorRowKind.WorkType, rowIndex);
 
                 DrawRow(row, stats);
                 y += RowHeight;

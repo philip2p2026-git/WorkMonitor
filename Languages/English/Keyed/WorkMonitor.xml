@@ -22,9 +22,9 @@
 	<WorkMonitor.InterestShort>{0} major {1} minor</WorkMonitor.InterestShort>
 	<WorkMonitor.FooterSummary>{0} groups · map {1}/{2} · done {3}/{4}</WorkMonitor.FooterSummary>
 	<WorkMonitor.ExistJob>ExistJob</WorkMonitor.ExistJob>
-	<WorkMonitor.ExistWork>ExistWork</WorkMonitor.ExistWork>
+	<WorkMonitor.ExistWork>est. ExistWork</WorkMonitor.ExistWork>
 	<WorkMonitor.JobProcessed>Job Processed</WorkMonitor.JobProcessed>
-	<WorkMonitor.WorkProcessed>Work Processed</WorkMonitor.WorkProcessed>
+	<WorkMonitor.WorkProcessed>est. Worked</WorkMonitor.WorkProcessed>
 	<WorkMonitor.ExistJobTip>Open tasks on the map (periodic sample).</WorkMonitor.ExistJobTip>
 	<WorkMonitor.ExistWorkTip>Work remaining on the map (periodic sample).</WorkMonitor.ExistWorkTip>
 	<WorkMonitor.JobProcessedTip>Regular jobs started by colonists in the selected range (excludes endless station jobs).</WorkMonitor.JobProcessedTip>
@@ -59,13 +59,13 @@
 	<WorkMonitor.WorkGiver>WorkGiver</WorkMonitor.WorkGiver>
 	<WorkMonitor.Colonists>Colonists</WorkMonitor.Colonists>
 	<WorkMonitor.Colonist>Colonist</WorkMonitor.Colonist>
-	<WorkMonitor.Work>Work</WorkMonitor.Work>
+	<WorkMonitor.Work>est. Work</WorkMonitor.Work>
 	<WorkMonitor.KpiJobs>KPI-job</WorkMonitor.KpiJobs>
-	<WorkMonitor.KpiWork>KPI-work</WorkMonitor.KpiWork>
+	<WorkMonitor.KpiWork>est. KPI-work</WorkMonitor.KpiWork>
 	<WorkMonitor.Range>Range</WorkMonitor.Range>
 	<WorkMonitor.Metric>Metric</WorkMonitor.Metric>
 	<WorkMonitor.MetricJobCount>Job count</WorkMonitor.MetricJobCount>
-	<WorkMonitor.MetricWorkUnits>Work units</WorkMonitor.MetricWorkUnits>
+	<WorkMonitor.MetricWorkUnits>est. Work units</WorkMonitor.MetricWorkUnits>
 	<WorkMonitor.MetricTimeConsumed>Time consumed</WorkMonitor.MetricTimeConsumed>
 	<WorkMonitor.MetricWorkAmong>Work among</WorkMonitor.MetricWorkAmong>
 	<WorkMonitor.MetricRelativeShare>Relative work consumed</WorkMonitor.MetricRelativeShare>
@@ -119,6 +119,7 @@
 	<WorkMonitor.DayRolloverHour>Day summary starts at</WorkMonitor.DayRolloverHour>
 	<WorkMonitor.DayRolloverMidnight>Midnight (00:00)</WorkMonitor.DayRolloverMidnight>
 	<WorkMonitor.DayRolloverMorning>Morning (08:00)</WorkMonitor.DayRolloverMorning>
+	<WorkMonitor.SettingsDayRolloverAtMorning>Start day summary at 08:00 (unchecked = midnight)</WorkMonitor.SettingsDayRolloverAtMorning>
 	<WorkMonitor.MapJobsNewTodayTip>{0} open tasks on map (parentheses = new since today's day start)</WorkMonitor.MapJobsNewTodayTip>
 	<WorkMonitor.MapWorkNewTodayTip>{0} work remaining on map (parentheses = from tasks first seen today)</WorkMonitor.MapWorkNewTodayTip>
 	<WorkMonitor.MapBacklogRow>Map: {0} jobs · {1} work · recorded {2} · sampled {3} ago</WorkMonitor.MapBacklogRow>

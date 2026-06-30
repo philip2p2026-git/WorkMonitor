@@ -13,7 +13,7 @@ namespace WorkMonitor.UI
         private const float ColonistDropdownWidth = 160f;
         private const float ColonistIconSize = 18f;
         private const float ColonistIconGap = 4f;
-        private const float ExpandButtonWidth = 20f;
+        private const float ExpandButtonWidth = WorkMonitorTableColumns.ExpandButtonWidth;
         private const float WorkGiverIndent = 16f;
         private const float ExpandAllWidth = 76f;
 
@@ -234,10 +234,7 @@ namespace WorkMonitor.UI
                 bool expanded = expandedGroupKeys.Contains(storageKey);
 
                 Rect row = new Rect(area.x, y, area.width, RowHeight);
-                if (rowIndex % 2 == 1)
-                {
-                    Widgets.DrawBoxSolid(row, new Color(1f, 1f, 1f, 0.03f));
-                }
+                WorkMonitorUiUtility.DrawRowBackground(row, MonitorRowKind.WorkType, rowIndex);
 
                 Rect expandRect = new Rect(row.x, row.y, ExpandButtonWidth, row.height);
                 if (Widgets.ButtonText(expandRect, expanded ? "▼" : "▶"))
@@ -311,10 +308,7 @@ namespace WorkMonitor.UI
             foreach (ColonistWorkGiverStat wg in detail.WorkGiverStats)
             {
                 Rect row = new Rect(area.x + WorkGiverIndent, y, area.width - WorkGiverIndent, RowHeight);
-                if (rowIndex % 2 == 1)
-                {
-                    Widgets.DrawBoxSolid(row, new Color(1f, 1f, 1f, 0.02f));
-                }
+                WorkMonitorUiUtility.DrawRowBackground(row, MonitorRowKind.WorkGiver, rowIndex);
 
                 columnRow.y = y;
                 float metricsLeft = WorkMonitorTableColumns.ColonistWorkGiverMetricsLeftEdge(columnRow);

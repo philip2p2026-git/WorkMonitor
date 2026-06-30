@@ -135,6 +135,27 @@ namespace WorkMonitor.Tracking
             };
         }
 
+        public static readonly int[] MapSampleIntervalOptions = { 1, 2, 3, 6, 12 };
+
+        public static int IndexOfInterval(int hours)
+        {
+            int normalized = NormalizeInterval(hours);
+            for (int i = 0; i < MapSampleIntervalOptions.Length; i++)
+            {
+                if (MapSampleIntervalOptions[i] == normalized)
+                {
+                    return i;
+                }
+            }
+
+            return 3;
+        }
+
+        public static int IntervalAtIndex(int index)
+        {
+            return MapSampleIntervalOptions[Mathf.Clamp(index, 0, MapSampleIntervalOptions.Length - 1)];
+        }
+
         private MapWorkSnapshot BuildSnapshot(Map map, int hourIndex, int sampleTick, long absTick)
         {
             MapWorkSnapshot snapshot = new MapWorkSnapshot
