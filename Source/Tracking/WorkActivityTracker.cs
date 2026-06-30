@@ -372,6 +372,14 @@ namespace WorkMonitor.Tracking
             return colonistProfiles.TryGetValue(pawnId, out profile);
         }
 
+        public IEnumerable<KeyValuePair<int, Dictionary<string, WorkHistoryTierBuffer>>> EnumeratePawnWorkGiverHistory()
+        {
+            foreach (KeyValuePair<int, Dictionary<string, WorkHistoryTierBuffer>> entry in pawnWorkGiverHistory)
+            {
+                yield return entry;
+            }
+        }
+
         public HashSet<int> GetPawnIdsWithWorkForWorkGiver(string workGiverDefName, int minHourIndex)
         {
             var results = new HashSet<int>();

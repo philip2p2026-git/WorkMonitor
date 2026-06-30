@@ -1,6 +1,8 @@
 using HarmonyLib;
+using RimWorld;
 using UnityEngine;
 using Verse;
+using WorkMonitor.Export;
 using WorkMonitor.Tracking;
 using WorkMonitor.UI;
 
@@ -100,7 +102,44 @@ namespace WorkMonitor
                     _ => 1
                 };
             }
+            listing.Gap(12f);
+
+            listing.Label("WorkMonitor.SettingsExport".Translate());
+            if (listing.ButtonText("WorkMonitor.ExportColonistCsv".Translate()))
+            {
+                ExportColonistCsv();
+            }
+
+            if (listing.ButtonText("WorkMonitor.ExportMapWorkGiverCsv".Translate()))
+            {
+                ExportMapWorkGiverCsv();
+            }
+
             listing.End();
+        }
+
+        private static void ExportColonistCsv()
+        {
+            if (WorkMonitorCsvExporter.TryExportColonistRecords(out string path, out string error))
+            {
+                Messages.Message("WorkMonitor.ExportSuccess".Translate(path), MessageTypeDefOf.PositiveEvent, false);
+            }
+            else
+            {
+                Messages.Message("WorkMonitor.ExportFailed".Translate(error ?? "unknown"), MessageTypeDefOf.RejectInput, false);
+            }
+        }
+
+        private static void ExportMapWorkGiverCsv()
+        {
+            if (WorkMonitorCsvExporter.TryExportMapWorkGiverRecords(out string path, out string error))
+            {
+                Messages.Message("WorkMonitor.ExportSuccess".Translate(path), MessageTypeDefOf.PositiveEvent, false);
+            }
+            else
+            {
+                Messages.Message("WorkMonitor.ExportFailed".Translate(error ?? "unknown"), MessageTypeDefOf.RejectInput, false);
+            }
         }
 
         public override string SettingsCategory()

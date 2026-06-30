@@ -16,6 +16,8 @@ namespace WorkMonitor.Tracking
 
         public IReadOnlyList<HourlyWorkBucket> Buckets => hourly;
         public IReadOnlyList<DailyWorkBucket> DailyBuckets => daily;
+        public IReadOnlyList<QuadrumWorkBucket> QuadrumBuckets => quadrums;
+        public IReadOnlyList<YearWorkBucket> YearBuckets => years;
 
         public bool HasAnyRetainedData()
         {
