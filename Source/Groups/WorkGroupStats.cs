@@ -5,8 +5,10 @@ namespace WorkMonitor.Groups
 {
     public class ColonistWorkStat
     {
+        public int PawnId;
         public Pawn Pawn;
         public string Label;
+        public bool IsAbsent;
         public int JobCount;
         public int EndlessJobCount;
         public int TicksSpent;
@@ -65,6 +67,7 @@ namespace WorkMonitor.Groups
     public class ColonistGroupWorkDetail
     {
         public WorkGroupSnapshot Group;
+        public int PawnId;
         public Pawn Pawn;
         public int JobCount;
         public int EndlessJobCount;
@@ -76,8 +79,10 @@ namespace WorkMonitor.Groups
 
     public class ColonistStats
     {
+        public int PawnId;
         public Pawn Pawn;
         public string Label;
+        public bool IsAbsent;
         public Passion TopPassion;
         public int TotalJobCount;
         public int TotalEndlessJobCount;

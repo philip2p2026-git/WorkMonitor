@@ -71,67 +71,77 @@ namespace WorkMonitor.Groups
                     stats.EnabledCount++;
                 }
 
-                int pawnJobs = 0;
-                int pawnEndlessJobs = 0;
-                int pawnTicks = 0;
-                int pawnTravel = 0;
-                int pawnWork = 0;
-                float pawnWorkUnits = 0f;
-                int pawnLastTick = -1;
+                if (!enabled)
+                {
+                    continue;
+                }
 
+                int pawnLastTick = -1;
                 foreach (WorkGiverDef wg in group.WorkGivers)
                 {
                     WorkActivityRecord record = tracker?.GetRecord(pawn.thingIDNumber, wg.defName);
-                    int wgJobs = tracker?.SumPawnWorkGiverJobs(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
-                    int wgEndless = tracker?.SumPawnWorkGiverEndlessJobs(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
-                    int wgTicks = tracker?.SumPawnWorkGiverTicks(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
-                    int wgTravel = tracker?.SumPawnWorkGiverTravelTicks(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
-                    int wgWork = tracker?.SumPawnWorkGiverWorkTicks(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
-                    float wgUnits = tracker?.SumPawnWorkGiverWorkUnits(pawn.thingIDNumber, wg.defName, minHour) ?? 0f;
-                    pawnJobs += wgJobs;
-                    pawnEndlessJobs += wgEndless;
-                    pawnTicks += wgTicks;
-                    pawnTravel += wgTravel;
-                    pawnWork += wgWork;
-                    pawnWorkUnits += wgUnits;
-
                     if (record != null)
                     {
                         pawnLastTick = Mathf.Max(pawnLastTick, record.lastWorkTick);
                     }
                 }
 
-                if (pawnJobs > 0 || pawnEndlessJobs > 0 || pawnTicks > 0)
-                {
-                    stats.WorkedCount++;
-                }
-
-                if (enabled && pawnLastTick > mostRecentEnabledWorkTick)
+                if (pawnLastTick > mostRecentEnabledWorkTick)
                 {
                     mostRecentEnabledWorkTick = pawnLastTick;
                 }
+            }
 
-                if (pawnTicks > 0 || pawnJobs > 0 || pawnEndlessJobs > 0)
+            List<int> colonistIds = ColonistWorkQuery.GetColonistIdsForGroup(group, minHour);
+            foreach (int pawnId in colonistIds)
+            {
+                int pawnJobs = 0;
+                int pawnEndlessJobs = 0;
+                int pawnTicks = 0;
+                int pawnTravel = 0;
+                int pawnWork = 0;
+                float pawnWorkUnits = 0f;
+
+                foreach (WorkGiverDef wg in group.WorkGivers)
                 {
-                    var colonistStat = new ColonistWorkStat
-                    {
-                        Pawn = pawn,
-                        Label = pawn.LabelShort,
-                        JobCount = pawnJobs,
-                        EndlessJobCount = pawnEndlessJobs,
-                        TicksSpent = pawnTicks,
-                        TravelTicksSpent = pawnTravel,
-                        WorkTicksSpent = pawnWork,
-                        WorkUnitsSpent = pawnWorkUnits,
-                        Passion = GetPassionForGroup(pawn, group)
-                    };
-                    stats.ColonistStats.Add(colonistStat);
+                    int wgJobs = tracker?.SumPawnWorkGiverJobs(pawnId, wg.defName, minHour) ?? 0;
+                    int wgEndless = tracker?.SumPawnWorkGiverEndlessJobs(pawnId, wg.defName, minHour) ?? 0;
+                    int wgTicks = tracker?.SumPawnWorkGiverTicks(pawnId, wg.defName, minHour) ?? 0;
+                    int wgTravel = tracker?.SumPawnWorkGiverTravelTicks(pawnId, wg.defName, minHour) ?? 0;
+                    int wgWork = tracker?.SumPawnWorkGiverWorkTicks(pawnId, wg.defName, minHour) ?? 0;
+                    float wgUnits = tracker?.SumPawnWorkGiverWorkUnits(pawnId, wg.defName, minHour) ?? 0f;
+                    pawnJobs += wgJobs;
+                    pawnEndlessJobs += wgEndless;
+                    pawnTicks += wgTicks;
+                    pawnTravel += wgTravel;
+                    pawnWork += wgWork;
+                    pawnWorkUnits += wgUnits;
                 }
 
-                stats.TotalJobCount += pawnJobs;
-                stats.TotalEndlessJobCount += pawnEndlessJobs;
-                stats.TotalTicksSpent += pawnTicks;
-                stats.TotalWorkUnits += pawnWorkUnits;
+                if (pawnJobs <= 0 && pawnEndlessJobs <= 0 && pawnTicks <= 0)
+                {
+                    continue;
+                }
+
+                stats.WorkedCount++;
+
+                Pawn pawn = ColonistWorkQuery.TryResolvePawn(pawnId);
+                bool isAbsent = ColonistWorkQuery.IsAbsent(pawnId, tracker);
+                var colonistStat = new ColonistWorkStat
+                {
+                    PawnId = pawnId,
+                    Pawn = pawn,
+                    Label = ColonistWorkQuery.ResolveLabel(pawnId, tracker),
+                    IsAbsent = isAbsent,
+                    JobCount = pawnJobs,
+                    EndlessJobCount = pawnEndlessJobs,
+                    TicksSpent = pawnTicks,
+                    TravelTicksSpent = pawnTravel,
+                    WorkTicksSpent = pawnWork,
+                    WorkUnitsSpent = pawnWorkUnits,
+                    Passion = ColonistWorkQuery.ResolvePassionForGroup(pawnId, group)
+                };
+                stats.ColonistStats.Add(colonistStat);
             }
 
             if (history != null)
@@ -152,10 +162,10 @@ namespace WorkMonitor.Groups
 
                 int wgJobs = 0;
                 int wgEndless = 0;
-                foreach (Pawn pawn in colonists)
+                foreach (int pawnId in colonistIds)
                 {
-                    wgJobs += tracker?.SumPawnWorkGiverJobs(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
-                    wgEndless += tracker?.SumPawnWorkGiverEndlessJobs(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
+                    wgJobs += tracker?.SumPawnWorkGiverJobs(pawnId, wg.defName, minHour) ?? 0;
+                    wgEndless += tracker?.SumPawnWorkGiverEndlessJobs(pawnId, wg.defName, minHour) ?? 0;
                 }
 
                 stats.WorkGiverStats.Add(new WorkGiverStat

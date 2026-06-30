@@ -3,6 +3,7 @@ using RimWorld;
 using UnityEngine;
 using Verse;
 using WorkMonitor.Groups;
+using WorkMonitor.Tracking;
 
 namespace WorkMonitor.UI
 {
@@ -23,7 +24,7 @@ namespace WorkMonitor.UI
         private WorkGiverDef returnWorkGiver;
         private readonly HashSet<string> expandedGroupKeys = new HashSet<string>();
         private readonly Dictionary<string, ColonistGroupWorkDetail> groupDetailCache = new Dictionary<string, ColonistGroupWorkDetail>();
-        private Pawn pendingColonistSelection;
+        private int pendingColonistPawnId;
 
         public void SetColonist(
             Pawn pawn,
@@ -33,8 +34,24 @@ namespace WorkMonitor.UI
             WorkGroupSnapshot returnGroup = null,
             WorkGiverDef returnWorkGiver = null)
         {
+            if (pawn == null)
+            {
+                return;
+            }
+
+            SetColonist(pawn.thingIDNumber, rangeState, initialGroup, openGroupDetail, returnGroup, returnWorkGiver);
+        }
+
+        public void SetColonist(
+            int pawnId,
+            MonitorRangeState rangeState,
+            WorkGroupSnapshot initialGroup = null,
+            bool openGroupDetail = false,
+            WorkGroupSnapshot returnGroup = null,
+            WorkGiverDef returnWorkGiver = null)
+        {
             boundRangeState = rangeState;
-            stats = ColonistStatsAggregator.Build(pawn, rangeState.RangeHours);
+            stats = ColonistStatsAggregator.Build(pawnId, rangeState.RangeHours);
             this.returnGroup = returnGroup ?? initialGroup;
             this.returnWorkGiver = returnWorkGiver;
             expandedGroupKeys.Clear();
@@ -52,7 +69,7 @@ namespace WorkMonitor.UI
             groupClicked = false;
             selectedGroup = null;
 
-            if (stats?.Pawn == null)
+            if (stats == null || stats.PawnId <= 0)
             {
                 return;
             }
@@ -72,10 +89,21 @@ namespace WorkMonitor.UI
             }
 
             Rect dropdownRect = new Rect(rect.x + backWidth + 6f, rect.y, ColonistDropdownWidth, 26f);
-            List<FloatMenuOption> colonistOptions = WorkMonitorDropdownUtility.BuildOptions(
-                WorkMonitorUtility.MonitorColonists(),
-                p => p.LabelShort,
-                p => pendingColonistSelection = p);
+            int minHour = WorkMonitorUtility.CurrentHourIndex() - rangeState.RangeHours;
+            WorkActivityTracker tracker = WorkActivityTracker.EnsureRegistered();
+            List<FloatMenuOption> colonistOptions = new List<FloatMenuOption>();
+            foreach (int pawnId in ColonistWorkQuery.GetColonistIdsWithAnyWork(minHour))
+            {
+                int capturedId = pawnId;
+                string label = ColonistWorkQuery.ResolveLabel(pawnId, tracker);
+                if (ColonistWorkQuery.IsAbsent(pawnId, tracker))
+                {
+                    label += " *";
+                }
+
+                colonistOptions.Add(new FloatMenuOption(label, () => pendingColonistPawnId = capturedId));
+            }
+
             WorkMonitorDropdownUtility.DrawDropdown(dropdownRect, stats.Label, colonistOptions);
 
             Rect inspectRect = new Rect(
@@ -83,23 +111,34 @@ namespace WorkMonitor.UI
                 rect.y + (26f - ColonistIconSize) * 0.5f,
                 ColonistIconSize,
                 ColonistIconSize);
-            if (Widgets.ButtonImage(inspectRect, TexButton.Info))
+            if (!stats.IsAbsent)
             {
-                ColonistInspectUtility.OpenPawnProfile(stats.Pawn);
-            }
+                if (Widgets.ButtonImage(inspectRect, TexButton.Info))
+                {
+                    ColonistInspectUtility.OpenPawnProfile(stats.Pawn);
+                }
 
-            TooltipHandler.TipRegion(inspectRect, "WorkMonitor.OpenColonistProfile".Translate());
+                TooltipHandler.TipRegion(inspectRect, "WorkMonitor.OpenColonistProfile".Translate());
+            }
+            else
+            {
+                Color prevColor = GUI.color;
+                GUI.color = new Color(1f, 1f, 1f, 0.25f);
+                GUI.DrawTexture(inspectRect, TexButton.Info);
+                GUI.color = prevColor;
+                TooltipHandler.TipRegion(inspectRect, "WorkMonitor.ColonistAbsentTip".Translate());
+            }
 
             float toolbarX = inspectRect.xMax + ColonistIconGap;
             Text.Font = GameFont.Tiny;
             WorkMonitorDropdownUtility.DrawRangeDropdown(
                 new Rect(toolbarX, rect.y, 110f, 26f),
                 rangeState,
-                () => SetColonist(stats.Pawn, rangeState, returnGroup: returnGroup, returnWorkGiver: returnWorkGiver));
+                () => SetColonist(stats.PawnId, rangeState, returnGroup: returnGroup, returnWorkGiver: returnWorkGiver));
 
             if (Widgets.ButtonText(new Rect(toolbarX + 100f, rect.y, 80f, 26f), "WorkMonitor.Refresh".Translate()))
             {
-                SetColonist(stats.Pawn, rangeState, returnGroup: returnGroup, returnWorkGiver: returnWorkGiver);
+                SetColonist(stats.PawnId, rangeState, returnGroup: returnGroup, returnWorkGiver: returnWorkGiver);
             }
 
             Rect header = new Rect(rect.x, rect.y + 32f, rect.width, 18f);
@@ -113,12 +152,12 @@ namespace WorkMonitor.UI
             DrawGroupTable(new Rect(0f, y, viewRect.width, viewHeight), rangeState, ref y, out groupClicked, out selectedGroup);
             Widgets.EndScrollView();
 
-            if (pendingColonistSelection != null)
+            if (pendingColonistPawnId > 0)
             {
                 HashSet<string> preservedExpansion = new HashSet<string>(expandedGroupKeys);
-                Pawn pawn = pendingColonistSelection;
-                pendingColonistSelection = null;
-                SetColonist(pawn, rangeState, returnGroup: returnGroup, returnWorkGiver: returnWorkGiver);
+                int pawnId = pendingColonistPawnId;
+                pendingColonistPawnId = 0;
+                SetColonist(pawnId, rangeState, returnGroup: returnGroup, returnWorkGiver: returnWorkGiver);
                 foreach (string key in preservedExpansion)
                 {
                     expandedGroupKeys.Add(key);
@@ -147,7 +186,7 @@ namespace WorkMonitor.UI
             string key = group.Key.StorageKey;
             if (!groupDetailCache.TryGetValue(key, out ColonistGroupWorkDetail detail))
             {
-                detail = ColonistStatsAggregator.BuildGroupDetail(stats.Pawn, group, rangeState.RangeHours);
+                detail = ColonistStatsAggregator.BuildGroupDetail(stats.PawnId, group, rangeState.RangeHours);
                 groupDetailCache[key] = detail;
             }
 

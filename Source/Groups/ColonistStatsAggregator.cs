@@ -16,13 +16,26 @@ namespace WorkMonitor.Groups
                 return null;
             }
 
+            return Build(pawn.thingIDNumber, rangeHours, allGroupStats);
+        }
+
+        public static ColonistStats Build(int pawnId, int rangeHours, List<WorkGroupStats> allGroupStats = null)
+        {
+            if (pawnId <= 0)
+            {
+                return null;
+            }
+
             allGroupStats ??= WorkGroupStatsAggregator.BuildAll(rangeHours);
             WorkActivityTracker tracker = WorkActivityTracker.EnsureRegistered();
             int minHour = WorkMonitorUtility.CurrentHourIndex() - rangeHours;
+            Pawn pawn = ColonistWorkQuery.TryResolvePawn(pawnId);
             var stats = new ColonistStats
             {
+                PawnId = pawnId,
                 Pawn = pawn,
-                Label = pawn.LabelShort
+                Label = ColonistWorkQuery.ResolveLabel(pawnId, tracker),
+                IsAbsent = ColonistWorkQuery.IsAbsent(pawnId, tracker)
             };
 
             Passion topPassion = Passion.None;
@@ -38,12 +51,12 @@ namespace WorkMonitor.Groups
 
                 foreach (WorkGiverDef wg in group.WorkGivers)
                 {
-                    pawnJobs += tracker?.SumPawnWorkGiverJobs(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
-                    pawnEndlessJobs += tracker?.SumPawnWorkGiverEndlessJobs(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
-                    pawnTicks += tracker?.SumPawnWorkGiverTicks(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
-                    pawnTravel += tracker?.SumPawnWorkGiverTravelTicks(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
-                    pawnWork += tracker?.SumPawnWorkGiverWorkTicks(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
-                    pawnWorkUnits += tracker?.SumPawnWorkGiverWorkUnits(pawn.thingIDNumber, wg.defName, minHour) ?? 0f;
+                    pawnJobs += tracker?.SumPawnWorkGiverJobs(pawnId, wg.defName, minHour) ?? 0;
+                    pawnEndlessJobs += tracker?.SumPawnWorkGiverEndlessJobs(pawnId, wg.defName, minHour) ?? 0;
+                    pawnTicks += tracker?.SumPawnWorkGiverTicks(pawnId, wg.defName, minHour) ?? 0;
+                    pawnTravel += tracker?.SumPawnWorkGiverTravelTicks(pawnId, wg.defName, minHour) ?? 0;
+                    pawnWork += tracker?.SumPawnWorkGiverWorkTicks(pawnId, wg.defName, minHour) ?? 0;
+                    pawnWorkUnits += tracker?.SumPawnWorkGiverWorkUnits(pawnId, wg.defName, minHour) ?? 0f;
                 }
 
                 if (pawnJobs <= 0 && pawnEndlessJobs <= 0 && pawnTicks <= 0 && pawnWorkUnits <= 0f)
@@ -51,21 +64,7 @@ namespace WorkMonitor.Groups
                     continue;
                 }
 
-                Passion passion = Passion.None;
-                foreach (WorkTypeDef workType in group.UniqueWorkTypes)
-                {
-                    if (workType == null)
-                    {
-                        continue;
-                    }
-
-                    Passion p = pawn.skills.MaxPassionOfRelevantSkillsFor(workType);
-                    if ((int)p > (int)passion)
-                    {
-                        passion = p;
-                    }
-                }
-
+                Passion passion = ColonistWorkQuery.ResolvePassionForGroup(pawnId, group);
                 if ((int)passion > (int)topPassion)
                 {
                     topPassion = passion;
@@ -111,7 +110,17 @@ namespace WorkMonitor.Groups
 
         public static ColonistGroupWorkDetail BuildGroupDetail(Pawn pawn, WorkGroupSnapshot group, int rangeHours)
         {
-            if (pawn == null || group == null)
+            if (pawn == null)
+            {
+                return null;
+            }
+
+            return BuildGroupDetail(pawn.thingIDNumber, group, rangeHours);
+        }
+
+        public static ColonistGroupWorkDetail BuildGroupDetail(int pawnId, WorkGroupSnapshot group, int rangeHours)
+        {
+            if (pawnId <= 0 || group == null)
             {
                 return null;
             }
@@ -120,18 +129,19 @@ namespace WorkMonitor.Groups
             int minHour = WorkMonitorUtility.CurrentHourIndex() - rangeHours;
             var detail = new ColonistGroupWorkDetail
             {
-                Pawn = pawn,
+                PawnId = pawnId,
+                Pawn = ColonistWorkQuery.TryResolvePawn(pawnId),
                 Group = group
             };
 
             foreach (WorkGiverDef wg in group.WorkGivers)
             {
-                int jobs = tracker?.SumPawnWorkGiverJobs(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
-                int endless = tracker?.SumPawnWorkGiverEndlessJobs(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
-                int ticks = tracker?.SumPawnWorkGiverTicks(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
-                int travel = tracker?.SumPawnWorkGiverTravelTicks(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
-                int work = tracker?.SumPawnWorkGiverWorkTicks(pawn.thingIDNumber, wg.defName, minHour) ?? 0;
-                float units = tracker?.SumPawnWorkGiverWorkUnits(pawn.thingIDNumber, wg.defName, minHour) ?? 0f;
+                int jobs = tracker?.SumPawnWorkGiverJobs(pawnId, wg.defName, minHour) ?? 0;
+                int endless = tracker?.SumPawnWorkGiverEndlessJobs(pawnId, wg.defName, minHour) ?? 0;
+                int ticks = tracker?.SumPawnWorkGiverTicks(pawnId, wg.defName, minHour) ?? 0;
+                int travel = tracker?.SumPawnWorkGiverTravelTicks(pawnId, wg.defName, minHour) ?? 0;
+                int work = tracker?.SumPawnWorkGiverWorkTicks(pawnId, wg.defName, minHour) ?? 0;
+                float units = tracker?.SumPawnWorkGiverWorkUnits(pawnId, wg.defName, minHour) ?? 0f;
 
                 if (jobs <= 0 && endless <= 0 && ticks <= 0 && travel <= 0 && work <= 0 && units <= 0f)
                 {

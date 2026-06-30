@@ -121,5 +121,30 @@ namespace WorkMonitor.UI
 
             return WorkMonitorUtility.FormatWorkUnits(total) + "(" + WorkMonitorUtility.FormatWorkUnits(newToday) + ")";
         }
+
+        public const float AbsentIconSize = 14f;
+
+        public static void DrawColonistLabel(Rect labelCol, ColonistWorkStat colonist)
+        {
+            string passion = PassionShort(colonist.Passion);
+            string nameText = (passion + " " + colonist.Label).Trim();
+            float iconReserve = colonist.IsAbsent ? AbsentIconSize + 4f : 0f;
+            float nameWidth = Mathf.Max(0f, labelCol.width - iconReserve);
+            Widgets.Label(new Rect(labelCol.x, labelCol.y, nameWidth, labelCol.height), nameText.Truncate(nameWidth));
+
+            if (colonist.IsAbsent)
+            {
+                Rect iconRect = new Rect(
+                    labelCol.xMax - AbsentIconSize,
+                    labelCol.y + (labelCol.height - AbsentIconSize) * 0.5f,
+                    AbsentIconSize,
+                    AbsentIconSize);
+                Color prev = GUI.color;
+                GUI.color = new Color(0.75f, 0.75f, 0.75f);
+                GUI.DrawTexture(iconRect, TexButton.Banish);
+                GUI.color = prev;
+                TooltipHandler.TipRegion(iconRect, "WorkMonitor.ColonistAbsentTip".Translate());
+            }
+        }
     }
 }

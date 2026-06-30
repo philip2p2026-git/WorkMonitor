@@ -163,9 +163,9 @@ namespace WorkMonitor.UI
             float height = stats.ColonistStats.Count * RowHeight;
             foreach (ColonistWorkStat colonist in stats.ColonistStats)
             {
-                if (expandedColonistIds.Contains(colonist.Pawn.thingIDNumber))
+                if (expandedColonistIds.Contains(colonist.PawnId))
                 {
-                    ColonistGroupWorkDetail detail = GetColonistDetail(colonist.Pawn);
+                    ColonistGroupWorkDetail detail = GetColonistDetail(colonist.PawnId);
                     height += detail.WorkGiverStats.Count * RowHeight;
                 }
             }
@@ -173,13 +173,12 @@ namespace WorkMonitor.UI
             return height;
         }
 
-        private ColonistGroupWorkDetail GetColonistDetail(Pawn pawn)
+        private ColonistGroupWorkDetail GetColonistDetail(int pawnId)
         {
-            int id = pawn.thingIDNumber;
-            if (!colonistDetailCache.TryGetValue(id, out ColonistGroupWorkDetail detail))
+            if (!colonistDetailCache.TryGetValue(pawnId, out ColonistGroupWorkDetail detail))
             {
-                detail = ColonistStatsAggregator.BuildGroupDetail(pawn, stats.Group, boundRangeState?.RangeHours ?? 24);
-                colonistDetailCache[id] = detail;
+                detail = ColonistStatsAggregator.BuildGroupDetail(pawnId, stats.Group, boundRangeState?.RangeHours ?? 24);
+                colonistDetailCache[pawnId] = detail;
             }
 
             return detail;
@@ -212,7 +211,7 @@ namespace WorkMonitor.UI
             int rowIndex = 0;
             foreach (ColonistWorkStat colonist in stats.ColonistStats)
             {
-                int pawnId = colonist.Pawn.thingIDNumber;
+                int pawnId = colonist.PawnId;
                 bool expanded = expandedColonistIds.Contains(pawnId);
 
                 Rect row = new Rect(area.x, y, area.width, RowHeight);
@@ -253,7 +252,7 @@ namespace WorkMonitor.UI
                     selectedColonist = colonist;
                 }
 
-                if (DrawColonistRow(row, colonist, iconsCol, out bool inspectClicked) && inspectClicked)
+                if (DrawColonistRow(row, colonist, iconsCol, out bool inspectClicked) && inspectClicked && !colonist.IsAbsent)
                 {
                     ColonistInspectUtility.OpenPawnProfile(colonist.Pawn);
                 }
@@ -263,7 +262,7 @@ namespace WorkMonitor.UI
 
                 if (expanded)
                 {
-                    DrawExpandedWorkGivers(area, colonist.Pawn, rangeState, ref y, ref rowIndex, out bool wgClicked, out WorkGiverDef wg);
+                    DrawExpandedWorkGivers(area, colonist.PawnId, rangeState, ref y, ref rowIndex, out bool wgClicked, out WorkGiverDef wg);
                     if (wgClicked)
                     {
                         workGiverClicked = true;
@@ -282,7 +281,7 @@ namespace WorkMonitor.UI
 
             foreach (ColonistWorkStat colonist in stats.ColonistStats)
             {
-                if (!expandedColonistIds.Contains(colonist.Pawn.thingIDNumber))
+                if (!expandedColonistIds.Contains(colonist.PawnId))
                 {
                     return false;
                 }
@@ -301,15 +300,15 @@ namespace WorkMonitor.UI
 
             foreach (ColonistWorkStat colonist in stats.ColonistStats)
             {
-                expandedColonistIds.Add(colonist.Pawn.thingIDNumber);
+                expandedColonistIds.Add(colonist.PawnId);
             }
         }
 
-        private void DrawExpandedWorkGivers(Rect area, Pawn pawn, MonitorRangeState rangeState, ref float y, ref int rowIndex, out bool workGiverClicked, out WorkGiverDef selectedWorkGiver)
+        private void DrawExpandedWorkGivers(Rect area, int pawnId, MonitorRangeState rangeState, ref float y, ref int rowIndex, out bool workGiverClicked, out WorkGiverDef selectedWorkGiver)
         {
             workGiverClicked = false;
             selectedWorkGiver = null;
-            ColonistGroupWorkDetail detail = GetColonistDetail(pawn);
+            ColonistGroupWorkDetail detail = GetColonistDetail(pawnId);
             bool showHours = WorkMonitorMod.Settings?.showTimeInHours ?? true;
 
             foreach (ColonistWorkGiverStat wg in detail.WorkGiverStats)
@@ -448,17 +447,27 @@ namespace WorkMonitor.UI
                 out Rect walkCol,
                 out Rect activeWorkCol);
 
-            string passion = WorkMonitorUiUtility.PassionShort(colonist.Passion);
-            Widgets.Label(labelCol, (passion + " " + colonist.Label).Trim().Truncate(labelCol.width));
+            WorkMonitorUiUtility.DrawColonistLabel(labelCol, colonist);
 
             Rect inspectRect = new Rect(iconsCol.x, row.y + (row.height - ColonistIconSize) * 0.5f, ColonistIconSize, ColonistIconSize);
-            if (Widgets.ButtonImage(inspectRect, TexButton.Info))
+            if (!colonist.IsAbsent)
             {
-                inspectClicked = true;
-                return true;
-            }
+                if (Widgets.ButtonImage(inspectRect, TexButton.Info))
+                {
+                    inspectClicked = true;
+                    return true;
+                }
 
-            TooltipHandler.TipRegion(inspectRect, "WorkMonitor.OpenColonistProfile".Translate());
+                TooltipHandler.TipRegion(inspectRect, "WorkMonitor.OpenColonistProfile".Translate());
+            }
+            else
+            {
+                Color prevColor = GUI.color;
+                GUI.color = new Color(1f, 1f, 1f, 0.25f);
+                GUI.DrawTexture(inspectRect, TexButton.Info);
+                GUI.color = prevColor;
+                TooltipHandler.TipRegion(inspectRect, "WorkMonitor.ColonistAbsentTip".Translate());
+            }
 
             LabelRight(kpiJobCol, FormatPerHour(colonist.JobsPerHour, integer: true));
             LabelRight(kpiWorkCol, FormatPerHour(colonist.WorkUnitsPerHour, integer: false));

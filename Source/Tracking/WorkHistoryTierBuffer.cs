@@ -17,6 +17,11 @@ namespace WorkMonitor.Tracking
         public IReadOnlyList<HourlyWorkBucket> Buckets => hourly;
         public IReadOnlyList<DailyWorkBucket> DailyBuckets => daily;
 
+        public bool HasAnyRetainedData()
+        {
+            return hourly.Count > 0 || daily.Count > 0 || quadrums.Count > 0 || years.Count > 0;
+        }
+
         public void Configure(int hourlyRetentionHours)
         {
             maxHourlyHours = Mathf.Clamp(hourlyRetentionHours, 6, WorkMonitorSettings.MaxRetentionHours);
@@ -85,88 +90,91 @@ namespace WorkMonitor.Tracking
         public int SumTravelTicksSpent(int minHourIndex) => (int)SumFloat(minHourIndex, b => b.travelTicksSpent, d => d.travelTicksSpent, q => q.travelTicksSpent, y => y.travelTicksSpent);
         public int SumWorkTicksSpent(int minHourIndex) => (int)SumFloat(minHourIndex, b => b.workTicksSpent, d => d.workTicksSpent, q => q.workTicksSpent, y => y.workTicksSpent);
 
-        public int SumPawnTravelTicks(int pawnId, int minHourIndex)
-        {
-            int sum = 0;
-            foreach (HourlyWorkBucket bucket in hourly.Where(b => b.hourIndex >= minHourIndex))
-            {
-                if (bucket.pawnTravelTicksSpent.TryGetValue(pawnId, out int ticks))
-                {
-                    sum += ticks;
-                }
-            }
+        public int SumPawnTravelTicks(int pawnId, int minHourIndex) =>
+            (int)SumPawnFloat(pawnId, minHourIndex,
+                b => PawnBucketMergeUtility.GetInt(b.pawnTravelTicksSpent, pawnId),
+                d => PawnBucketMergeUtility.GetInt(d.pawnFields.pawnTravelTicksSpent, pawnId),
+                q => PawnBucketMergeUtility.GetInt(q.pawnFields.pawnTravelTicksSpent, pawnId),
+                y => PawnBucketMergeUtility.GetInt(y.pawnFields.pawnTravelTicksSpent, pawnId));
 
-            return sum;
+        public int SumPawnEndlessJobs(int pawnId, int minHourIndex) =>
+            (int)SumPawnFloat(pawnId, minHourIndex,
+                b => PawnBucketMergeUtility.GetInt(b.pawnEndlessJobCount, pawnId),
+                d => PawnBucketMergeUtility.GetInt(d.pawnFields.pawnEndlessJobCount, pawnId),
+                q => PawnBucketMergeUtility.GetInt(q.pawnFields.pawnEndlessJobCount, pawnId),
+                y => PawnBucketMergeUtility.GetInt(y.pawnFields.pawnEndlessJobCount, pawnId));
+
+        public int SumPawnWorkTicks(int pawnId, int minHourIndex) =>
+            (int)SumPawnFloat(pawnId, minHourIndex,
+                b => PawnBucketMergeUtility.GetInt(b.pawnWorkTicksSpent, pawnId),
+                d => PawnBucketMergeUtility.GetInt(d.pawnFields.pawnWorkTicksSpent, pawnId),
+                q => PawnBucketMergeUtility.GetInt(q.pawnFields.pawnWorkTicksSpent, pawnId),
+                y => PawnBucketMergeUtility.GetInt(y.pawnFields.pawnWorkTicksSpent, pawnId));
+
+        public int SumPawnJobCount(int pawnId, int minHourIndex) =>
+            (int)SumPawnFloat(pawnId, minHourIndex,
+                b => PawnBucketMergeUtility.GetInt(b.pawnJobCount, pawnId),
+                d => PawnBucketMergeUtility.GetInt(d.pawnFields.pawnJobCount, pawnId),
+                q => PawnBucketMergeUtility.GetInt(q.pawnFields.pawnJobCount, pawnId),
+                y => PawnBucketMergeUtility.GetInt(y.pawnFields.pawnJobCount, pawnId));
+
+        public float SumPawnWorkUnits(int pawnId, int minHourIndex) =>
+            SumPawnFloat(pawnId, minHourIndex,
+                b => PawnBucketMergeUtility.GetFloat(b.pawnWorkUnitsSpent, pawnId),
+                d => PawnBucketMergeUtility.GetFloat(d.pawnFields.pawnWorkUnitsSpent, pawnId),
+                q => PawnBucketMergeUtility.GetFloat(q.pawnFields.pawnWorkUnitsSpent, pawnId),
+                y => PawnBucketMergeUtility.GetFloat(y.pawnFields.pawnWorkUnitsSpent, pawnId));
+
+        public int SumPawnTicks(int pawnId, int minHourIndex) =>
+            (int)SumPawnFloat(pawnId, minHourIndex,
+                b => PawnBucketMergeUtility.GetInt(b.pawnTicksSpent, pawnId),
+                d => PawnBucketMergeUtility.GetInt(d.pawnFields.pawnTicksSpent, pawnId),
+                q => PawnBucketMergeUtility.GetInt(q.pawnFields.pawnTicksSpent, pawnId),
+                y => PawnBucketMergeUtility.GetInt(y.pawnFields.pawnTicksSpent, pawnId));
+
+        public bool PawnHasWorkInRange(int pawnId, int minHourIndex)
+        {
+            return SumPawnTicks(pawnId, minHourIndex) > 0
+                || SumPawnJobCount(pawnId, minHourIndex) > 0
+                || SumPawnEndlessJobs(pawnId, minHourIndex) > 0
+                || SumPawnWorkUnits(pawnId, minHourIndex) > 0f;
         }
 
-        public int SumPawnEndlessJobs(int pawnId, int minHourIndex)
+        public void CollectPawnIdsWithWork(int minHourIndex, HashSet<int> results)
         {
-            int sum = 0;
-            foreach (HourlyWorkBucket bucket in hourly.Where(b => b.hourIndex >= minHourIndex))
+            if (results == null)
             {
-                if (bucket.pawnEndlessJobCount.TryGetValue(pawnId, out int count))
+                return;
+            }
+
+            int currentHour = WorkMonitorUtility.CurrentHourIndex();
+            int hourlyMin = Mathf.Max(minHourIndex, currentHour - WorkMonitorSettings.MaxRetentionHours);
+
+            foreach (HourlyWorkBucket bucket in hourly.Where(b => b.hourIndex >= hourlyMin && b.hourIndex >= minHourIndex))
+            {
+                CollectPawnIdsFromHourly(bucket, results);
+            }
+
+            foreach (DailyWorkBucket day in daily.Where(d => d.endHourIndex > minHourIndex && d.startHourIndex < currentHour))
+            {
+                if (day.endHourIndex <= hourlyMin)
                 {
-                    sum += count;
+                    CollectPawnIdsFromFields(day.pawnFields, results);
                 }
             }
 
-            return sum;
-        }
-
-        public int SumPawnWorkTicks(int pawnId, int minHourIndex)
-        {
-            int sum = 0;
-            foreach (HourlyWorkBucket bucket in hourly.Where(b => b.hourIndex >= minHourIndex))
+            if (minHourIndex < hourlyMin)
             {
-                if (bucket.pawnWorkTicksSpent.TryGetValue(pawnId, out int ticks))
+                foreach (QuadrumWorkBucket q in quadrums)
                 {
-                    sum += ticks;
+                    CollectPawnIdsFromFields(q.pawnFields, results);
+                }
+
+                foreach (YearWorkBucket y in years)
+                {
+                    CollectPawnIdsFromFields(y.pawnFields, results);
                 }
             }
-
-            return sum;
-        }
-
-        public int SumPawnJobCount(int pawnId, int minHourIndex)
-        {
-            int sum = 0;
-            foreach (HourlyWorkBucket bucket in hourly.Where(b => b.hourIndex >= minHourIndex))
-            {
-                if (bucket.pawnJobCount.TryGetValue(pawnId, out int count))
-                {
-                    sum += count;
-                }
-            }
-
-            return sum;
-        }
-
-        public float SumPawnWorkUnits(int pawnId, int minHourIndex)
-        {
-            float sum = 0f;
-            foreach (HourlyWorkBucket bucket in hourly.Where(b => b.hourIndex >= minHourIndex))
-            {
-                if (bucket.pawnWorkUnitsSpent.TryGetValue(pawnId, out float units))
-                {
-                    sum += units;
-                }
-            }
-
-            return sum;
-        }
-
-        public int SumPawnTicks(int pawnId, int minHourIndex)
-        {
-            int sum = 0;
-            foreach (HourlyWorkBucket bucket in hourly.Where(b => b.hourIndex >= minHourIndex))
-            {
-                if (bucket.pawnTicksSpent.TryGetValue(pawnId, out int ticks))
-                {
-                    sum += ticks;
-                }
-            }
-
-            return sum;
         }
 
         public void RollupIfBoundaryCrossed(long absTick, Vector2 longitude)
@@ -219,6 +227,7 @@ namespace WorkMonitor.Tracking
                 dailyBucket.workTicksSpent = 0;
                 dailyBucket.workUnitsSpent = 0f;
                 dailyBucket.estimatedWorkUnitsSpent = 0f;
+                dailyBucket.pawnFields = new PawnWorkBucketFields();
 
                 foreach (HourlyWorkBucket h in dayBuckets)
                 {
@@ -261,6 +270,7 @@ namespace WorkMonitor.Tracking
                 qBucket.workTicksSpent = 0;
                 qBucket.workUnitsSpent = 0f;
                 qBucket.estimatedWorkUnitsSpent = 0f;
+                qBucket.pawnFields = new PawnWorkBucketFields();
 
                 foreach (DailyWorkBucket d in dayBuckets)
                 {
@@ -304,6 +314,7 @@ namespace WorkMonitor.Tracking
                 yBucket.workTicksSpent = 0;
                 yBucket.workUnitsSpent = 0f;
                 yBucket.estimatedWorkUnitsSpent = 0f;
+                yBucket.pawnFields = new PawnWorkBucketFields();
 
                 foreach (QuadrumWorkBucket q in qBuckets)
                 {
@@ -369,6 +380,102 @@ namespace WorkMonitor.Tracking
             }
 
             return sum;
+        }
+
+        private float SumPawnFloat(int pawnId, int minHourIndex,
+            System.Func<HourlyWorkBucket, float> hourlySel,
+            System.Func<DailyWorkBucket, float> dailySel,
+            System.Func<QuadrumWorkBucket, float> quadrumSel,
+            System.Func<YearWorkBucket, float> yearSel)
+        {
+            float sum = 0f;
+            int currentHour = WorkMonitorUtility.CurrentHourIndex();
+            int hourlyMin = Mathf.Max(minHourIndex, currentHour - WorkMonitorSettings.MaxRetentionHours);
+
+            foreach (HourlyWorkBucket b in hourly.Where(b => b.hourIndex >= hourlyMin && b.hourIndex >= minHourIndex))
+            {
+                sum += hourlySel(b);
+            }
+
+            foreach (DailyWorkBucket d in daily.Where(d => d.endHourIndex > minHourIndex && d.startHourIndex < currentHour))
+            {
+                if (d.endHourIndex <= hourlyMin)
+                {
+                    sum += dailySel(d);
+                }
+            }
+
+            if (minHourIndex < hourlyMin)
+            {
+                foreach (QuadrumWorkBucket q in quadrums)
+                {
+                    sum += quadrumSel(q);
+                }
+
+                foreach (YearWorkBucket y in years)
+                {
+                    sum += yearSel(y);
+                }
+            }
+
+            return sum;
+        }
+
+        private static void CollectPawnIdsFromHourly(HourlyWorkBucket bucket, HashSet<int> results)
+        {
+            CollectPawnIdsFromDict(bucket.pawnTicksSpent, results);
+            CollectPawnIdsFromDict(bucket.pawnJobCount, results);
+            CollectPawnIdsFromDict(bucket.pawnEndlessJobCount, results);
+            CollectPawnIdsFromDict(bucket.pawnWorkTicksSpent, results);
+            if (bucket.pawnWorkUnitsSpent != null)
+            {
+                foreach (int pawnId in bucket.pawnWorkUnitsSpent.Keys)
+                {
+                    if (bucket.pawnWorkUnitsSpent[pawnId] > 0f)
+                    {
+                        results.Add(pawnId);
+                    }
+                }
+            }
+        }
+
+        private static void CollectPawnIdsFromFields(PawnWorkBucketFields fields, HashSet<int> results)
+        {
+            if (fields == null)
+            {
+                return;
+            }
+
+            CollectPawnIdsFromDict(fields.pawnTicksSpent, results);
+            CollectPawnIdsFromDict(fields.pawnJobCount, results);
+            CollectPawnIdsFromDict(fields.pawnEndlessJobCount, results);
+            CollectPawnIdsFromDict(fields.pawnWorkTicksSpent, results);
+            if (fields.pawnWorkUnitsSpent != null)
+            {
+                foreach (int pawnId in fields.pawnWorkUnitsSpent.Keys)
+                {
+                    if (fields.pawnWorkUnitsSpent[pawnId] > 0f)
+                    {
+                        results.Add(pawnId);
+                    }
+                }
+            }
+        }
+
+        private static void CollectPawnIdsFromDict(Dictionary<int, int> dict, HashSet<int> results)
+        {
+            if (dict == null)
+            {
+                return;
+            }
+
+            foreach (KeyValuePair<int, int> entry in dict)
+            {
+                if (entry.Value > 0)
+                {
+                    results.Add(entry.Key);
+                }
+            }
         }
 
         public void ExposeData()

@@ -27,14 +27,14 @@ namespace WorkMonitor.Groups
                 Label = WorkGiverLabelUtility.Format(workGiver)
             };
 
-            foreach (Pawn pawn in WorkMonitorUtility.MonitorColonists())
+            foreach (int pawnId in ColonistWorkQuery.GetColonistIdsForWorkGiver(workGiver, minHour))
             {
-                int jobs = tracker?.SumPawnWorkGiverJobs(pawn.thingIDNumber, workGiver.defName, minHour) ?? 0;
-                int endless = tracker?.SumPawnWorkGiverEndlessJobs(pawn.thingIDNumber, workGiver.defName, minHour) ?? 0;
-                int travel = tracker?.SumPawnWorkGiverTravelTicks(pawn.thingIDNumber, workGiver.defName, minHour) ?? 0;
-                int work = tracker?.SumPawnWorkGiverWorkTicks(pawn.thingIDNumber, workGiver.defName, minHour) ?? 0;
-                float units = tracker?.SumPawnWorkGiverWorkUnits(pawn.thingIDNumber, workGiver.defName, minHour) ?? 0f;
-                int ticks = tracker?.SumPawnWorkGiverTicks(pawn.thingIDNumber, workGiver.defName, minHour) ?? 0;
+                int jobs = tracker?.SumPawnWorkGiverJobs(pawnId, workGiver.defName, minHour) ?? 0;
+                int endless = tracker?.SumPawnWorkGiverEndlessJobs(pawnId, workGiver.defName, minHour) ?? 0;
+                int travel = tracker?.SumPawnWorkGiverTravelTicks(pawnId, workGiver.defName, minHour) ?? 0;
+                int work = tracker?.SumPawnWorkGiverWorkTicks(pawnId, workGiver.defName, minHour) ?? 0;
+                float units = tracker?.SumPawnWorkGiverWorkUnits(pawnId, workGiver.defName, minHour) ?? 0f;
+                int ticks = tracker?.SumPawnWorkGiverTicks(pawnId, workGiver.defName, minHour) ?? 0;
 
                 if (jobs <= 0 && endless <= 0 && ticks <= 0 && units <= 0f)
                 {
@@ -47,23 +47,20 @@ namespace WorkMonitor.Groups
                 detail.TotalWorkTicks += work;
                 detail.TotalWorkUnits += units;
 
-                Passion passion = Passion.None;
-                if (workGiver.workType != null)
-                {
-                    passion = pawn.skills.MaxPassionOfRelevantSkillsFor(workGiver.workType);
-                }
-
+                Pawn pawn = ColonistWorkQuery.TryResolvePawn(pawnId);
                 var colonistStat = new ColonistWorkStat
                 {
+                    PawnId = pawnId,
                     Pawn = pawn,
-                    Label = pawn.LabelShort,
+                    Label = ColonistWorkQuery.ResolveLabel(pawnId, tracker),
+                    IsAbsent = ColonistWorkQuery.IsAbsent(pawnId, tracker),
                     JobCount = jobs,
                     EndlessJobCount = endless,
                     TicksSpent = ticks,
                     TravelTicksSpent = travel,
                     WorkTicksSpent = work,
                     WorkUnitsSpent = units,
-                    Passion = passion
+                    Passion = ColonistWorkQuery.ResolvePassionForWorkGiver(pawnId, workGiver)
                 };
 
                 float hours = ticks / (float)WorkMonitorSettings.TicksPerHour;

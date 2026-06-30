@@ -24,14 +24,14 @@ namespace WorkMonitor.UI
         private MonitorView view = MonitorView.Overview;
         private WorkGroupSnapshot selectedGroup;
         private WorkGiverDef selectedWorkGiver;
-        private Pawn selectedColonist;
+        private int selectedColonistPawnId;
 
         public void ResetToOverview()
         {
             view = MonitorView.Overview;
             selectedGroup = null;
             selectedWorkGiver = null;
-            selectedColonist = null;
+            selectedColonistPawnId = 0;
         }
 
         public void Draw(Rect rect)
@@ -68,11 +68,11 @@ namespace WorkMonitor.UI
                     workGiverDetailPanel.SetWorkGiver(selectedGroup, selectedWorkGiver, rangeState);
                     view = MonitorView.WorkGiverDetail;
                 }
-                else if (colonistClicked && selectedColonistStat?.Pawn != null)
+                else if (colonistClicked && selectedColonistStat != null && selectedColonistStat.PawnId > 0)
                 {
-                    selectedColonist = selectedColonistStat.Pawn;
+                    selectedColonistPawnId = selectedColonistStat.PawnId;
                     selectedWorkGiver = null;
-                    colonistDetailPanel.SetColonist(selectedColonist, rangeState, selectedGroup, openGroupDetail: true, returnGroup: selectedGroup);
+                    colonistDetailPanel.SetColonist(selectedColonistPawnId, rangeState, selectedGroup, openGroupDetail: true, returnGroup: selectedGroup);
                     view = MonitorView.ColonistDetail;
                 }
 
@@ -87,10 +87,10 @@ namespace WorkMonitor.UI
                     detailPanel.SetGroup(selectedGroup, rangeState);
                     view = MonitorView.GroupDetail;
                 }
-                else if (colonistClicked && selectedColonistStat?.Pawn != null)
+                else if (colonistClicked && selectedColonistStat != null && selectedColonistStat.PawnId > 0)
                 {
-                    selectedColonist = selectedColonistStat.Pawn;
-                    colonistDetailPanel.SetColonist(selectedColonist, rangeState, selectedGroup, openGroupDetail: true, returnGroup: selectedGroup, returnWorkGiver: selectedWorkGiver);
+                    selectedColonistPawnId = selectedColonistStat.PawnId;
+                    colonistDetailPanel.SetColonist(selectedColonistPawnId, rangeState, selectedGroup, openGroupDetail: true, returnGroup: selectedGroup, returnWorkGiver: selectedWorkGiver);
                     view = MonitorView.ColonistDetail;
                 }
 

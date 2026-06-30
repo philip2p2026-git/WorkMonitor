@@ -15,6 +15,7 @@ namespace WorkMonitor.Tracking
         public int workTicksSpent;
         public float workUnitsSpent;
         public float estimatedWorkUnitsSpent;
+        public PawnWorkBucketFields pawnFields = new PawnWorkBucketFields();
 
         public void ExposeData()
         {
@@ -28,6 +29,8 @@ namespace WorkMonitor.Tracking
             Scribe_Values.Look(ref workTicksSpent, "workTicksSpent", 0);
             Scribe_Values.Look(ref workUnitsSpent, "workUnitsSpent", 0f);
             Scribe_Values.Look(ref estimatedWorkUnitsSpent, "estimatedWorkUnitsSpent", 0f);
+            pawnFields ??= new PawnWorkBucketFields();
+            pawnFields.ExposePawnFields("daily");
         }
 
         public void MergeFrom(HourlyWorkBucket hourly)
@@ -39,6 +42,7 @@ namespace WorkMonitor.Tracking
             workTicksSpent += hourly.workTicksSpent;
             workUnitsSpent += hourly.workUnitsSpent;
             estimatedWorkUnitsSpent += hourly.estimatedWorkUnitsSpent;
+            pawnFields.MergeFromHourly(hourly);
         }
     }
 
@@ -52,6 +56,7 @@ namespace WorkMonitor.Tracking
         public int workTicksSpent;
         public float workUnitsSpent;
         public float estimatedWorkUnitsSpent;
+        public PawnWorkBucketFields pawnFields = new PawnWorkBucketFields();
 
         public void ExposeData()
         {
@@ -63,6 +68,8 @@ namespace WorkMonitor.Tracking
             Scribe_Values.Look(ref workTicksSpent, "workTicksSpent", 0);
             Scribe_Values.Look(ref workUnitsSpent, "workUnitsSpent", 0f);
             Scribe_Values.Look(ref estimatedWorkUnitsSpent, "estimatedWorkUnitsSpent", 0f);
+            pawnFields ??= new PawnWorkBucketFields();
+            pawnFields.ExposePawnFields("quadrum");
         }
 
         public void MergeFrom(DailyWorkBucket daily)
@@ -74,6 +81,7 @@ namespace WorkMonitor.Tracking
             workTicksSpent += daily.workTicksSpent;
             workUnitsSpent += daily.workUnitsSpent;
             estimatedWorkUnitsSpent += daily.estimatedWorkUnitsSpent;
+            pawnFields.MergeFromFields(daily.pawnFields);
         }
     }
 
@@ -87,6 +95,7 @@ namespace WorkMonitor.Tracking
         public int workTicksSpent;
         public float workUnitsSpent;
         public float estimatedWorkUnitsSpent;
+        public PawnWorkBucketFields pawnFields = new PawnWorkBucketFields();
 
         public void ExposeData()
         {
@@ -98,6 +107,8 @@ namespace WorkMonitor.Tracking
             Scribe_Values.Look(ref workTicksSpent, "workTicksSpent", 0);
             Scribe_Values.Look(ref workUnitsSpent, "workUnitsSpent", 0f);
             Scribe_Values.Look(ref estimatedWorkUnitsSpent, "estimatedWorkUnitsSpent", 0f);
+            pawnFields ??= new PawnWorkBucketFields();
+            pawnFields.ExposePawnFields("year");
         }
 
         public void MergeFrom(QuadrumWorkBucket quadrum)
@@ -109,6 +120,7 @@ namespace WorkMonitor.Tracking
             workTicksSpent += quadrum.workTicksSpent;
             workUnitsSpent += quadrum.workUnitsSpent;
             estimatedWorkUnitsSpent += quadrum.estimatedWorkUnitsSpent;
+            pawnFields.MergeFromFields(quadrum.pawnFields);
         }
     }
 }

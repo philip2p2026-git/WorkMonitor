@@ -212,13 +212,25 @@ namespace WorkMonitor.UI
             Text.Font = GameFont.Small;
             GetColonistTableColumns(row, out _, out Rect labelCol, out Rect kpiJobCol, out Rect kpiWorkCol, out Rect jobsCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol);
             Rect inspectRect = new Rect(iconsCol.x, row.y + (row.height - ColonistIconSize) * 0.5f, ColonistIconSize, ColonistIconSize);
-            if (Widgets.ButtonImage(inspectRect, TexButton.Info))
+            if (!colonist.IsAbsent)
             {
-                ColonistInspectUtility.OpenPawnProfile(colonist.Pawn);
+                if (Widgets.ButtonImage(inspectRect, TexButton.Info))
+                {
+                    ColonistInspectUtility.OpenPawnProfile(colonist.Pawn);
+                }
+
+                TooltipHandler.TipRegion(inspectRect, "WorkMonitor.OpenColonistProfile".Translate());
+            }
+            else
+            {
+                Color prevColor = GUI.color;
+                GUI.color = new Color(1f, 1f, 1f, 0.25f);
+                GUI.DrawTexture(inspectRect, TexButton.Info);
+                GUI.color = prevColor;
+                TooltipHandler.TipRegion(inspectRect, "WorkMonitor.ColonistAbsentTip".Translate());
             }
 
-            string passion = WorkMonitorUiUtility.PassionShort(colonist.Passion);
-            Widgets.Label(labelCol, (passion + " " + colonist.Label).Trim().Truncate(labelCol.width));
+            WorkMonitorUiUtility.DrawColonistLabel(labelCol, colonist);
             LabelRight(kpiJobCol, FormatPerHour(colonist.JobsPerHour, integer: true));
             LabelRight(kpiWorkCol, FormatPerHour(colonist.WorkUnitsPerHour, integer: false));
             LabelRight(jobsCol, colonist.JobCount.ToString());

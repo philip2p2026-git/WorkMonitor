@@ -126,5 +126,6 @@
 	<WorkMonitor.ChartNewJobToday>New job today</WorkMonitor.ChartNewJobToday>
 	<WorkMonitor.ChartExistWork>Exist work</WorkMonitor.ChartExistWork>
 	<WorkMonitor.ChartNewWorkToday>New work today</WorkMonitor.ChartNewWorkToday>
+	<WorkMonitor.ColonistAbsentTip>Colonist is not currently on this map (dead, away, or otherwise absent). Historical work stats are retained.</WorkMonitor.ColonistAbsentTip>
 	<WorkMonitor.WorkGiverDetailTitle>{0} — Detail</WorkMonitor.WorkGiverDetailTitle>
 </LanguageData>

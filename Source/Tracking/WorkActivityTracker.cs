@@ -41,6 +41,9 @@ namespace WorkMonitor.Tracking
         private Dictionary<string, WorkHistoryTierBuffer> groupHistory =
             new Dictionary<string, WorkHistoryTierBuffer>();
 
+        private Dictionary<int, ColonistWorkProfile> colonistProfiles =
+            new Dictionary<int, ColonistWorkProfile>();
+
         private int lastPrunedHourIndex = -1;
 
         public static WorkActivityTracker Instance
@@ -106,6 +109,8 @@ namespace WorkMonitor.Tracking
             {
                 return;
             }
+
+            TouchColonistProfile(pawn);
 
             FinalizeActiveJob(pawn, tick, null, null);
 
@@ -362,6 +367,55 @@ namespace WorkMonitor.Tracking
             return true;
         }
 
+        public bool TryGetColonistProfile(int pawnId, out ColonistWorkProfile profile)
+        {
+            return colonistProfiles.TryGetValue(pawnId, out profile);
+        }
+
+        public HashSet<int> GetPawnIdsWithWorkForWorkGiver(string workGiverDefName, int minHourIndex)
+        {
+            var results = new HashSet<int>();
+            if (workGiverDefName.NullOrEmpty())
+            {
+                return results;
+            }
+
+            foreach (KeyValuePair<int, Dictionary<string, WorkHistoryTierBuffer>> pawnEntry in pawnWorkGiverHistory)
+            {
+                if (pawnEntry.Value.TryGetValue(workGiverDefName, out WorkHistoryTierBuffer buffer)
+                    && buffer.PawnHasWorkInRange(pawnEntry.Key, minHourIndex))
+                {
+                    results.Add(pawnEntry.Key);
+                }
+            }
+
+            return results;
+        }
+
+        public HashSet<int> GetPawnIdsWithWorkForGroup(WorkGroupSnapshot group, int minHourIndex)
+        {
+            var results = new HashSet<int>();
+            if (group?.WorkGivers == null)
+            {
+                return results;
+            }
+
+            foreach (WorkGiverDef wg in group.WorkGivers)
+            {
+                if (wg == null)
+                {
+                    continue;
+                }
+
+                foreach (int pawnId in GetPawnIdsWithWorkForWorkGiver(wg.defName, minHourIndex))
+                {
+                    results.Add(pawnId);
+                }
+            }
+
+            return results;
+        }
+
         public void PruneStaleData()
         {
             int retentionHours = WorkMonitorMod.Settings?.ResolveRetentionHours() ?? 24;
@@ -381,25 +435,79 @@ namespace WorkMonitor.Tracking
                 activeColonistIds.Add(pawn.thingIDNumber);
             }
 
-            List<int> stalePawnIds = new List<int>();
             foreach (KeyValuePair<int, Dictionary<string, WorkHistoryTierBuffer>> pawnEntry in pawnWorkGiverHistory)
             {
                 foreach (WorkHistoryTierBuffer buffer in pawnEntry.Value.Values)
                 {
+                    buffer.RollupIfBoundaryCrossed(absTick, longitude);
                     buffer.ConfigurePawnHistory();
                     buffer.PruneHourlyRetention();
                 }
+            }
 
-                if (!activeColonistIds.Contains(pawnEntry.Key))
+            RefreshColonistPresence(activeColonistIds);
+            PruneEmptyPawnEntries();
+        }
+
+        private void TouchColonistProfile(Pawn pawn)
+        {
+            if (pawn == null)
+            {
+                return;
+            }
+
+            int pawnId = pawn.thingIDNumber;
+            if (!colonistProfiles.TryGetValue(pawnId, out ColonistWorkProfile profile))
+            {
+                profile = new ColonistWorkProfile { pawnId = pawnId };
+                colonistProfiles[pawnId] = profile;
+            }
+
+            profile.labelShort = pawn.LabelShort;
+            profile.presence = ColonistPresence.Present;
+        }
+
+        private void RefreshColonistPresence(HashSet<int> activeColonistIds)
+        {
+            foreach (KeyValuePair<int, ColonistWorkProfile> entry in colonistProfiles)
+            {
+                entry.Value.presence = activeColonistIds.Contains(entry.Key)
+                    ? ColonistPresence.Present
+                    : ColonistPresence.Absent;
+            }
+
+            foreach (Pawn pawn in WorkMonitorUtility.MonitorColonists())
+            {
+                TouchColonistProfile(pawn);
+            }
+        }
+
+        private void PruneEmptyPawnEntries()
+        {
+            List<int> emptyPawnIds = new List<int>();
+            foreach (KeyValuePair<int, Dictionary<string, WorkHistoryTierBuffer>> pawnEntry in pawnWorkGiverHistory)
+            {
+                bool hasData = false;
+                foreach (WorkHistoryTierBuffer buffer in pawnEntry.Value.Values)
                 {
-                    stalePawnIds.Add(pawnEntry.Key);
+                    if (buffer.HasAnyRetainedData())
+                    {
+                        hasData = true;
+                        break;
+                    }
+                }
+
+                if (!hasData)
+                {
+                    emptyPawnIds.Add(pawnEntry.Key);
                 }
             }
 
-            foreach (int pawnId in stalePawnIds)
+            foreach (int pawnId in emptyPawnIds)
             {
                 pawnWorkGiverHistory.Remove(pawnId);
                 pawnRecords.Remove(pawnId);
+                colonistProfiles.Remove(pawnId);
             }
         }
 
@@ -411,6 +519,7 @@ namespace WorkMonitor.Tracking
         private List<PawnWorkGiverRecords> savedPawnRecords = new List<PawnWorkGiverRecords>();
         private List<PawnWorkGiverHistory> savedPawnHistory = new List<PawnWorkGiverHistory>();
         private List<GroupHistoryEntry> savedGroupHistory = new List<GroupHistoryEntry>();
+        private List<ColonistWorkProfileEntry> savedColonistProfiles = new List<ColonistWorkProfileEntry>();
 
         public override void ExposeData()
         {
@@ -424,10 +533,12 @@ namespace WorkMonitor.Tracking
             Scribe_Collections.Look(ref savedPawnRecords, "savedPawnRecords", LookMode.Deep);
             Scribe_Collections.Look(ref savedPawnHistory, "savedPawnHistory", LookMode.Deep);
             Scribe_Collections.Look(ref savedGroupHistory, "savedGroupHistory", LookMode.Deep);
+            Scribe_Collections.Look(ref savedColonistProfiles, "savedColonistProfiles", LookMode.Deep);
 
             savedPawnRecords ??= new List<PawnWorkGiverRecords>();
             savedPawnHistory ??= new List<PawnWorkGiverHistory>();
             savedGroupHistory ??= new List<GroupHistoryEntry>();
+            savedColonistProfiles ??= new List<ColonistWorkProfileEntry>();
 
             if (Scribe.mode == LoadSaveMode.LoadingVars)
             {
@@ -468,6 +579,16 @@ namespace WorkMonitor.Tracking
                     buffer = groupEntry.Value
                 });
             }
+
+            savedColonistProfiles = new List<ColonistWorkProfileEntry>();
+            foreach (KeyValuePair<int, ColonistWorkProfile> profileEntry in colonistProfiles)
+            {
+                savedColonistProfiles.Add(new ColonistWorkProfileEntry
+                {
+                    pawnId = profileEntry.Key,
+                    profile = profileEntry.Value
+                });
+            }
         }
 
         private void SyncFromSaveLists()
@@ -492,6 +613,16 @@ namespace WorkMonitor.Tracking
                     groupHistory[entry.groupKey] = entry.buffer ?? new WorkHistoryTierBuffer();
                 }
             }
+
+            colonistProfiles = new Dictionary<int, ColonistWorkProfile>();
+            foreach (ColonistWorkProfileEntry entry in savedColonistProfiles)
+            {
+                if (entry.profile != null)
+                {
+                    entry.profile.pawnId = entry.pawnId;
+                    colonistProfiles[entry.pawnId] = entry.profile;
+                }
+            }
         }
 
         private void FinalizeActiveJob(Pawn pawn, int tick, WorkGiverDef explicitWorkGiver, Job endingJob)
@@ -509,6 +640,8 @@ namespace WorkMonitor.Tracking
                 activeJobs.Remove(pawn.thingIDNumber);
                 return;
             }
+
+            TouchColonistProfile(pawn);
 
             int elapsed = Mathf.Max(0, tick - active.startTick);
             int travelTicks = active.travelTicks;
