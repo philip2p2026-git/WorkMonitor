@@ -125,16 +125,33 @@ namespace WorkMonitor.UI
         public const float AbsentIconSize = 14f;
         public const float ColonistPortraitSize = 22f;
         private const float WorkTypeAccentWidth = 3f;
+        private static readonly Color WorkGiverStatValueColor = new Color(0.78f, 0.72f, 0.58f);
 
         public static void LabelRightStatValue(Rect rect, string text)
         {
+            DrawStatValue(rect, text, dimmed: false);
+        }
+
+        public static void LabelRightWorkGiverStatValue(Rect rect, string text)
+        {
+            DrawStatValue(rect, text, dimmed: true);
+        }
+
+        private static void DrawStatValue(Rect rect, string text, bool dimmed)
+        {
             GameFont prevFont = Text.Font;
             TextAnchor prevAnchor = Text.Anchor;
+            Color prevColor = GUI.color;
 
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.MiddleRight;
-            Widgets.Label(rect, text.Truncate(rect.width));
+            if (dimmed)
+            {
+                GUI.color = WorkGiverStatValueColor;
+            }
 
+            Widgets.Label(rect, text.Truncate(rect.width));
+            GUI.color = prevColor;
             Text.Anchor = prevAnchor;
             Text.Font = prevFont;
         }

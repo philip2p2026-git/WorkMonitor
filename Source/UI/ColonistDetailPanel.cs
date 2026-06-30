@@ -321,20 +321,21 @@ namespace WorkMonitor.UI
                 Rect columnRow = new Rect(area.x, y, tableWidth, RowHeight);
                 WorkMonitorUiUtility.DrawRowBackground(columnRow, MonitorRowKind.WorkGiver, rowIndex);
 
-                float metricsLeft = WorkMonitorTableColumns.ColonistWorkGiverMetricsLeftEdge(columnRow);
+                WorkMonitorTableColumns.GetColonistGroupColumns(columnRow, out Rect jobsCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol, out Rect shareCol);
+
                 Text.Font = GameFont.Tiny;
                 Color prev = GUI.color;
                 GUI.color = new Color(0.8f, 0.8f, 0.8f);
-                Widgets.Label(new Rect(area.x + WorkGiverIndent, columnRow.y, metricsLeft - area.x - WorkGiverIndent - 8f, columnRow.height), wg.Label.Truncate(metricsLeft - area.x - WorkGiverIndent - 8f));
+                float labelWidth = jobsCol.x - area.x - WorkGiverIndent - 8f;
+                Widgets.Label(new Rect(area.x + WorkGiverIndent, columnRow.y, labelWidth, columnRow.height), wg.Label.Truncate(labelWidth));
                 GUI.color = prev;
 
-                WorkMonitorTableColumns.GetColonistWorkGiverColumns(columnRow, out Rect jobCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol, out Rect shareCol);
-                WorkMonitorUiUtility.LabelRightStatValue(jobCol, wg.JobCount.ToString());
-                WorkMonitorUiUtility.LabelRightStatValue(endlessCol, wg.EndlessJobCount.ToString());
-                WorkMonitorUiUtility.LabelRightStatValue(workCol, WorkMonitorUtility.FormatWorkUnits(wg.WorkUnitsSpent));
-                WorkMonitorUiUtility.LabelRightStatValue(walkCol, WorkMonitorUtility.FormatDuration(wg.TravelTicksSpent, showHours));
-                WorkMonitorUiUtility.LabelRightStatValue(activeWorkCol, WorkMonitorUtility.FormatDuration(wg.WorkTicksSpent, showHours));
-                WorkMonitorUiUtility.LabelRightStatValue(shareCol, WorkMonitorUiUtility.FormatTimeShare(wg.TicksSpent, stats.TotalTicksSpent));
+                WorkMonitorUiUtility.LabelRightWorkGiverStatValue(jobsCol, wg.JobCount.ToString());
+                WorkMonitorUiUtility.LabelRightWorkGiverStatValue(endlessCol, wg.EndlessJobCount.ToString());
+                WorkMonitorUiUtility.LabelRightWorkGiverStatValue(workCol, WorkMonitorUtility.FormatWorkUnits(wg.WorkUnitsSpent));
+                WorkMonitorUiUtility.LabelRightWorkGiverStatValue(walkCol, WorkMonitorUtility.FormatDuration(wg.TravelTicksSpent, showHours));
+                WorkMonitorUiUtility.LabelRightWorkGiverStatValue(activeWorkCol, WorkMonitorUtility.FormatDuration(wg.WorkTicksSpent, showHours));
+                WorkMonitorUiUtility.LabelRightWorkGiverStatValue(shareCol, WorkMonitorUiUtility.FormatTimeShare(wg.TicksSpent, stats.TotalTicksSpent));
 
                 y += RowHeight;
                 rowIndex++;

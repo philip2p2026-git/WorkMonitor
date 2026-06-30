@@ -317,19 +317,31 @@ namespace WorkMonitor.UI
                     selectedWorkGiver = wg.WorkGiver;
                 }
 
-                float metricsLeft = WorkMonitorTableColumns.ColonistWorkGiverMetricsLeftEdge(columnRow);
+                GetColonistTableColumns(
+                    columnRow,
+                    out _,
+                    out _,
+                    out _,
+                    out _,
+                    out _,
+                    out Rect jobsCol,
+                    out Rect endlessCol,
+                    out Rect workCol,
+                    out Rect walkCol,
+                    out Rect activeWorkCol);
+
                 Text.Font = GameFont.Tiny;
                 Color prev = GUI.color;
                 GUI.color = new Color(0.8f, 0.8f, 0.8f);
-                Widgets.Label(new Rect(area.x + WorkGiverIndent, columnRow.y, metricsLeft - area.x - WorkGiverIndent - 8f, columnRow.height), wg.Label.Truncate(metricsLeft - area.x - WorkGiverIndent - 8f));
+                float labelWidth = jobsCol.x - area.x - WorkGiverIndent - 8f;
+                Widgets.Label(new Rect(area.x + WorkGiverIndent, columnRow.y, labelWidth, columnRow.height), wg.Label.Truncate(labelWidth));
                 GUI.color = prev;
 
-                WorkMonitorTableColumns.GetColonistWorkGiverColumns(columnRow, out Rect jobCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol, out _);
-                WorkMonitorUiUtility.LabelRightStatValue(jobCol, wg.JobCount.ToString());
-                WorkMonitorUiUtility.LabelRightStatValue(endlessCol, wg.EndlessJobCount.ToString());
-                WorkMonitorUiUtility.LabelRightStatValue(workCol, WorkMonitorUtility.FormatWorkUnits(wg.WorkUnitsSpent));
-                WorkMonitorUiUtility.LabelRightStatValue(walkCol, WorkMonitorUtility.FormatDuration(wg.TravelTicksSpent, showHours));
-                WorkMonitorUiUtility.LabelRightStatValue(activeWorkCol, WorkMonitorUtility.FormatDuration(wg.WorkTicksSpent, showHours));
+                WorkMonitorUiUtility.LabelRightWorkGiverStatValue(jobsCol, wg.JobCount.ToString());
+                WorkMonitorUiUtility.LabelRightWorkGiverStatValue(endlessCol, wg.EndlessJobCount.ToString());
+                WorkMonitorUiUtility.LabelRightWorkGiverStatValue(workCol, WorkMonitorUtility.FormatWorkUnits(wg.WorkUnitsSpent));
+                WorkMonitorUiUtility.LabelRightWorkGiverStatValue(walkCol, WorkMonitorUtility.FormatDuration(wg.TravelTicksSpent, showHours));
+                WorkMonitorUiUtility.LabelRightWorkGiverStatValue(activeWorkCol, WorkMonitorUtility.FormatDuration(wg.WorkTicksSpent, showHours));
 
                 y += RowHeight;
                 rowIndex++;
@@ -509,12 +521,12 @@ namespace WorkMonitor.UI
             Widgets.Label(labelCol, wg.Label.Truncate(labelCol.width));
             string mapJobsText = WorkMonitorUiUtility.FormatMapOpenTasks(wg.MapOpenTasks, wg.MapNewTodayOpenTasks);
             string mapWorkText = WorkMonitorUiUtility.FormatMapWorkLeft(wg.MapWorkLeft, wg.MapNewTodayWorkLeft);
-            WorkMonitorUiUtility.LabelRightStatValue(mapJobsCol, mapJobsText);
+            WorkMonitorUiUtility.LabelRightWorkGiverStatValue(mapJobsCol, mapJobsText);
             TooltipHandler.TipRegion(mapJobsCol, "WorkMonitor.MapJobsNewTodayTip".Translate(mapJobsText));
-            WorkMonitorUiUtility.LabelRightStatValue(mapWorkCol, mapWorkText);
+            WorkMonitorUiUtility.LabelRightWorkGiverStatValue(mapWorkCol, mapWorkText);
             TooltipHandler.TipRegion(mapWorkCol, "WorkMonitor.MapWorkNewTodayTip".Translate(mapWorkText));
-            WorkMonitorUiUtility.LabelRightStatValue(colonistJobsCol, wg.JobCount.ToString());
-            WorkMonitorUiUtility.LabelRightStatValue(endlessCol, wg.EndlessJobCount.ToString());
+            WorkMonitorUiUtility.LabelRightWorkGiverStatValue(colonistJobsCol, wg.JobCount.ToString());
+            WorkMonitorUiUtility.LabelRightWorkGiverStatValue(endlessCol, wg.EndlessJobCount.ToString());
         }
 
         private void DrawWorkGiverTotalRow(Rect row)
