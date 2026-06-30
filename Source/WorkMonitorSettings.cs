@@ -14,6 +14,7 @@ namespace WorkMonitor
         public int yellowStatusHours = 12;
         public int refreshIntervalTicks = 60;
         public bool showTimeInHours = true;
+        public bool groupDetailWorkGiverFirst = false;
         public bool showSkillOnWorkGiverLabels = true;
         public string workGiverLabelFormat = "{skill}: {label}";
         public string skillRoleOverrides = "";
@@ -156,6 +157,7 @@ namespace WorkMonitor
             Scribe_Values.Look(ref yellowStatusHours, "yellowStatusHours", 12);
             Scribe_Values.Look(ref refreshIntervalTicks, "refreshIntervalTicks", 60);
             Scribe_Values.Look(ref showTimeInHours, "showTimeInHours", true);
+            Scribe_Values.Look(ref groupDetailWorkGiverFirst, "groupDetailWorkGiverFirst", false);
             Scribe_Values.Look(ref showSkillOnWorkGiverLabels, "showSkillOnWorkGiverLabels", true);
             Scribe_Values.Look(ref workGiverLabelFormat, "workGiverLabelFormat", "{skill}: {label}");
             Scribe_Values.Look(ref skillRoleOverrides, "skillRoleOverrides", "");

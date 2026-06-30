@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using RimWorld;
 using UnityEngine;
 using Verse;
@@ -19,6 +20,7 @@ namespace WorkMonitor.UI
         private const float ExpandButtonWidth = WorkMonitorTableColumns.ExpandButtonWidth;
         private const float WorkGiverIndent = 16f;
         private const float ExpandAllWidth = 76f;
+        private const float LayoutToggleWidth = 96f;
 
         private readonly WorkGroupChartPanel chartPanel = new WorkGroupChartPanel();
         private Vector2 scroll;
@@ -27,7 +29,12 @@ namespace WorkMonitor.UI
         private WorkGroupSnapshot pendingGroupSelection;
         private MonitorRangeState boundRangeState;
         private readonly HashSet<int> expandedColonistIds = new HashSet<int>();
+        private readonly HashSet<string> expandedWorkGiverDefNames = new HashSet<string>();
         private readonly Dictionary<int, ColonistGroupWorkDetail> colonistDetailCache = new Dictionary<int, ColonistGroupWorkDetail>();
+        private readonly Dictionary<string, WorkGiverDetailStats> workGiverDetailCache = new Dictionary<string, WorkGiverDetailStats>();
+        private List<WorkGiverDef> activeWorkGivers;
+
+        private static bool WorkGiverFirst => WorkMonitorMod.Settings?.groupDetailWorkGiverFirst ?? false;
 
         public WorkGroupSnapshot CurrentGroup => stats?.Group;
 
@@ -36,8 +43,28 @@ namespace WorkMonitor.UI
             boundRangeState = rangeState;
             allStats = WorkGroupStatsAggregator.BuildAll(rangeState.RangeHours);
             stats = WorkGroupStatsAggregator.Build(group, rangeState.RangeHours);
+            ClearExpandCaches();
+        }
+
+        private void ClearExpandCaches()
+        {
             expandedColonistIds.Clear();
+            expandedWorkGiverDefNames.Clear();
             colonistDetailCache.Clear();
+            workGiverDetailCache.Clear();
+            activeWorkGivers = null;
+        }
+
+        private void ToggleLayout()
+        {
+            WorkMonitorSettings settings = WorkMonitorMod.Settings;
+            if (settings == null)
+            {
+                return;
+            }
+
+            settings.groupDetailWorkGiverFirst = !settings.groupDetailWorkGiverFirst;
+            ClearExpandCaches();
         }
 
         public void Draw(Rect rect, MonitorRangeState rangeState, out bool back, out bool colonistClicked, out ColonistWorkStat selectedColonist, out WorkGroupSnapshot groupChanged, out bool workGiverClicked, out WorkGiverDef selectedWorkGiver)
@@ -156,17 +183,75 @@ namespace WorkMonitor.UI
 
         private float CalculateColonistViewHeight()
         {
-            float height = stats.ColonistStats.Count * RowHeight;
+            if (WorkGiverFirst)
+            {
+                float height = GetActiveWorkGivers().Count * RowHeight;
+                foreach (WorkGiverDef workGiver in GetActiveWorkGivers())
+                {
+                    if (expandedWorkGiverDefNames.Contains(workGiver.defName))
+                    {
+                        WorkGiverDetailStats detail = GetWorkGiverDetail(workGiver);
+                        height += detail.ColonistStats.Count * RowHeight;
+                    }
+                }
+
+                return height;
+            }
+
+            float colonistHeight = stats.ColonistStats.Count * RowHeight;
             foreach (ColonistWorkStat colonist in stats.ColonistStats)
             {
                 if (expandedColonistIds.Contains(colonist.PawnId))
                 {
                     ColonistGroupWorkDetail detail = GetColonistDetail(colonist.PawnId);
-                    height += detail.WorkGiverStats.Count * RowHeight;
+                    colonistHeight += detail.WorkGiverStats.Count * RowHeight;
                 }
             }
 
-            return height;
+            return colonistHeight;
+        }
+
+        private WorkGiverDetailStats GetWorkGiverDetail(WorkGiverDef workGiver)
+        {
+            if (workGiver == null)
+            {
+                return null;
+            }
+
+            if (!workGiverDetailCache.TryGetValue(workGiver.defName, out WorkGiverDetailStats detail))
+            {
+                detail = WorkGiverStatsAggregator.Build(stats.Group, workGiver, boundRangeState?.RangeHours ?? 24);
+                workGiverDetailCache[workGiver.defName] = detail;
+            }
+
+            return detail;
+        }
+
+        private List<WorkGiverDef> GetActiveWorkGivers()
+        {
+            if (activeWorkGivers != null)
+            {
+                return activeWorkGivers;
+            }
+
+            var ranked = new List<(WorkGiverDef workGiver, int ticks)>();
+            foreach (WorkGiverDef workGiver in stats.Group.WorkGivers)
+            {
+                WorkGiverDetailStats detail = GetWorkGiverDetail(workGiver);
+                if (detail == null || detail.ColonistStats.Count == 0)
+                {
+                    continue;
+                }
+
+                int ticks = detail.ColonistStats.Sum(c => c.TicksSpent);
+                ranked.Add((workGiver, ticks));
+            }
+
+            activeWorkGivers = ranked
+                .OrderByDescending(entry => entry.ticks)
+                .Select(entry => entry.workGiver)
+                .ToList();
+            return activeWorkGivers;
         }
 
         private ColonistGroupWorkDetail GetColonistDetail(int pawnId)
@@ -188,23 +273,80 @@ namespace WorkMonitor.UI
             selectedWorkGiver = null;
 
             Text.Font = GameFont.Small;
-            float tableWidth = area.width - ExpandAllWidth - 4f;
+            float toolbarWidth = LayoutToggleWidth + ExpandAllWidth + 4f;
+            float tableWidth = area.width - toolbarWidth;
             Rect titleRect = new Rect(area.x, y, tableWidth, 22f);
             Widgets.Label(titleRect, "WorkMonitor.Colonists".Translate());
             TooltipHandler.TipRegion(titleRect, "WorkMonitor.ColonistsTip".Translate());
-            string expandLabel = AllColonistsExpanded()
-                ? "WorkMonitor.CollapseAll".Translate()
-                : "WorkMonitor.ExpandAll".Translate();
+
+            string layoutLabel = WorkGiverFirst
+                ? "WorkMonitor.GroupByWorkGiver".Translate()
+                : "WorkMonitor.GroupByColonist".Translate();
+            Rect layoutRect = new Rect(area.xMax - toolbarWidth, y, LayoutToggleWidth, 22f);
+            if (Widgets.ButtonText(layoutRect, layoutLabel))
+            {
+                ToggleLayout();
+            }
+
+            TooltipHandler.TipRegion(layoutRect, "WorkMonitor.GroupDetailLayoutTip".Translate());
+
+            string expandLabel = WorkGiverFirst
+                ? AllWorkGiversExpanded() ? "WorkMonitor.CollapseAll".Translate() : "WorkMonitor.ExpandAll".Translate()
+                : AllColonistsExpanded() ? "WorkMonitor.CollapseAll".Translate() : "WorkMonitor.ExpandAll".Translate();
             if (Widgets.ButtonText(new Rect(area.xMax - ExpandAllWidth, y, ExpandAllWidth, 22f), expandLabel))
             {
-                ToggleExpandAllColonists();
+                if (WorkGiverFirst)
+                {
+                    ToggleExpandAllWorkGivers();
+                }
+                else
+                {
+                    ToggleExpandAllColonists();
+                }
             }
+
             y += RowHeight;
 
-            DrawColonistHeader(new Rect(area.x, y, tableWidth, RowHeight));
+            DrawBreakdownHeader(new Rect(area.x, y, tableWidth, RowHeight), WorkGiverFirst);
             y += RowHeight;
 
             int rowIndex = 0;
+            if (WorkGiverFirst)
+            {
+                DrawWorkGiverFirstRows(
+                    area,
+                    tableWidth,
+                    ref y,
+                    ref rowIndex,
+                    ref colonistClicked,
+                    ref selectedColonist,
+                    ref workGiverClicked,
+                    ref selectedWorkGiver);
+            }
+            else
+            {
+                DrawColonistFirstRows(
+                    area,
+                    tableWidth,
+                    ref y,
+                    ref rowIndex,
+                    ref colonistClicked,
+                    ref selectedColonist,
+                    ref workGiverClicked,
+                    ref selectedWorkGiver);
+            }
+        }
+
+        private void DrawColonistFirstRows(
+            Rect area,
+            float tableWidth,
+            ref float y,
+            ref int rowIndex,
+            ref bool colonistClicked,
+            ref ColonistWorkStat selectedColonist,
+            ref bool workGiverClicked,
+            ref WorkGiverDef selectedWorkGiver)
+        {
             foreach (ColonistWorkStat colonist in stats.ColonistStats)
             {
                 int pawnId = colonist.PawnId;
@@ -228,7 +370,7 @@ namespace WorkMonitor.UI
 
                 GetColonistTableColumns(
                     row,
-                    out Rect portraitCol,
+                    out _,
                     out Rect iconsCol,
                     out Rect labelCol,
                     out _,
@@ -256,12 +398,68 @@ namespace WorkMonitor.UI
 
                 if (expanded)
                 {
-                    DrawExpandedWorkGivers(area, tableWidth, colonist.PawnId, rangeState, ref y, ref rowIndex, out bool wgClicked, out WorkGiverDef wg);
-                    if (wgClicked)
+                    DrawExpandedWorkGivers(area, tableWidth, colonist.PawnId, ref y, ref rowIndex, ref workGiverClicked, ref selectedWorkGiver);
+                }
+            }
+        }
+
+        private void DrawWorkGiverFirstRows(
+            Rect area,
+            float tableWidth,
+            ref float y,
+            ref int rowIndex,
+            ref bool colonistClicked,
+            ref ColonistWorkStat selectedColonist,
+            ref bool workGiverClicked,
+            ref WorkGiverDef selectedWorkGiver)
+        {
+            bool showHours = WorkMonitorMod.Settings?.showTimeInHours ?? true;
+
+            foreach (WorkGiverDef workGiver in GetActiveWorkGivers())
+            {
+                WorkGiverDetailStats detail = GetWorkGiverDetail(workGiver);
+                bool expanded = expandedWorkGiverDefNames.Contains(workGiver.defName);
+
+                Rect row = new Rect(area.x, y, tableWidth, RowHeight);
+                Rect expandRect = new Rect(row.x, row.y, ExpandButtonWidth, row.height);
+
+                if (DrawWorkGiverBreakdownRow(
+                    area,
+                    row,
+                    labelIndentFromArea: null,
+                    WorkGiverLabelUtility.Format(workGiver),
+                    detail.TotalJobCount,
+                    detail.TotalEndlessJobCount,
+                    detail.TotalWorkUnits,
+                    detail.TotalTravelTicks,
+                    detail.TotalWorkTicks,
+                    showHours,
+                    rowIndex,
+                    workGiver,
+                    out WorkGiverDef clickedWg))
+                {
+                    workGiverClicked = true;
+                    selectedWorkGiver = clickedWg;
+                }
+
+                if (Widgets.ButtonText(expandRect, expanded ? "▼" : "▶"))
+                {
+                    if (expanded)
                     {
-                        workGiverClicked = true;
-                        selectedWorkGiver = wg;
+                        expandedWorkGiverDefNames.Remove(workGiver.defName);
                     }
+                    else
+                    {
+                        expandedWorkGiverDefNames.Add(workGiver.defName);
+                    }
+                }
+
+                y += RowHeight;
+                rowIndex++;
+
+                if (expanded)
+                {
+                    DrawExpandedColonists(area, tableWidth, detail, ref y, ref rowIndex, ref colonistClicked, ref selectedColonist);
                 }
             }
         }
@@ -298,54 +496,175 @@ namespace WorkMonitor.UI
             }
         }
 
-        private void DrawExpandedWorkGivers(Rect area, float tableWidth, int pawnId, MonitorRangeState rangeState, ref float y, ref int rowIndex, out bool workGiverClicked, out WorkGiverDef selectedWorkGiver)
+        private bool AllWorkGiversExpanded()
         {
-            workGiverClicked = false;
-            selectedWorkGiver = null;
+            List<WorkGiverDef> workGivers = GetActiveWorkGivers();
+            if (workGivers.Count == 0)
+            {
+                return true;
+            }
+
+            foreach (WorkGiverDef workGiver in workGivers)
+            {
+                if (!expandedWorkGiverDefNames.Contains(workGiver.defName))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private void ToggleExpandAllWorkGivers()
+        {
+            if (AllWorkGiversExpanded())
+            {
+                expandedWorkGiverDefNames.Clear();
+                return;
+            }
+
+            foreach (WorkGiverDef workGiver in GetActiveWorkGivers())
+            {
+                expandedWorkGiverDefNames.Add(workGiver.defName);
+            }
+        }
+
+        private void DrawExpandedWorkGivers(Rect area, float tableWidth, int pawnId, ref float y, ref int rowIndex, ref bool workGiverClicked, ref WorkGiverDef selectedWorkGiver)
+        {
             ColonistGroupWorkDetail detail = GetColonistDetail(pawnId);
             bool showHours = WorkMonitorMod.Settings?.showTimeInHours ?? true;
 
             foreach (ColonistWorkGiverStat wg in detail.WorkGiverStats)
             {
                 Rect columnRow = new Rect(area.x, y, tableWidth, RowHeight);
-                WorkMonitorUiUtility.DrawRowBackground(columnRow, MonitorRowKind.WorkGiver, rowIndex);
-
-                Rect labelRow = new Rect(area.x + WorkGiverIndent, y, area.width - WorkGiverIndent, RowHeight);
-                if (Widgets.ButtonInvisible(labelRow))
+                if (DrawWorkGiverBreakdownRow(
+                    area,
+                    columnRow,
+                    WorkGiverIndent,
+                    wg.Label,
+                    wg.JobCount,
+                    wg.EndlessJobCount,
+                    wg.WorkUnitsSpent,
+                    wg.TravelTicksSpent,
+                    wg.WorkTicksSpent,
+                    showHours,
+                    rowIndex,
+                    wg.WorkGiver,
+                    out WorkGiverDef clickedWg))
                 {
                     workGiverClicked = true;
-                    selectedWorkGiver = wg.WorkGiver;
+                    selectedWorkGiver = clickedWg;
                 }
-
-                GetColonistTableColumns(
-                    columnRow,
-                    out _,
-                    out _,
-                    out _,
-                    out _,
-                    out _,
-                    out Rect jobsCol,
-                    out Rect endlessCol,
-                    out Rect workCol,
-                    out Rect walkCol,
-                    out Rect activeWorkCol);
-
-                Text.Font = GameFont.Tiny;
-                Color prev = GUI.color;
-                GUI.color = new Color(0.8f, 0.8f, 0.8f);
-                float labelWidth = jobsCol.x - area.x - WorkGiverIndent - 8f;
-                Widgets.Label(new Rect(area.x + WorkGiverIndent, columnRow.y, labelWidth, columnRow.height), wg.Label.Truncate(labelWidth));
-                GUI.color = prev;
-
-                WorkMonitorUiUtility.LabelRightWorkGiverStatValue(jobsCol, wg.JobCount.ToString());
-                WorkMonitorUiUtility.LabelRightWorkGiverStatValue(endlessCol, wg.EndlessJobCount.ToString());
-                WorkMonitorUiUtility.LabelRightWorkGiverStatValue(workCol, WorkMonitorUtility.FormatWorkUnits(wg.WorkUnitsSpent));
-                WorkMonitorUiUtility.LabelRightWorkGiverStatValue(walkCol, WorkMonitorUtility.FormatDuration(wg.TravelTicksSpent, showHours));
-                WorkMonitorUiUtility.LabelRightWorkGiverStatValue(activeWorkCol, WorkMonitorUtility.FormatDuration(wg.WorkTicksSpent, showHours));
 
                 y += RowHeight;
                 rowIndex++;
             }
+        }
+
+        private void DrawExpandedColonists(
+            Rect area,
+            float tableWidth,
+            WorkGiverDetailStats detail,
+            ref float y,
+            ref int rowIndex,
+            ref bool colonistClicked,
+            ref ColonistWorkStat selectedColonist)
+        {
+            foreach (ColonistWorkStat colonist in detail.ColonistStats)
+            {
+                Rect row = new Rect(area.x + WorkGiverIndent, y, tableWidth - WorkGiverIndent, RowHeight);
+                WorkMonitorUiUtility.DrawRowBackground(row, MonitorRowKind.Colonist, rowIndex);
+
+                GetColonistTableColumns(
+                    row,
+                    out _,
+                    out Rect iconsCol,
+                    out Rect labelCol,
+                    out _,
+                    out _,
+                    out _,
+                    out _,
+                    out _,
+                    out _,
+                    out _);
+
+                Rect clickRect = new Rect(labelCol.x, row.y, row.xMax - labelCol.x, row.height);
+                if (Widgets.ButtonInvisible(clickRect))
+                {
+                    colonistClicked = true;
+                    selectedColonist = colonist;
+                }
+
+                if (DrawColonistRow(row, colonist, iconsCol, out bool inspectClicked) && inspectClicked && !colonist.IsAbsent)
+                {
+                    ColonistInspectUtility.OpenPawnProfile(colonist.Pawn);
+                }
+
+                y += RowHeight;
+                rowIndex++;
+            }
+        }
+
+        private bool DrawWorkGiverBreakdownRow(
+            Rect area,
+            Rect columnRow,
+            float? labelIndentFromArea,
+            string label,
+            int jobCount,
+            int endlessCount,
+            float workUnits,
+            int travelTicks,
+            int workTicks,
+            bool showHours,
+            int rowIndex,
+            WorkGiverDef navigateTarget,
+            out WorkGiverDef clickedWorkGiver)
+        {
+            clickedWorkGiver = null;
+            WorkMonitorUiUtility.DrawRowBackground(columnRow, MonitorRowKind.WorkGiver, rowIndex);
+
+            GetColonistTableColumns(
+                columnRow,
+                out _,
+                out _,
+                out Rect labelCol,
+                out _,
+                out _,
+                out Rect jobsCol,
+                out Rect endlessCol,
+                out Rect workCol,
+                out Rect walkCol,
+                out Rect activeWorkCol);
+
+            Rect clickRect = new Rect(labelCol.x, columnRow.y, columnRow.xMax - labelCol.x, columnRow.height);
+            if (navigateTarget != null && Widgets.ButtonInvisible(clickRect))
+            {
+                clickedWorkGiver = navigateTarget;
+            }
+
+            Text.Font = GameFont.Tiny;
+            Color prev = GUI.color;
+            GUI.color = new Color(0.8f, 0.8f, 0.8f);
+            if (labelIndentFromArea.HasValue)
+            {
+                float labelWidth = jobsCol.x - area.x - labelIndentFromArea.Value - 8f;
+                Widgets.Label(
+                    new Rect(area.x + labelIndentFromArea.Value, columnRow.y, labelWidth, columnRow.height),
+                    label.Truncate(labelWidth));
+            }
+            else
+            {
+                Widgets.Label(labelCol, label.Truncate(labelCol.width));
+            }
+
+            GUI.color = prev;
+
+            WorkMonitorUiUtility.LabelRightWorkGiverStatValue(jobsCol, jobCount.ToString());
+            WorkMonitorUiUtility.LabelRightWorkGiverStatValue(endlessCol, endlessCount.ToString());
+            WorkMonitorUiUtility.LabelRightWorkGiverStatValue(workCol, WorkMonitorUtility.FormatWorkUnits(workUnits));
+            WorkMonitorUiUtility.LabelRightWorkGiverStatValue(walkCol, WorkMonitorUtility.FormatDuration(travelTicks, showHours));
+            WorkMonitorUiUtility.LabelRightWorkGiverStatValue(activeWorkCol, WorkMonitorUtility.FormatDuration(workTicks, showHours));
+            return clickedWorkGiver != null;
         }
 
         private void DrawWorkGiverTable(Rect area, ref float y, out bool workGiverClicked, out WorkGiverDef selectedWorkGiver)
@@ -394,7 +713,7 @@ namespace WorkMonitor.UI
             y += RowHeight;
         }
 
-        private static void DrawColonistHeader(Rect row)
+        private static void DrawBreakdownHeader(Rect row, bool workGiverFirst)
         {
             Text.Font = GameFont.Tiny;
             Color prev = GUI.color;
@@ -415,9 +734,17 @@ namespace WorkMonitor.UI
 
             Widgets.Label(new Rect(row.x, row.y, ExpandButtonWidth, row.height), "");
             Widgets.Label(portraitCol, "");
-            Widgets.Label(labelCol, "WorkMonitor.Colonist".Translate());
-            LabelRight(kpiJobCol, "WorkMonitor.KpiJobs".Translate());
-            LabelRight(kpiWorkCol, "WorkMonitor.KpiWork".Translate());
+            Widgets.Label(
+                labelCol,
+                workGiverFirst
+                    ? "WorkMonitor.WorkGiver".Translate()
+                    : "WorkMonitor.Colonist".Translate());
+            if (!workGiverFirst)
+            {
+                LabelRight(kpiJobCol, "WorkMonitor.KpiJobs".Translate());
+                LabelRight(kpiWorkCol, "WorkMonitor.KpiWork".Translate());
+            }
+
             LabelRight(jobsCol, "WorkMonitor.Jobs".Translate());
             Rect endlessHeader = endlessCol;
             LabelRight(endlessHeader, "WorkMonitor.EndlessJobs".Translate());

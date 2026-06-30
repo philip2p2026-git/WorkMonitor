@@ -46,6 +46,9 @@
 	<WorkMonitor.TimeShareTip>Share of this colonist's total monitored work time in the selected range. WorkGiver rows sum to their parent work type.</WorkMonitor.TimeShareTip>
 	<WorkMonitor.ExpandAll>Expand all</WorkMonitor.ExpandAll>
 	<WorkMonitor.CollapseAll>Collapse all</WorkMonitor.CollapseAll>
+	<WorkMonitor.GroupByColonist>By colonist</WorkMonitor.GroupByColonist>
+	<WorkMonitor.GroupByWorkGiver>By work giver</WorkMonitor.GroupByWorkGiver>
+	<WorkMonitor.GroupDetailLayoutTip>Switch colonist breakdown between colonist-first and work-giver-first grouping.</WorkMonitor.GroupDetailLayoutTip>
 	<WorkMonitor.MapEndlessTip>Colonist endless job starts in the selected range (not map backlog).</WorkMonitor.MapEndlessTip>
 	<WorkMonitor.ColonistsIconTip>Info opens colonist bio. Click a row to open colonist work breakdown.</WorkMonitor.ColonistsIconTip>
 	<WorkMonitor.OpenColonistProfile>Open colonist bio</WorkMonitor.OpenColonistProfile>
