@@ -128,6 +128,10 @@
 	<WorkMonitor.ChartNewWorkToday>New work today</WorkMonitor.ChartNewWorkToday>
 	<WorkMonitor.ColonistAbsentTip>Colonist is not currently on this map (dead, away, or otherwise absent). Historical work stats are retained.</WorkMonitor.ColonistAbsentTip>
 	<WorkMonitor.SettingsExport>Export backed data (CSV)</WorkMonitor.SettingsExport>
+	<WorkMonitor.SettingsSectionRange>Range and history</WorkMonitor.SettingsSectionRange>
+	<WorkMonitor.SettingsSectionStatus>Status thresholds</WorkMonitor.SettingsSectionStatus>
+	<WorkMonitor.SettingsSectionDisplay>Display and labels</WorkMonitor.SettingsSectionDisplay>
+	<WorkMonitor.SettingsSectionMap>Map sampling</WorkMonitor.SettingsSectionMap>
 	<WorkMonitor.ExportColonistCsv>Export colonist work records</WorkMonitor.ExportColonistCsv>
 	<WorkMonitor.ExportMapWorkGiverCsv>Export map workgiver snapshots</WorkMonitor.ExportMapWorkGiverCsv>
 	<WorkMonitor.ExportSuccess>Exported to {0}</WorkMonitor.ExportSuccess>

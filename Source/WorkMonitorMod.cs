@@ -10,6 +10,10 @@ namespace WorkMonitor
 {
     public class WorkMonitorMod : Mod
     {
+        private const float SettingsContentHeight = 920f;
+
+        private Vector2 settingsScrollPosition;
+
         public static WorkMonitorMod Instance { get; private set; }
         public static WorkMonitorSettings Settings { get; private set; }
 
@@ -26,8 +30,23 @@ namespace WorkMonitor
 
         public override void DoSettingsWindowContents(Rect inRect)
         {
+            float contentWidth = inRect.width - 20f;
+            Rect viewRect = new Rect(0f, 0f, contentWidth, SettingsContentHeight);
+
+            Widgets.BeginScrollView(inRect, ref settingsScrollPosition, viewRect);
+
             Listing_Standard listing = new Listing_Standard();
-            listing.Begin(inRect);
+            listing.Begin(viewRect);
+            DrawSettingsContents(listing);
+            listing.End();
+
+            Widgets.EndScrollView();
+        }
+
+        private static void DrawSettingsContents(Listing_Standard listing)
+        {
+            listing.Label("WorkMonitor.SettingsSectionRange".Translate());
+            listing.Gap(4f);
 
             listing.Label("WorkMonitor.SettingsDefaultRange".Translate());
             if (listing.ButtonText(MonitorRangeState.PresetToLabel(Settings.DefaultRangePreset)))
@@ -58,7 +77,11 @@ namespace WorkMonitor
 
             listing.Label("WorkMonitor.SettingsChartHistory".Translate());
             Settings.chartHistoryHours = (int)listing.Slider(Settings.chartHistoryHours, 6, WorkMonitorSettings.MaxRetentionHours);
-            listing.Gap(6f);
+            listing.Gap(10f);
+            listing.GapLine(6f);
+
+            listing.Label("WorkMonitor.SettingsSectionStatus".Translate());
+            listing.Gap(4f);
 
             listing.Label("WorkMonitor.SettingsGreenHours".Translate());
             Settings.greenStatusHours = (int)listing.Slider(Settings.greenStatusHours, 1, 24);
@@ -70,7 +93,11 @@ namespace WorkMonitor
 
             listing.Label("WorkMonitor.SettingsRefreshTicks".Translate() + ": " + Settings.refreshIntervalTicks);
             Settings.refreshIntervalTicks = (int)listing.Slider(Settings.refreshIntervalTicks, 30, 300);
-            listing.Gap(6f);
+            listing.Gap(10f);
+            listing.GapLine(6f);
+
+            listing.Label("WorkMonitor.SettingsSectionDisplay".Translate());
+            listing.Gap(4f);
 
             listing.CheckboxLabeled("WorkMonitor.SettingsShowTimeInHours".Translate(), ref Settings.showTimeInHours);
             listing.Gap(6f);
@@ -88,7 +115,11 @@ namespace WorkMonitor
 
             listing.Label("WorkMonitor.SettingsWorkGiverSkillOverrides".Translate());
             Settings.workGiverSkillOverrides = listing.TextEntry(Settings.workGiverSkillOverrides ?? "");
-            listing.Gap(6f);
+            listing.Gap(10f);
+            listing.GapLine(6f);
+
+            listing.Label("WorkMonitor.SettingsSectionMap".Translate());
+            listing.Gap(4f);
 
             listing.Label("WorkMonitor.SettingsMapSampleInterval".Translate() + ": " + MapWorkSampler.NormalizeInterval(Settings.mapSampleIntervalHours) + "h");
             if (listing.ButtonText("WorkMonitor.SettingsMapSampleCycle".Translate()))
@@ -102,20 +133,23 @@ namespace WorkMonitor
                     _ => 1
                 };
             }
-            listing.Gap(12f);
+            listing.Gap(10f);
+            listing.GapLine(6f);
 
             listing.Label("WorkMonitor.SettingsExport".Translate());
+            listing.Gap(4f);
+
             if (listing.ButtonText("WorkMonitor.ExportColonistCsv".Translate()))
             {
                 ExportColonistCsv();
             }
 
+            listing.Gap(4f);
+
             if (listing.ButtonText("WorkMonitor.ExportMapWorkGiverCsv".Translate()))
             {
                 ExportMapWorkGiverCsv();
             }
-
-            listing.End();
         }
 
         private static void ExportColonistCsv()
