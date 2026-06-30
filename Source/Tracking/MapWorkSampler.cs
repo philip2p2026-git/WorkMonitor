@@ -99,7 +99,13 @@ namespace WorkMonitor.Tracking
             lastSampledHour = hour;
             latestSnapshot = BuildSnapshot(map, hour, Find.TickManager.TicksGame, Find.TickManager.TicksAbs);
             historyBuffer.Add(latestSnapshot);
-            int maxHistory = WorkMonitorMod.Settings?.ResolveRetentionHours() ?? 48;
+            int minHour = WorkMonitorUtility.CurrentHourIndex() - WorkMonitorSettings.MaxRetentionHours;
+            while (historyBuffer.Count > 0 && historyBuffer[0].hourIndex < minHour)
+            {
+                historyBuffer.RemoveAt(0);
+            }
+
+            int maxHistory = WorkMonitorSettings.MaxRetentionHours + 8;
             while (historyBuffer.Count > maxHistory)
             {
                 historyBuffer.RemoveAt(0);

@@ -38,7 +38,6 @@ namespace WorkMonitor.UI
                     minHourIndex,
                     rangeHours,
                     bucket => bucket != null ? bucket.workUnitsSpent + bucket.estimatedWorkUnitsSpent : 0f,
-                    d => d.workUnitsSpent + d.estimatedWorkUnitsSpent,
                     out values,
                     out labels);
             }
@@ -70,7 +69,6 @@ namespace WorkMonitor.UI
                     minHourIndex,
                     rangeHours,
                     bucket => bucket != null ? bucket.jobCount : 0f,
-                    d => d.jobCount,
                     out values,
                     out labels);
             }
@@ -116,7 +114,6 @@ namespace WorkMonitor.UI
             int minHourIndex,
             int rangeHours,
             System.Func<HourlyWorkBucket, float> hourlySelector,
-            System.Func<DailyWorkBucket, float> dailySelector,
             out float[] values,
             out string[] labels)
         {
@@ -125,9 +122,8 @@ namespace WorkMonitor.UI
             for (int i = 0; i < rangeHours; i++)
             {
                 int hour = minHourIndex + i;
-                values[i] = history != null
-                    ? history.EstimateHourlyFromDaily(hour, hourlySelector, dailySelector)
-                    : 0f;
+                HourlyWorkBucket bucket = history?.GetBucket(hour);
+                values[i] = bucket != null ? hourlySelector(bucket) : 0f;
                 labels[i] = BuildRelativeHourLabel(i, rangeHours);
             }
         }
@@ -195,9 +191,15 @@ namespace WorkMonitor.UI
 
             MapWorkSampler sampler = MapWorkSampler.EnsureRegistered();
             IReadOnlyList<MapWorkSnapshot> mapHistory = sampler?.GetHistory();
-            float lastValue = 0f;
-            float lastNewToday = 0f;
-            int mapIndex = 0;
+            SeedMapSeries(
+                mapHistory,
+                minHourIndex,
+                groupStorageKey,
+                jobs: jobs,
+                workGiverDefName: null,
+                out float lastValue,
+                out float lastNewToday,
+                out int mapIndex);
 
             for (int i = 0; i < rangeHours; i++)
             {
@@ -208,18 +210,95 @@ namespace WorkMonitor.UI
                 {
                     while (mapIndex < mapHistory.Count && mapHistory[mapIndex].hourIndex <= hour)
                     {
-                        if (mapHistory[mapIndex].perGroupKey.TryGetValue(groupStorageKey, out MapWorkGroupSnapshot groupSnap))
-                        {
-                            lastValue = jobs ? groupSnap.openTaskCount : groupSnap.workLeftTotal;
-                            lastNewToday = jobs ? groupSnap.newTodayOpenTaskCount : groupSnap.newTodayWorkLeftTotal;
-                        }
-
+                        TryReadMapGroupSnapshot(mapHistory[mapIndex], groupStorageKey, jobs, ref lastValue, ref lastNewToday);
                         mapIndex++;
                     }
                 }
 
                 values[i] = lastValue;
                 newTodayValues[i] = lastNewToday;
+            }
+        }
+
+        private static void SeedMapSeries(
+            IReadOnlyList<MapWorkSnapshot> mapHistory,
+            int minHourIndex,
+            string groupStorageKey,
+            bool jobs,
+            string workGiverDefName,
+            out float lastValue,
+            out float lastNewToday,
+            out int startIndex)
+        {
+            lastValue = 0f;
+            lastNewToday = 0f;
+            startIndex = 0;
+            if (mapHistory == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < mapHistory.Count; i++)
+            {
+                MapWorkSnapshot snap = mapHistory[i];
+                if (snap.hourIndex > minHourIndex)
+                {
+                    if (i == 0)
+                    {
+                        if (!workGiverDefName.NullOrEmpty())
+                        {
+                            TryReadMapWorkGiverSnapshot(snap, workGiverDefName, jobs, ref lastValue, ref lastNewToday);
+                        }
+                        else
+                        {
+                            TryReadMapGroupSnapshot(snap, groupStorageKey, jobs, ref lastValue, ref lastNewToday);
+                        }
+                    }
+
+                    startIndex = i;
+                    return;
+                }
+
+                if (!workGiverDefName.NullOrEmpty())
+                {
+                    TryReadMapWorkGiverSnapshot(snap, workGiverDefName, jobs, ref lastValue, ref lastNewToday);
+                }
+                else
+                {
+                    TryReadMapGroupSnapshot(snap, groupStorageKey, jobs, ref lastValue, ref lastNewToday);
+                }
+
+                startIndex = i + 1;
+            }
+
+            startIndex = mapHistory.Count;
+        }
+
+        private static void TryReadMapGroupSnapshot(
+            MapWorkSnapshot snap,
+            string groupStorageKey,
+            bool jobs,
+            ref float lastValue,
+            ref float lastNewToday)
+        {
+            if (snap.perGroupKey.TryGetValue(groupStorageKey, out MapWorkGroupSnapshot groupSnap))
+            {
+                lastValue = jobs ? groupSnap.openTaskCount : groupSnap.workLeftTotal;
+                lastNewToday = jobs ? groupSnap.newTodayOpenTaskCount : groupSnap.newTodayWorkLeftTotal;
+            }
+        }
+
+        private static void TryReadMapWorkGiverSnapshot(
+            MapWorkSnapshot snap,
+            string workGiverDefName,
+            bool jobs,
+            ref float lastValue,
+            ref float lastNewToday)
+        {
+            if (snap.perWorkGiver.TryGetValue(workGiverDefName, out MapWorkGiverSnapshot wgSnap))
+            {
+                lastValue = jobs ? wgSnap.openTaskCount : wgSnap.workLeftTotal;
+                lastNewToday = jobs ? wgSnap.newTodayOpenTaskCount : wgSnap.newTodayWorkLeftTotal;
             }
         }
 
@@ -260,9 +339,15 @@ namespace WorkMonitor.UI
 
             MapWorkSampler sampler = MapWorkSampler.EnsureRegistered();
             IReadOnlyList<MapWorkSnapshot> mapHistory = sampler?.GetHistory();
-            float lastValue = 0f;
-            float lastNewToday = 0f;
-            int mapIndex = 0;
+            SeedMapSeries(
+                mapHistory,
+                minHourIndex,
+                groupStorageKey: null,
+                jobs: jobs,
+                workGiverDefName: workGiverDefName,
+                out float lastValue,
+                out float lastNewToday,
+                out int mapIndex);
 
             for (int i = 0; i < rangeHours; i++)
             {
@@ -273,12 +358,7 @@ namespace WorkMonitor.UI
                 {
                     while (mapIndex < mapHistory.Count && mapHistory[mapIndex].hourIndex <= hour)
                     {
-                        if (mapHistory[mapIndex].perWorkGiver.TryGetValue(workGiverDefName, out MapWorkGiverSnapshot wgSnap))
-                        {
-                            lastValue = jobs ? wgSnap.openTaskCount : wgSnap.workLeftTotal;
-                            lastNewToday = jobs ? wgSnap.newTodayOpenTaskCount : wgSnap.newTodayWorkLeftTotal;
-                        }
-
+                        TryReadMapWorkGiverSnapshot(mapHistory[mapIndex], workGiverDefName, jobs, ref lastValue, ref lastNewToday);
                         mapIndex++;
                     }
                 }
@@ -379,20 +459,31 @@ namespace WorkMonitor.UI
                 return;
             }
 
-            float yMax = ComputeYMax(colonistValues, mapValues, stacked: false);
-            DrawYAxis(new Rect(rect.x + 2f, plot.y, axisWidth, plot.height), yMax);
-            DrawGrid(plot, yMax);
+            float colonistYMax = ComputeYMax(colonistValues, null, stacked: false);
+            DrawYAxis(new Rect(rect.x + 2f, plot.y, axisWidth, plot.height), colonistYMax);
+            DrawGrid(plot, colonistYMax);
 
-            DrawSeries(plot, colonistValues, yMax, ColonistColor);
-            if (mapValues != null && mapValues.Length == colonistValues.Length)
+            const float mapBandFraction = 0.32f;
+            bool hasMap = mapValues != null && mapValues.Length == colonistValues.Length;
+            Rect colonistPlot = hasMap
+                ? new Rect(plot.x, plot.y, plot.width, plot.height * (1f - mapBandFraction))
+                : plot;
+            Rect mapPlot = hasMap
+                ? new Rect(plot.x, plot.yMax - plot.height * mapBandFraction, plot.width, plot.height * mapBandFraction)
+                : Rect.zero;
+
+            DrawSeries(colonistPlot, colonistValues, colonistYMax, ColonistColor);
+            if (hasMap)
             {
+                float mapYMax = ComputeYMax(mapValues, null, stacked: false);
+                Widgets.DrawLineHorizontal(mapPlot.x, mapPlot.y, mapPlot.width, new Color(1f, 1f, 1f, 0.15f));
                 if (mapNewTodayValues != null && mapNewTodayValues.Length == mapValues.Length)
                 {
-                    DrawStackedMapFill(plot, mapValues, mapNewTodayValues, yMax);
+                    DrawStackedMapFill(mapPlot, mapValues, mapNewTodayValues, mapYMax);
                 }
                 else
                 {
-                    DrawSeries(plot, mapValues, yMax, MapColor);
+                    DrawSeries(mapPlot, mapValues, mapYMax, MapColor);
                 }
             }
 
