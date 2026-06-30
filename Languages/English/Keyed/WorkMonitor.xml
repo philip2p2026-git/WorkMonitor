@@ -85,6 +85,9 @@
 	<WorkMonitor.WorkEstimatedTip>Work includes measured work-left plus estimates from active work time × speed when work-left is unavailable.</WorkMonitor.WorkEstimatedTip>
 	<WorkMonitor.SettingsGreenHours>Green status threshold (hours)</WorkMonitor.SettingsGreenHours>
 	<WorkMonitor.SettingsYellowHours>Yellow status threshold (hours)</WorkMonitor.SettingsYellowHours>
+	<WorkMonitor.SettingsGreenShort>Green</WorkMonitor.SettingsGreenShort>
+	<WorkMonitor.SettingsYellowShort>Yellow</WorkMonitor.SettingsYellowShort>
+	<WorkMonitor.SettingsRefreshShort>Refresh</WorkMonitor.SettingsRefreshShort>
 	<WorkMonitor.SettingsRefreshTicks>UI refresh interval (ticks)</WorkMonitor.SettingsRefreshTicks>
 	<WorkMonitor.SettingsShowTimeInHours>Display time in hours</WorkMonitor.SettingsShowTimeInHours>
 	<WorkMonitor.StatusGreen>Active</WorkMonitor.StatusGreen>

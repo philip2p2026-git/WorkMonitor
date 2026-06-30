@@ -42,7 +42,7 @@ namespace WorkMonitor
         public int ResolveRetentionHours(int activeRangeHours = -1)
         {
             int range = activeRangeHours > 0 ? activeRangeHours : statsWindowHours;
-            return UnityEngine.Mathf.Clamp(UnityEngine.Mathf.Max(chartHistoryHours, UnityEngine.Mathf.Min(range, MaxRetentionHours)), 6, MaxRetentionHours);
+            return UnityEngine.Mathf.Clamp(UnityEngine.Mathf.Min(range, MaxRetentionHours), 6, MaxRetentionHours);
         }
 
         public bool TryGetSkillRoleOverride(string skillDefName, out string label)

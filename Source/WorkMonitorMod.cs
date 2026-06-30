@@ -10,8 +10,9 @@ namespace WorkMonitor
 {
     public class WorkMonitorMod : Mod
     {
-        private const float SettingsContentHeight = 650f;
         private const float SettingsRowHeight = 28f;
+        private const float SettingsSectionGap = 10f;
+        private const float SettingsControlGap = 6f;
 
         private Vector2 settingsScrollPosition;
 
@@ -32,112 +33,89 @@ namespace WorkMonitor
         public override void DoSettingsWindowContents(Rect inRect)
         {
             float contentWidth = inRect.width - 20f;
-            Rect viewRect = new Rect(0f, 0f, contentWidth, SettingsContentHeight);
+            Listing_Standard listing = new Listing_Standard();
+            Rect viewRect = new Rect(0f, 0f, contentWidth, 10000f);
+            listing.Begin(viewRect);
+            DrawSettingsContents(listing);
+            listing.End();
+            viewRect.height = listing.CurHeight + 24f;
 
             Widgets.BeginScrollView(inRect, ref settingsScrollPosition, viewRect);
-
-            Listing_Standard listing = new Listing_Standard();
             listing.Begin(viewRect);
-            DrawSettingsContents(listing, contentWidth);
+            DrawSettingsContents(listing);
             listing.End();
-
             Widgets.EndScrollView();
         }
 
-        private static void DrawSettingsContents(Listing_Standard listing, float contentWidth)
+        private static void DrawSettingsContents(Listing_Standard listing)
         {
-            listing.Label("WorkMonitor.SettingsSectionRange".Translate());
-            listing.Gap(4f);
+            DrawSectionHeader(listing, "WorkMonitor.SettingsSectionRange".Translate());
 
-            DrawPresetSliderRow(listing, contentWidth);
-            listing.Gap(6f);
+            DrawPresetSliderRow(listing);
+            listing.Gap(SettingsControlGap);
 
             bool dayRolloverMorning = Settings.dayRolloverHour == 8;
             listing.CheckboxLabeled("WorkMonitor.SettingsDayRolloverAtMorning".Translate(), ref dayRolloverMorning);
             Settings.dayRolloverHour = dayRolloverMorning ? 8 : 0;
-            listing.Gap(6f);
 
-            listing.Label("WorkMonitor.SettingsChartHistory".Translate() + ": " + Settings.chartHistoryHours + "h");
-            Settings.chartHistoryHours = (int)listing.Slider(Settings.chartHistoryHours, 6, WorkMonitorSettings.MaxRetentionHours);
-            listing.Gap(10f);
-            listing.GapLine(6f);
+            listing.Gap(SettingsSectionGap);
+            listing.GapLine(SettingsControlGap);
 
-            listing.Label("WorkMonitor.SettingsSectionStatus".Translate());
-            listing.Gap(4f);
+            DrawSectionHeader(listing, "WorkMonitor.SettingsSectionStatus".Translate());
+            DrawStatusThresholdsRow(listing);
 
-            listing.Label("WorkMonitor.SettingsGreenHours".Translate() + ": " + Settings.greenStatusHours + "h");
-            Settings.greenStatusHours = (int)listing.Slider(Settings.greenStatusHours, 1, 24);
-            listing.Gap(6f);
+            listing.Gap(SettingsSectionGap);
+            listing.GapLine(SettingsControlGap);
 
-            listing.Label("WorkMonitor.SettingsYellowHours".Translate() + ": " + Settings.yellowStatusHours + "h");
-            Settings.yellowStatusHours = (int)listing.Slider(Settings.yellowStatusHours, 2, 48);
-            listing.Gap(6f);
-
-            listing.Label("WorkMonitor.SettingsRefreshTicks".Translate() + ": " + Settings.refreshIntervalTicks);
-            Settings.refreshIntervalTicks = (int)listing.Slider(Settings.refreshIntervalTicks, 30, 300);
-            listing.Gap(10f);
-            listing.GapLine(6f);
-
-            listing.Label("WorkMonitor.SettingsSectionDisplay".Translate());
-            listing.Gap(4f);
-
-            listing.CheckboxLabeled("WorkMonitor.SettingsShowTimeInHours".Translate(), ref Settings.showTimeInHours);
-            listing.Gap(6f);
-
-            listing.CheckboxLabeled("WorkMonitor.SettingsShowSkillOnWorkGiver".Translate(), ref Settings.showSkillOnWorkGiverLabels);
-            listing.Gap(6f);
+            DrawSectionHeader(listing, "WorkMonitor.SettingsSectionDisplay".Translate());
+            DrawDisplayCheckboxesRow(listing);
+            listing.Gap(SettingsControlGap);
 
             listing.Label("WorkMonitor.SettingsWorkGiverLabelFormat".Translate());
             Settings.workGiverLabelFormat = listing.TextEntry(Settings.workGiverLabelFormat ?? "{skill}: {label}");
-            listing.Gap(6f);
+            listing.Gap(SettingsControlGap);
 
             listing.Label("WorkMonitor.SettingsSkillRoleOverrides".Translate());
             Settings.skillRoleOverrides = listing.TextEntry(Settings.skillRoleOverrides ?? "");
-            listing.Gap(6f);
+            listing.Gap(SettingsControlGap);
 
             listing.Label("WorkMonitor.SettingsWorkGiverSkillOverrides".Translate());
             Settings.workGiverSkillOverrides = listing.TextEntry(Settings.workGiverSkillOverrides ?? "");
-            listing.Gap(10f);
-            listing.GapLine(6f);
 
-            listing.Label("WorkMonitor.SettingsSectionMap".Translate());
+            listing.Gap(SettingsSectionGap);
+            listing.GapLine(SettingsControlGap);
+
+            DrawSectionHeader(listing, "WorkMonitor.SettingsSectionMap".Translate());
+            DrawMapSampleSliderRow(listing);
+
+            listing.Gap(SettingsSectionGap);
+            listing.GapLine(SettingsControlGap);
+
+            DrawSectionHeader(listing, "WorkMonitor.SettingsExport".Translate());
             listing.Gap(4f);
-
-            DrawMapSampleSliderRow(listing, contentWidth);
-            listing.Gap(10f);
-            listing.GapLine(6f);
-
-            listing.Label("WorkMonitor.SettingsExport".Translate());
-            listing.Gap(4f);
-
-            Rect exportRow = listing.GetRect(SettingsRowHeight);
-            float exportGap = 6f;
-            float exportButtonWidth = (exportRow.width - exportGap) * 0.5f;
-            if (Widgets.ButtonText(new Rect(exportRow.x, exportRow.y, exportButtonWidth, exportRow.height), "WorkMonitor.ExportColonistCsv".Translate()))
-            {
-                ExportColonistCsv();
-            }
-
-            if (Widgets.ButtonText(new Rect(exportRow.x + exportButtonWidth + exportGap, exportRow.y, exportButtonWidth, exportRow.height), "WorkMonitor.ExportMapWorkGiverCsv".Translate()))
-            {
-                ExportMapWorkGiverCsv();
-            }
+            DrawExportButtonsRow(listing);
         }
 
-        private static void DrawPresetSliderRow(Listing_Standard listing, float contentWidth)
+        private static void DrawSectionHeader(Listing_Standard listing, string text)
+        {
+            listing.Gap(4f);
+            listing.Label(text);
+            listing.Gap(4f);
+        }
+
+        private static void DrawPresetSliderRow(Listing_Standard listing)
         {
             Rect row = listing.GetRect(SettingsRowHeight);
-            float labelWidth = 140f;
-            float valueWidth = 72f;
-            float sliderX = row.x + labelWidth;
-            float sliderWidth = row.width - labelWidth - valueWidth - 6f;
+            float labelWidth = 132f;
+            float valueWidth = 76f;
+            float sliderWidth = row.width - labelWidth - valueWidth - SettingsControlGap;
 
             Widgets.Label(new Rect(row.x, row.y, labelWidth, row.height), "WorkMonitor.SettingsDefaultRange".Translate());
 
             int presetCount = MonitorRangeState.AllPresets.Count;
             int presetIndex = MonitorRangeState.IndexOfPreset(Settings.DefaultRangePreset);
             float sliderValue = Widgets.HorizontalSlider(
-                new Rect(sliderX, row.y + 4f, sliderWidth, row.height),
+                new Rect(row.x + labelWidth, row.y + 4f, sliderWidth, row.height),
                 presetIndex,
                 0f,
                 presetCount - 1,
@@ -148,20 +126,90 @@ namespace WorkMonitor
                 Settings.defaultRangePreset = (int)MonitorRangeState.PresetAtIndex(newIndex);
             }
 
-            Text.Anchor = TextAnchor.MiddleRight;
-            Widgets.Label(
-                new Rect(row.xMax - valueWidth, row.y, valueWidth, row.height),
-                MonitorRangeState.PresetToLabel(Settings.DefaultRangePreset));
-            Text.Anchor = TextAnchor.UpperLeft;
+            DrawRightLabel(new Rect(row.xMax - valueWidth, row.y, valueWidth, row.height), MonitorRangeState.PresetToLabel(Settings.DefaultRangePreset));
         }
 
-        private static void DrawMapSampleSliderRow(Listing_Standard listing, float contentWidth)
+        private static void DrawStatusThresholdsRow(Listing_Standard listing)
         {
             Rect row = listing.GetRect(SettingsRowHeight);
-            float labelWidth = 160f;
+            float gap = 8f;
+            float columnWidth = (row.width - gap * 2f) / 3f;
+
+            DrawThresholdSlider(
+                new Rect(row.x, row.y, columnWidth, row.height),
+                "WorkMonitor.SettingsGreenShort".Translate(),
+                ref Settings.greenStatusHours,
+                1,
+                24,
+                "h");
+
+            DrawThresholdSlider(
+                new Rect(row.x + columnWidth + gap, row.y, columnWidth, row.height),
+                "WorkMonitor.SettingsYellowShort".Translate(),
+                ref Settings.yellowStatusHours,
+                2,
+                48,
+                "h");
+
+            DrawThresholdSlider(
+                new Rect(row.x + (columnWidth + gap) * 2f, row.y, columnWidth, row.height),
+                "WorkMonitor.SettingsRefreshShort".Translate(),
+                ref Settings.refreshIntervalTicks,
+                30,
+                300,
+                "");
+        }
+
+        private static void DrawThresholdSlider(Rect area, string label, ref int value, int min, int max, string suffix)
+        {
+            const float labelWidth = 52f;
+            const float valueWidth = 28f;
+            float sliderWidth = Mathf.Max(24f, area.width - labelWidth - valueWidth - 2f);
+
+            Widgets.Label(new Rect(area.x, area.y, labelWidth, area.height), label);
+            float sliderValue = Widgets.HorizontalSlider(
+                new Rect(area.x + labelWidth, area.y + 4f, sliderWidth, area.height),
+                value,
+                min,
+                max,
+                true);
+            int newValue = Mathf.RoundToInt(sliderValue);
+            if (newValue != value)
+            {
+                value = newValue;
+            }
+
+            string valueText = suffix.NullOrEmpty() ? value.ToString() : value + suffix;
+            DrawRightLabel(new Rect(area.xMax - valueWidth, area.y, valueWidth, area.height), valueText);
+        }
+
+        private static void DrawDisplayCheckboxesRow(Listing_Standard listing)
+        {
+            Rect row = listing.GetRect(SettingsRowHeight);
+            float gap = 8f;
+            float columnWidth = (row.width - gap) * 0.5f;
+
+            bool showTimeInHours = Settings.showTimeInHours;
+            Widgets.CheckboxLabeled(
+                new Rect(row.x, row.y, columnWidth, row.height),
+                "WorkMonitor.SettingsShowTimeInHours".Translate(),
+                ref showTimeInHours);
+            Settings.showTimeInHours = showTimeInHours;
+
+            bool showSkillOnWorkGiver = Settings.showSkillOnWorkGiverLabels;
+            Widgets.CheckboxLabeled(
+                new Rect(row.x + columnWidth + gap, row.y, columnWidth, row.height),
+                "WorkMonitor.SettingsShowSkillOnWorkGiver".Translate(),
+                ref showSkillOnWorkGiver);
+            Settings.showSkillOnWorkGiverLabels = showSkillOnWorkGiver;
+        }
+
+        private static void DrawMapSampleSliderRow(Listing_Standard listing)
+        {
+            Rect row = listing.GetRect(SettingsRowHeight);
+            float labelWidth = 148f;
             float valueWidth = 36f;
-            float sliderX = row.x + labelWidth;
-            float sliderWidth = row.width - labelWidth - valueWidth - 6f;
+            float sliderWidth = row.width - labelWidth - valueWidth - SettingsControlGap;
 
             int intervalIndex = MapWorkSampler.IndexOfInterval(Settings.mapSampleIntervalHours);
             int intervalCount = MapWorkSampler.MapSampleIntervalOptions.Length;
@@ -169,7 +217,7 @@ namespace WorkMonitor
             Widgets.Label(new Rect(row.x, row.y, labelWidth, row.height), "WorkMonitor.SettingsMapSampleInterval".Translate());
 
             float sliderValue = Widgets.HorizontalSlider(
-                new Rect(sliderX, row.y + 4f, sliderWidth, row.height),
+                new Rect(row.x + labelWidth, row.y + 4f, sliderWidth, row.height),
                 intervalIndex,
                 0f,
                 intervalCount - 1,
@@ -180,10 +228,32 @@ namespace WorkMonitor
                 Settings.mapSampleIntervalHours = MapWorkSampler.IntervalAtIndex(newIndex);
             }
 
-            Text.Anchor = TextAnchor.MiddleRight;
-            Widgets.Label(
+            DrawRightLabel(
                 new Rect(row.xMax - valueWidth, row.y, valueWidth, row.height),
                 MapWorkSampler.NormalizeInterval(Settings.mapSampleIntervalHours) + "h");
+        }
+
+        private static void DrawExportButtonsRow(Listing_Standard listing)
+        {
+            Rect row = listing.GetRect(SettingsRowHeight);
+            float gap = SettingsControlGap;
+            float buttonWidth = (row.width - gap) * 0.5f;
+
+            if (Widgets.ButtonText(new Rect(row.x, row.y, buttonWidth, row.height), "WorkMonitor.ExportColonistCsv".Translate()))
+            {
+                ExportColonistCsv();
+            }
+
+            if (Widgets.ButtonText(new Rect(row.x + buttonWidth + gap, row.y, buttonWidth, row.height), "WorkMonitor.ExportMapWorkGiverCsv".Translate()))
+            {
+                ExportMapWorkGiverCsv();
+            }
+        }
+
+        private static void DrawRightLabel(Rect rect, string text)
+        {
+            Text.Anchor = TextAnchor.MiddleRight;
+            Widgets.Label(rect, text);
             Text.Anchor = TextAnchor.UpperLeft;
         }
 
