@@ -23,6 +23,34 @@ namespace WorkMonitor.Tracking
             TrimHourly();
         }
 
+        public void ConfigurePawnHistory()
+        {
+            maxHourlyHours = WorkMonitorSettings.MaxRetentionHours;
+            TrimHourly();
+        }
+
+        public float EstimateHourlyFromDaily(int hourIndex, System.Func<HourlyWorkBucket, float> hourlySelector, System.Func<DailyWorkBucket, float> dailySelector)
+        {
+            HourlyWorkBucket bucket = GetBucket(hourIndex);
+            if (bucket != null)
+            {
+                return hourlySelector(bucket);
+            }
+
+            foreach (DailyWorkBucket day in daily)
+            {
+                if (hourIndex < day.startHourIndex || hourIndex >= day.endHourIndex)
+                {
+                    continue;
+                }
+
+                int span = Mathf.Max(1, day.endHourIndex - day.startHourIndex);
+                return dailySelector(day) / span;
+            }
+
+            return 0f;
+        }
+
         public HourlyWorkBucket GetOrCreateBucket(int hourIndex)
         {
             HourlyWorkBucket existing = hourly.FirstOrDefault(b => b.hourIndex == hourIndex);
@@ -43,9 +71,11 @@ namespace WorkMonitor.Tracking
             return hourly.FirstOrDefault(b => b.hourIndex == hourIndex);
         }
 
-        public void PruneBefore(int minHourIndex)
+        public void PruneHourlyRetention()
         {
-            hourly.RemoveAll(b => b.hourIndex < minHourIndex);
+            int minHour = WorkMonitorUtility.CurrentHourIndex() - WorkMonitorSettings.MaxRetentionHours;
+            hourly.RemoveAll(b => b.hourIndex < minHour);
+            TrimHourly();
         }
 
         public int SumJobCount(int minHourIndex) => (int)SumFloat(minHourIndex, b => b.jobCount, d => d.jobCount, q => q.jobCount, y => y.jobCount);
@@ -97,6 +127,48 @@ namespace WorkMonitor.Tracking
             return sum;
         }
 
+        public int SumPawnJobCount(int pawnId, int minHourIndex)
+        {
+            int sum = 0;
+            foreach (HourlyWorkBucket bucket in hourly.Where(b => b.hourIndex >= minHourIndex))
+            {
+                if (bucket.pawnJobCount.TryGetValue(pawnId, out int count))
+                {
+                    sum += count;
+                }
+            }
+
+            return sum;
+        }
+
+        public float SumPawnWorkUnits(int pawnId, int minHourIndex)
+        {
+            float sum = 0f;
+            foreach (HourlyWorkBucket bucket in hourly.Where(b => b.hourIndex >= minHourIndex))
+            {
+                if (bucket.pawnWorkUnitsSpent.TryGetValue(pawnId, out float units))
+                {
+                    sum += units;
+                }
+            }
+
+            return sum;
+        }
+
+        public int SumPawnTicks(int pawnId, int minHourIndex)
+        {
+            int sum = 0;
+            foreach (HourlyWorkBucket bucket in hourly.Where(b => b.hourIndex >= minHourIndex))
+            {
+                if (bucket.pawnTicksSpent.TryGetValue(pawnId, out int ticks))
+                {
+                    sum += ticks;
+                }
+            }
+
+            return sum;
+        }
+
         public void RollupIfBoundaryCrossed(long absTick, Vector2 longitude)
         {
             int rolloverHour = WorkMonitorUtility.DayRolloverHour();
@@ -113,47 +185,47 @@ namespace WorkMonitor.Tracking
         private void RollupCompletedDays(int currentDayId, int rolloverHour, Vector2 longitude)
         {
             int maxDaily = WorkMonitorMod.Settings?.maxDailyBuckets ?? 20;
-            List<int> dayIds = hourly.Select(b => WorkMonitorUtility.GetWorkDayId(
-                (long)b.hourIndex * WorkMonitorSettings.TicksPerHour + rolloverHour * GenDate.TicksPerHour,
-                longitude,
-                rolloverHour)).Distinct().Where(d => d < currentDayId).OrderBy(d => d).ToList();
+            List<int> dayIds = hourly
+                .Select(b => WorkMonitorUtility.GetWorkDayIdForHourIndex(b.hourIndex))
+                .Distinct()
+                .Where(d => d < currentDayId)
+                .OrderBy(d => d)
+                .ToList();
 
             foreach (int dayId in dayIds)
             {
-                if (daily.Any(d => d.dayId == dayId))
-                {
-                    hourly.RemoveAll(b => WorkMonitorUtility.GetWorkDayId(
-                        (long)b.hourIndex * WorkMonitorSettings.TicksPerHour + rolloverHour * GenDate.TicksPerHour,
-                        longitude,
-                        rolloverHour) == dayId);
-                    continue;
-                }
-
-                List<HourlyWorkBucket> dayBuckets = hourly.Where(b => WorkMonitorUtility.GetWorkDayId(
-                    (long)b.hourIndex * WorkMonitorSettings.TicksPerHour + rolloverHour * GenDate.TicksPerHour,
-                    longitude,
-                    rolloverHour) == dayId).ToList();
+                List<HourlyWorkBucket> dayBuckets = hourly
+                    .Where(b => WorkMonitorUtility.GetWorkDayIdForHourIndex(b.hourIndex) == dayId)
+                    .ToList();
 
                 if (dayBuckets.Count == 0)
                 {
                     continue;
                 }
 
-                DailyWorkBucket dailyBucket = new DailyWorkBucket
+                DailyWorkBucket dailyBucket = daily.FirstOrDefault(d => d.dayId == dayId);
+                if (dailyBucket == null)
                 {
-                    dayId = dayId,
-                    startHourIndex = dayBuckets.Min(b => b.hourIndex),
-                    endHourIndex = dayBuckets.Max(b => b.hourIndex) + 1
-                };
+                    dailyBucket = new DailyWorkBucket { dayId = dayId };
+                    daily.Add(dailyBucket);
+                }
+
+                dailyBucket.startHourIndex = dayBuckets.Min(b => b.hourIndex);
+                dailyBucket.endHourIndex = dayBuckets.Max(b => b.hourIndex) + 1;
+                dailyBucket.jobCount = 0;
+                dailyBucket.endlessJobCount = 0;
+                dailyBucket.ticksSpent = 0;
+                dailyBucket.travelTicksSpent = 0;
+                dailyBucket.workTicksSpent = 0;
+                dailyBucket.workUnitsSpent = 0f;
+                dailyBucket.estimatedWorkUnitsSpent = 0f;
 
                 foreach (HourlyWorkBucket h in dayBuckets)
                 {
                     dailyBucket.MergeFrom(h);
                 }
 
-                daily.Add(dailyBucket);
                 daily.Sort((a, b) => a.dayId.CompareTo(b.dayId));
-                hourly.RemoveAll(b => dayBuckets.Contains(b));
 
                 while (daily.Count > maxDaily)
                 {
@@ -169,27 +241,33 @@ namespace WorkMonitor.Tracking
 
             foreach (int key in keys)
             {
-                if (quadrums.Any(q => q.quadrumKey == key))
-                {
-                    daily.RemoveAll(d => QuadrumKeyForDay(d.dayId, longitude) == key);
-                    continue;
-                }
-
                 List<DailyWorkBucket> dayBuckets = daily.Where(d => QuadrumKeyForDay(d.dayId, longitude) == key).ToList();
                 if (dayBuckets.Count == 0)
                 {
                     continue;
                 }
 
-                QuadrumWorkBucket qBucket = new QuadrumWorkBucket { quadrumKey = key };
+                QuadrumWorkBucket qBucket = quadrums.FirstOrDefault(q => q.quadrumKey == key);
+                if (qBucket == null)
+                {
+                    qBucket = new QuadrumWorkBucket { quadrumKey = key };
+                    quadrums.Add(qBucket);
+                }
+
+                qBucket.jobCount = 0;
+                qBucket.endlessJobCount = 0;
+                qBucket.ticksSpent = 0;
+                qBucket.travelTicksSpent = 0;
+                qBucket.workTicksSpent = 0;
+                qBucket.workUnitsSpent = 0f;
+                qBucket.estimatedWorkUnitsSpent = 0f;
+
                 foreach (DailyWorkBucket d in dayBuckets)
                 {
                     qBucket.MergeFrom(d);
                 }
 
-                quadrums.Add(qBucket);
                 quadrums.Sort((a, b) => a.quadrumKey.CompareTo(b.quadrumKey));
-                daily.RemoveAll(d => dayBuckets.Contains(d));
 
                 while (quadrums.Count > maxQuadrum)
                 {
@@ -206,27 +284,33 @@ namespace WorkMonitor.Tracking
 
             foreach (int year in yearsToRoll)
             {
-                if (years.Any(y => y.year == year))
-                {
-                    quadrums.RemoveAll(q => q.quadrumKey / 4 == year);
-                    continue;
-                }
-
                 List<QuadrumWorkBucket> qBuckets = quadrums.Where(q => q.quadrumKey / 4 == year).ToList();
                 if (qBuckets.Count == 0)
                 {
                     continue;
                 }
 
-                YearWorkBucket yBucket = new YearWorkBucket { year = year };
+                YearWorkBucket yBucket = years.FirstOrDefault(y => y.year == year);
+                if (yBucket == null)
+                {
+                    yBucket = new YearWorkBucket { year = year };
+                    years.Add(yBucket);
+                }
+
+                yBucket.jobCount = 0;
+                yBucket.endlessJobCount = 0;
+                yBucket.ticksSpent = 0;
+                yBucket.travelTicksSpent = 0;
+                yBucket.workTicksSpent = 0;
+                yBucket.workUnitsSpent = 0f;
+                yBucket.estimatedWorkUnitsSpent = 0f;
+
                 foreach (QuadrumWorkBucket q in qBuckets)
                 {
                     yBucket.MergeFrom(q);
                 }
 
-                years.Add(yBucket);
                 years.Sort((a, b) => a.year.CompareTo(b.year));
-                quadrums.RemoveAll(q => qBuckets.Contains(q));
 
                 if (!unlimited)
                 {

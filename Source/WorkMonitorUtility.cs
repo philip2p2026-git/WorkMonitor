@@ -127,6 +127,18 @@ namespace WorkMonitor
             return GetWorkDayId(Find.TickManager.TicksAbs, MapLongitude(), DayRolloverHour());
         }
 
+        public static int GetWorkDayIdForHourIndex(int hourIndex)
+        {
+            if (Find.TickManager == null)
+            {
+                return 0;
+            }
+
+            int hoursAgo = CurrentHourIndex() - hourIndex;
+            long absTick = Find.TickManager.TicksAbs - (long)hoursAgo * WorkMonitorSettings.TicksPerHour;
+            return GetWorkDayId(absTick, MapLongitude(), DayRolloverHour());
+        }
+
         public static int HourIndexForDayStart(int workDayId, int rolloverHour)
         {
             int year = workDayId / 1000;

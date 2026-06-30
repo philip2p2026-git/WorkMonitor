@@ -375,8 +375,8 @@ namespace WorkMonitor.UI
                 out Rect activeWorkCol);
 
             Widgets.Label(new Rect(row.x, row.y, ExpandButtonWidth, row.height), "");
+            Widgets.Label(labelCol, "WorkMonitor.Colonist".Translate());
             Widgets.Label(iconsCol, "");
-            Widgets.Label(new Rect(labelCol.x - ExpandButtonWidth, labelCol.y, labelCol.width + ExpandButtonWidth, labelCol.height), "WorkMonitor.Colonist".Translate());
             LabelRight(kpiJobCol, "WorkMonitor.KpiJobs".Translate());
             LabelRight(kpiWorkCol, "WorkMonitor.KpiWork".Translate());
             LabelRight(jobsCol, "WorkMonitor.Jobs".Translate());
@@ -408,6 +408,9 @@ namespace WorkMonitor.UI
                 out Rect walkCol,
                 out Rect activeWorkCol);
 
+            string passion = WorkMonitorUiUtility.PassionShort(colonist.Passion);
+            Widgets.Label(labelCol, (passion + " " + colonist.Label).Trim().Truncate(labelCol.width));
+
             Rect inspectRect = new Rect(iconsCol.x, row.y + (row.height - ColonistIconSize) * 0.5f, ColonistIconSize, ColonistIconSize);
             if (Widgets.ButtonImage(inspectRect, TexButton.Info))
             {
@@ -417,8 +420,6 @@ namespace WorkMonitor.UI
 
             TooltipHandler.TipRegion(inspectRect, "WorkMonitor.OpenColonistProfile".Translate());
 
-            string passion = WorkMonitorUiUtility.PassionShort(colonist.Passion);
-            Widgets.Label(labelCol, (passion + " " + colonist.Label).Trim().Truncate(labelCol.width));
             LabelRight(kpiJobCol, FormatPerHour(colonist.JobsPerHour, integer: true));
             LabelRight(kpiWorkCol, FormatPerHour(colonist.WorkUnitsPerHour, integer: false));
             LabelRight(jobsCol, colonist.JobCount.ToString());
@@ -514,11 +515,12 @@ namespace WorkMonitor.UI
             float jobsX = endlessX - ColumnGap - JobsWidth;
             float kpiWorkX = jobsX - ColumnGap - KpiWorkWidth;
             float kpiJobX = kpiWorkX - ColumnGap - KpiJobWidth;
-            float labelX = row.x + ColonistIconsWidth + 4f;
-            float labelWidth = kpiJobX - ColumnGap - labelX;
+            float iconX = kpiJobX - ColumnGap - ColonistIconSize;
+            float labelX = row.x + ExpandButtonWidth + 4f;
+            float labelWidth = iconX - ColumnGap - labelX;
 
-            iconsCol = new Rect(row.x, row.y, ColonistIconsWidth, row.height);
             labelCol = new Rect(labelX, row.y, Mathf.Max(labelWidth, 48f), row.height);
+            iconsCol = new Rect(iconX, row.y, ColonistIconSize, row.height);
             kpiJobCol = new Rect(kpiJobX, row.y, KpiJobWidth, row.height);
             kpiWorkCol = new Rect(kpiWorkX, row.y, KpiWorkWidth, row.height);
             jobsCol = new Rect(jobsX, row.y, JobsWidth, row.height);

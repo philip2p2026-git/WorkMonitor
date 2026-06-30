@@ -38,6 +38,7 @@ namespace WorkMonitor.UI
                     minHourIndex,
                     rangeHours,
                     bucket => bucket != null ? bucket.workUnitsSpent + bucket.estimatedWorkUnitsSpent : 0f,
+                    d => d.workUnitsSpent + d.estimatedWorkUnitsSpent,
                     out values,
                     out labels);
             }
@@ -48,6 +49,7 @@ namespace WorkMonitor.UI
                     minHourIndex,
                     rangeHours,
                     d => d.workUnitsSpent + d.estimatedWorkUnitsSpent,
+                    b => b.workUnitsSpent + b.estimatedWorkUnitsSpent,
                     out values,
                     out labels);
             }
@@ -68,6 +70,7 @@ namespace WorkMonitor.UI
                     minHourIndex,
                     rangeHours,
                     bucket => bucket != null ? bucket.jobCount : 0f,
+                    d => d.jobCount,
                     out values,
                     out labels);
             }
@@ -78,6 +81,7 @@ namespace WorkMonitor.UI
                     minHourIndex,
                     rangeHours,
                     d => d.jobCount,
+                    b => b.jobCount,
                     out values,
                     out labels);
             }
@@ -111,7 +115,8 @@ namespace WorkMonitor.UI
             WorkHistoryTierBuffer history,
             int minHourIndex,
             int rangeHours,
-            System.Func<HourlyWorkBucket, float> selector,
+            System.Func<HourlyWorkBucket, float> hourlySelector,
+            System.Func<DailyWorkBucket, float> dailySelector,
             out float[] values,
             out string[] labels)
         {
@@ -120,8 +125,9 @@ namespace WorkMonitor.UI
             for (int i = 0; i < rangeHours; i++)
             {
                 int hour = minHourIndex + i;
-                HourlyWorkBucket bucket = history?.GetBucket(hour);
-                values[i] = selector(bucket);
+                values[i] = history != null
+                    ? history.EstimateHourlyFromDaily(hour, hourlySelector, dailySelector)
+                    : 0f;
                 labels[i] = BuildRelativeHourLabel(i, rangeHours);
             }
         }
@@ -141,21 +147,34 @@ namespace WorkMonitor.UI
             WorkHistoryTierBuffer history,
             int minHourIndex,
             int rangeHours,
-            System.Func<DailyWorkBucket, float> selector,
+            System.Func<DailyWorkBucket, float> dailySelector,
+            System.Func<HourlyWorkBucket, float> hourlySelector,
             out float[] values,
             out string[] labels)
         {
             int dayCount = Mathf.Clamp(rangeHours / 24, 1, 14);
             values = new float[dayCount];
             labels = new string[dayCount];
-            int currentHour = WorkMonitorUtility.CurrentHourIndex();
             int currentDayId = WorkMonitorUtility.CurrentWorkDayId();
 
             for (int i = 0; i < dayCount; i++)
             {
                 int targetDayId = currentDayId - (dayCount - 1 - i);
-                DailyWorkBucket bucket = history?.DailyBuckets?.FirstOrDefault(d => d.dayId == targetDayId);
-                values[i] = bucket != null ? selector(bucket) : 0f;
+                float hourlySum = 0f;
+                if (history != null)
+                {
+                    foreach (HourlyWorkBucket bucket in history.Buckets)
+                    {
+                        if (WorkMonitorUtility.GetWorkDayIdForHourIndex(bucket.hourIndex) == targetDayId)
+                        {
+                            hourlySum += hourlySelector(bucket);
+                        }
+                    }
+                }
+
+                DailyWorkBucket dailyBucket = history?.DailyBuckets?.FirstOrDefault(d => d.dayId == targetDayId);
+                float dailyTotal = dailyBucket != null ? dailySelector(dailyBucket) : 0f;
+                values[i] = Mathf.Max(hourlySum, dailyTotal);
                 labels[i] = i == dayCount - 1 ? "now" : "-" + (dayCount - 1 - i) + "d";
             }
         }

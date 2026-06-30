@@ -302,7 +302,7 @@ namespace WorkMonitor.Tracking
                 return 0;
             }
 
-            return buffer.SumEndlessJobCount(minHourIndex);
+            return buffer.SumPawnEndlessJobs(pawnId, minHourIndex);
         }
 
         public int SumPawnWorkGiverJobs(int pawnId, string workGiverDefName, int minHourIndex)
@@ -313,7 +313,7 @@ namespace WorkMonitor.Tracking
                 return 0;
             }
 
-            return buffer.SumJobCount(minHourIndex);
+            return buffer.SumPawnJobCount(pawnId, minHourIndex);
         }
 
         public int SumPawnWorkGiverTicks(int pawnId, string workGiverDefName, int minHourIndex)
@@ -324,7 +324,7 @@ namespace WorkMonitor.Tracking
                 return 0;
             }
 
-            return buffer.SumTicksSpent(minHourIndex);
+            return buffer.SumPawnTicks(pawnId, minHourIndex);
         }
 
         public float SumPawnWorkGiverWorkUnits(int pawnId, string workGiverDefName, int minHourIndex)
@@ -335,7 +335,7 @@ namespace WorkMonitor.Tracking
                 return 0f;
             }
 
-            return buffer.SumWorkUnits(minHourIndex);
+            return buffer.SumPawnWorkUnits(pawnId, minHourIndex);
         }
 
         public WorkHistoryTierBuffer GetGroupHistory(string groupKey)
@@ -365,15 +365,14 @@ namespace WorkMonitor.Tracking
         public void PruneStaleData()
         {
             int retentionHours = WorkMonitorMod.Settings?.ResolveRetentionHours() ?? 24;
-            int minHour = WorkMonitorUtility.CurrentHourIndex() - retentionHours;
             Vector2 longitude = WorkMonitorUtility.MapLongitude();
             long absTick = Find.TickManager.TicksAbs;
 
             foreach (WorkHistoryTierBuffer buffer in groupHistory.Values)
             {
                 buffer.RollupIfBoundaryCrossed(absTick, longitude);
-                buffer.Configure(retentionHours);
-                buffer.PruneBefore(minHour);
+                buffer.Configure(WorkMonitorSettings.MaxRetentionHours);
+                buffer.PruneHourlyRetention();
             }
 
             HashSet<int> activeColonistIds = new HashSet<int>();
@@ -387,9 +386,8 @@ namespace WorkMonitor.Tracking
             {
                 foreach (WorkHistoryTierBuffer buffer in pawnEntry.Value.Values)
                 {
-                    buffer.RollupIfBoundaryCrossed(absTick, longitude);
-                    buffer.Configure(retentionHours);
-                    buffer.PruneBefore(minHour);
+                    buffer.ConfigurePawnHistory();
+                    buffer.PruneHourlyRetention();
                 }
 
                 if (!activeColonistIds.Contains(pawnEntry.Key))
