@@ -2,6 +2,7 @@ using HarmonyLib;
 using UnityEngine;
 using Verse;
 using WorkMonitor.Tracking;
+using WorkMonitor.UI;
 
 namespace WorkMonitor
 {
@@ -27,7 +28,30 @@ namespace WorkMonitor
             listing.Begin(inRect);
 
             listing.Label("WorkMonitor.SettingsDefaultRange".Translate());
-            Settings.statsWindowHours = (int)listing.Slider(Settings.statsWindowHours, 6, 48);
+            if (listing.ButtonText(MonitorRangeState.PresetToLabel(Settings.DefaultRangePreset)))
+            {
+                int idx = 0;
+                for (int i = 0; i < MonitorRangeState.AllPresets.Count; i++)
+                {
+                    if (MonitorRangeState.AllPresets[i] == Settings.DefaultRangePreset)
+                    {
+                        idx = i;
+                        break;
+                    }
+                }
+
+                idx = (idx + 1) % MonitorRangeState.AllPresets.Count;
+                Settings.defaultRangePreset = (int)MonitorRangeState.AllPresets[idx];
+            }
+            listing.Gap(6f);
+
+            listing.Label("WorkMonitor.DayRolloverHour".Translate());
+            if (listing.ButtonText(Settings.dayRolloverHour == 8
+                ? "WorkMonitor.DayRolloverMorning".Translate()
+                : "WorkMonitor.DayRolloverMidnight".Translate()))
+            {
+                Settings.dayRolloverHour = Settings.dayRolloverHour == 0 ? 8 : 0;
+            }
             listing.Gap(6f);
 
             listing.Label("WorkMonitor.SettingsChartHistory".Translate());

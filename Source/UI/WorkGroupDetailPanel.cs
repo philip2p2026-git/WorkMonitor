@@ -21,27 +21,37 @@ namespace WorkMonitor.UI
         private const float ActiveWorkWidth = 40f;
         private const float ColumnGap = 10f;
         private const float GroupDropdownWidth = 160f;
+        private const float ExpandButtonWidth = 20f;
+        private const float WorkGiverIndent = 16f;
 
         private readonly WorkGroupChartPanel chartPanel = new WorkGroupChartPanel();
         private Vector2 scroll;
         private WorkGroupStats stats;
         private List<WorkGroupStats> allStats = new List<WorkGroupStats>();
         private WorkGroupSnapshot pendingGroupSelection;
+        private MonitorRangeState boundRangeState;
+        private readonly HashSet<int> expandedColonistIds = new HashSet<int>();
+        private readonly Dictionary<int, ColonistGroupWorkDetail> colonistDetailCache = new Dictionary<int, ColonistGroupWorkDetail>();
 
         public WorkGroupSnapshot CurrentGroup => stats?.Group;
 
         public void SetGroup(WorkGroupSnapshot group, MonitorRangeState rangeState)
         {
+            boundRangeState = rangeState;
             allStats = WorkGroupStatsAggregator.BuildAll(rangeState.RangeHours);
             stats = WorkGroupStatsAggregator.Build(group, rangeState.RangeHours);
+            expandedColonistIds.Clear();
+            colonistDetailCache.Clear();
         }
 
-        public void Draw(Rect rect, MonitorRangeState rangeState, out bool back, out bool colonistClicked, out ColonistWorkStat selectedColonist, out WorkGroupSnapshot groupChanged)
+        public void Draw(Rect rect, MonitorRangeState rangeState, out bool back, out bool colonistClicked, out ColonistWorkStat selectedColonist, out WorkGroupSnapshot groupChanged, out bool workGiverClicked, out WorkGiverDef selectedWorkGiver)
         {
             back = false;
             colonistClicked = false;
             selectedColonist = null;
             groupChanged = null;
+            workGiverClicked = false;
+            selectedWorkGiver = null;
 
             if (stats == null)
             {
@@ -70,11 +80,10 @@ namespace WorkMonitor.UI
 
             float toolbarX = dropdownRect.xMax + 6f;
             Text.Font = GameFont.Tiny;
-            if (Widgets.ButtonText(new Rect(toolbarX, rect.y, 96f, 26f), "WorkMonitor.LastHours".Translate(rangeState.RangeHours)))
-            {
-                rangeState.CycleRangeHours();
-                SetGroup(stats.Group, rangeState);
-            }
+            WorkMonitorDropdownUtility.DrawRangeDropdown(
+                new Rect(toolbarX, rect.y, 110f, 26f),
+                rangeState,
+                () => SetGroup(stats.Group, rangeState));
 
             if (Widgets.ButtonText(new Rect(toolbarX + 100f, rect.y, 80f, 26f), "WorkMonitor.Refresh".Translate()))
             {
@@ -88,15 +97,19 @@ namespace WorkMonitor.UI
             chartPanel.Draw(chartRect, stats, allStats, rangeState, () => SetGroup(stats.Group, rangeState));
 
             Rect content = new Rect(rect.x, chartRect.yMax + 6f, rect.width, rect.yMax - chartRect.yMax - 12f);
-            int rowCount = stats.ColonistStats.Count + stats.WorkGiverStats.Count + 1;
-            float viewHeight = 126f + rowCount * RowHeight;
+            float viewHeight = 126f + CalculateColonistViewHeight() + stats.WorkGiverStats.Count * RowHeight;
             Rect view = new Rect(0f, 0f, content.width - 16f, viewHeight);
             Widgets.BeginScrollView(content, ref scroll, view);
 
             float y = 0f;
-            DrawColonistTable(new Rect(0f, y, view.width, viewHeight - y), ref y, out colonistClicked, out selectedColonist);
+            DrawColonistTable(new Rect(0f, y, view.width, viewHeight - y), rangeState, ref y, out colonistClicked, out selectedColonist, out workGiverClicked, out selectedWorkGiver);
             y += 12f;
-            DrawWorkGiverTable(new Rect(0f, y, view.width, viewHeight - y), ref y);
+            DrawWorkGiverTable(new Rect(0f, y, view.width, viewHeight - y), ref y, out bool mapWgClicked, out WorkGiverDef mapWg);
+            if (mapWgClicked)
+            {
+                workGiverClicked = true;
+                selectedWorkGiver = mapWg;
+            }
 
             Widgets.EndScrollView();
 
@@ -138,17 +151,46 @@ namespace WorkMonitor.UI
             Widgets.Label(new Rect(rect.x + 14f, rect.y + 18f, rect.width - 14f, 16f), totals);
 
             string mapSummary = "WorkMonitor.MapSummary".Translate(
-                stats.TotalMapOpenTasks,
-                WorkMonitorUtility.FormatWorkUnits(stats.TotalMapWorkLeft),
+                WorkMonitorUiUtility.FormatMapOpenTasks(stats.TotalMapOpenTasks, stats.TotalMapNewTodayOpenTasks),
+                WorkMonitorUiUtility.FormatMapWorkLeft(stats.TotalMapWorkLeft, stats.TotalMapNewTodayWorkLeft),
                 WorkMonitorUtility.FormatGameDateTime(stats.MapSampleTick),
                 WorkMonitorUtility.FormatSampleAge(stats.MapSampleTick));
             Widgets.Label(new Rect(rect.x + 14f, rect.y + 36f, rect.width - 14f, 16f), mapSummary);
         }
 
-        private void DrawColonistTable(Rect area, ref float y, out bool colonistClicked, out ColonistWorkStat selectedColonist)
+        private float CalculateColonistViewHeight()
+        {
+            float height = stats.ColonistStats.Count * RowHeight;
+            foreach (ColonistWorkStat colonist in stats.ColonistStats)
+            {
+                if (expandedColonistIds.Contains(colonist.Pawn.thingIDNumber))
+                {
+                    ColonistGroupWorkDetail detail = GetColonistDetail(colonist.Pawn);
+                    height += detail.WorkGiverStats.Count * RowHeight;
+                }
+            }
+
+            return height;
+        }
+
+        private ColonistGroupWorkDetail GetColonistDetail(Pawn pawn)
+        {
+            int id = pawn.thingIDNumber;
+            if (!colonistDetailCache.TryGetValue(id, out ColonistGroupWorkDetail detail))
+            {
+                detail = ColonistStatsAggregator.BuildGroupDetail(pawn, stats.Group, boundRangeState?.RangeHours ?? 24);
+                colonistDetailCache[id] = detail;
+            }
+
+            return detail;
+        }
+
+        private void DrawColonistTable(Rect area, MonitorRangeState rangeState, ref float y, out bool colonistClicked, out ColonistWorkStat selectedColonist, out bool workGiverClicked, out WorkGiverDef selectedWorkGiver)
         {
             colonistClicked = false;
             selectedColonist = null;
+            workGiverClicked = false;
+            selectedWorkGiver = null;
 
             Text.Font = GameFont.Small;
             Rect titleRect = new Rect(area.x, y, area.width, 22f);
@@ -162,10 +204,26 @@ namespace WorkMonitor.UI
             int rowIndex = 0;
             foreach (ColonistWorkStat colonist in stats.ColonistStats)
             {
+                int pawnId = colonist.Pawn.thingIDNumber;
+                bool expanded = expandedColonistIds.Contains(pawnId);
+
                 Rect row = new Rect(area.x, y, area.width, RowHeight);
                 if (rowIndex % 2 == 1)
                 {
                     Widgets.DrawBoxSolid(row, new Color(1f, 1f, 1f, 0.03f));
+                }
+
+                Rect expandRect = new Rect(row.x, row.y, ExpandButtonWidth, row.height);
+                if (Widgets.ButtonText(expandRect, expanded ? "▼" : "▶"))
+                {
+                    if (expanded)
+                    {
+                        expandedColonistIds.Remove(pawnId);
+                    }
+                    else
+                    {
+                        expandedColonistIds.Add(pawnId);
+                    }
                 }
 
                 GetColonistTableColumns(
@@ -194,11 +252,65 @@ namespace WorkMonitor.UI
 
                 y += RowHeight;
                 rowIndex++;
+
+                if (expanded)
+                {
+                    DrawExpandedWorkGivers(area, colonist.Pawn, rangeState, ref y, ref rowIndex, out bool wgClicked, out WorkGiverDef wg);
+                    if (wgClicked)
+                    {
+                        workGiverClicked = true;
+                        selectedWorkGiver = wg;
+                    }
+                }
             }
         }
 
-        private void DrawWorkGiverTable(Rect area, ref float y)
+        private void DrawExpandedWorkGivers(Rect area, Pawn pawn, MonitorRangeState rangeState, ref float y, ref int rowIndex, out bool workGiverClicked, out WorkGiverDef selectedWorkGiver)
         {
+            workGiverClicked = false;
+            selectedWorkGiver = null;
+            ColonistGroupWorkDetail detail = GetColonistDetail(pawn);
+            bool showHours = WorkMonitorMod.Settings?.showTimeInHours ?? true;
+
+            foreach (ColonistWorkGiverStat wg in detail.WorkGiverStats)
+            {
+                Rect row = new Rect(area.x + WorkGiverIndent, y, area.width - WorkGiverIndent, RowHeight);
+                if (rowIndex % 2 == 1)
+                {
+                    Widgets.DrawBoxSolid(row, new Color(1f, 1f, 1f, 0.02f));
+                }
+
+                if (Widgets.ButtonInvisible(row))
+                {
+                    workGiverClicked = true;
+                    selectedWorkGiver = wg.WorkGiver;
+                }
+
+                Rect columnRow = new Rect(area.x, y, area.width, RowHeight);
+                float metricsLeft = WorkMonitorTableColumns.ColonistWorkGiverMetricsLeftEdge(columnRow);
+                Text.Font = GameFont.Tiny;
+                Color prev = GUI.color;
+                GUI.color = new Color(0.8f, 0.8f, 0.8f);
+                Widgets.Label(new Rect(area.x + WorkGiverIndent, row.y, metricsLeft - area.x - WorkGiverIndent - 8f, row.height), wg.Label.Truncate(metricsLeft - area.x - WorkGiverIndent - 8f));
+                GUI.color = prev;
+                Text.Font = GameFont.Small;
+
+                WorkMonitorTableColumns.GetColonistWorkGiverColumns(columnRow, out Rect jobCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol);
+                LabelRight(jobCol, wg.JobCount.ToString());
+                LabelRight(endlessCol, wg.EndlessJobCount.ToString());
+                LabelRight(workCol, WorkMonitorUtility.FormatWorkUnits(wg.WorkUnitsSpent));
+                LabelRight(walkCol, WorkMonitorUtility.FormatDuration(wg.TravelTicksSpent, showHours));
+                LabelRight(activeWorkCol, WorkMonitorUtility.FormatDuration(wg.WorkTicksSpent, showHours));
+
+                y += RowHeight;
+                rowIndex++;
+            }
+        }
+
+        private void DrawWorkGiverTable(Rect area, ref float y, out bool workGiverClicked, out WorkGiverDef selectedWorkGiver)
+        {
+            workGiverClicked = false;
+            selectedWorkGiver = null;
             Text.Font = GameFont.Small;
             Rect titleRect = new Rect(area.x, y, area.width, 22f);
             Widgets.Label(titleRect, "WorkMonitor.WorkGiversMap".Translate());
@@ -228,7 +340,12 @@ namespace WorkMonitor.UI
                     Widgets.DrawBoxSolid(row, new Color(1f, 1f, 1f, 0.03f));
                 }
 
-                DrawWorkGiverRow(row, wg);
+                DrawWorkGiverRow(row, wg, out bool clicked);
+                if (clicked)
+                {
+                    workGiverClicked = true;
+                    selectedWorkGiver = wg.WorkGiver;
+                }
                 y += RowHeight;
                 rowIndex++;
             }
@@ -257,8 +374,9 @@ namespace WorkMonitor.UI
                 out Rect walkCol,
                 out Rect activeWorkCol);
 
+            Widgets.Label(new Rect(row.x, row.y, ExpandButtonWidth, row.height), "");
             Widgets.Label(iconsCol, "");
-            Widgets.Label(labelCol, "WorkMonitor.Colonist".Translate());
+            Widgets.Label(new Rect(labelCol.x - ExpandButtonWidth, labelCol.y, labelCol.width + ExpandButtonWidth, labelCol.height), "WorkMonitor.Colonist".Translate());
             LabelRight(kpiJobCol, "WorkMonitor.KpiJobs".Translate());
             LabelRight(kpiWorkCol, "WorkMonitor.KpiWork".Translate());
             LabelRight(jobsCol, "WorkMonitor.Jobs".Translate());
@@ -330,14 +448,24 @@ namespace WorkMonitor.UI
             GUI.color = prev;
         }
 
-        private void DrawWorkGiverRow(Rect row, WorkGiverStat wg)
+        private void DrawWorkGiverRow(Rect row, WorkGiverStat wg, out bool clicked)
         {
+            clicked = false;
             Text.Font = GameFont.Small;
             GetMapTableColumns(row, out Rect labelCol, out Rect jobsCol, out Rect workCol);
 
+            if (Widgets.ButtonInvisible(row))
+            {
+                clicked = true;
+            }
+
             Widgets.Label(labelCol, wg.Label.Truncate(labelCol.width));
-            LabelRight(jobsCol, wg.JobCount.ToString());
-            LabelRight(workCol, WorkMonitorUtility.FormatWorkUnits(wg.WorkUnitsSpent));
+            string jobsText = WorkMonitorUiUtility.FormatMapOpenTasks(wg.MapOpenTasks, wg.MapNewTodayOpenTasks);
+            string workText = WorkMonitorUiUtility.FormatMapWorkLeft(wg.MapWorkLeft, wg.MapNewTodayWorkLeft);
+            LabelRight(jobsCol, jobsText);
+            TooltipHandler.TipRegion(jobsCol, "WorkMonitor.MapJobsNewTodayTip".Translate(jobsText));
+            LabelRight(workCol, workText);
+            TooltipHandler.TipRegion(workCol, "WorkMonitor.MapWorkNewTodayTip".Translate(workText));
         }
 
         private void DrawWorkGiverTotalRow(Rect row)
@@ -348,8 +476,10 @@ namespace WorkMonitor.UI
             Color prev = GUI.color;
             GUI.color = new Color(0.85f, 0.85f, 0.85f);
             Widgets.Label(labelCol, "WorkMonitor.MapTotal".Translate(stats.Group.Label));
-            LabelRight(jobsCol, stats.TotalMapOpenTasks.ToString());
-            LabelRight(workCol, WorkMonitorUtility.FormatWorkUnits(stats.TotalMapWorkLeft));
+            string jobsText = WorkMonitorUiUtility.FormatMapOpenTasks(stats.TotalMapOpenTasks, stats.TotalMapNewTodayOpenTasks);
+            string workText = WorkMonitorUiUtility.FormatMapWorkLeft(stats.TotalMapWorkLeft, stats.TotalMapNewTodayWorkLeft);
+            LabelRight(jobsCol, jobsText);
+            LabelRight(workCol, workText);
             GUI.color = prev;
         }
 

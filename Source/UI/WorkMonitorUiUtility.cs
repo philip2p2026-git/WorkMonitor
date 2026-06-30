@@ -96,5 +96,30 @@ namespace WorkMonitor.UI
 
             return Mathf.RoundToInt(pawnTicks * 100f / groupTicks) + "%";
         }
+
+        public static string FormatMapOpenTasks(int total, int newToday)
+        {
+            if (newToday <= 0)
+            {
+                return total.ToString();
+            }
+
+            return total + "(" + newToday + ")";
+        }
+
+        public static string FormatMapWorkLeft(float total, float newToday)
+        {
+            if (total <= 0f)
+            {
+                return "—";
+            }
+
+            if (newToday <= 0f)
+            {
+                return WorkMonitorUtility.FormatWorkUnits(total);
+            }
+
+            return WorkMonitorUtility.FormatWorkUnits(total) + "(" + WorkMonitorUtility.FormatWorkUnits(newToday) + ")";
+        }
     }
 }

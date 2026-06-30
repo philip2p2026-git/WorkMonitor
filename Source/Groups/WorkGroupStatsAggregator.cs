@@ -42,7 +42,7 @@ namespace WorkMonitor.Groups
             WorkActivityTracker tracker = WorkActivityTracker.EnsureRegistered();
             int nowTick = WorkMonitorUtility.CurrentTicksGame();
             int minHour = WorkMonitorUtility.CurrentHourIndex() - rangeHours;
-            WorkHistoryRingBuffer history = tracker?.GetGroupHistory(group.Key.StorageKey);
+            WorkHistoryTierBuffer history = tracker?.GetGroupHistory(group.Key.StorageKey);
             MapWorkSnapshot mapSnapshot = MapWorkSampler.EnsureRegistered()?.GetLatestSnapshot();
 
             int mostRecentEnabledWorkTick = -1;
@@ -154,9 +154,10 @@ namespace WorkMonitor.Groups
                 {
                     WorkGiver = wg,
                     Label = WorkGiverLabelUtility.Format(wg),
-                    JobCount = mapSnap?.openTaskCount ?? 0,
-                    TicksSpent = 0,
-                    WorkUnitsSpent = mapSnap?.workLeftTotal ?? 0f
+                    MapOpenTasks = mapSnap?.openTaskCount ?? 0,
+                    MapNewTodayOpenTasks = mapSnap?.newTodayOpenTaskCount ?? 0,
+                    MapWorkLeft = mapSnap?.workLeftTotal ?? 0f,
+                    MapNewTodayWorkLeft = mapSnap?.newTodayWorkLeftTotal ?? 0f
                 });
             }
 
@@ -167,6 +168,8 @@ namespace WorkMonitor.Groups
                 {
                     stats.TotalMapOpenTasks = groupSnap.openTaskCount;
                     stats.TotalMapWorkLeft = groupSnap.workLeftTotal;
+                    stats.TotalMapNewTodayOpenTasks = groupSnap.newTodayOpenTaskCount;
+                    stats.TotalMapNewTodayWorkLeft = groupSnap.newTodayWorkLeftTotal;
                 }
             }
 

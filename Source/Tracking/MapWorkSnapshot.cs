@@ -7,13 +7,17 @@ namespace WorkMonitor.Tracking
     {
         public string workGiverDefName;
         public int openTaskCount;
+        public int newTodayOpenTaskCount;
         public float workLeftTotal;
+        public float newTodayWorkLeftTotal;
 
         public void ExposeData()
         {
             Scribe_Values.Look(ref workGiverDefName, "workGiverDefName");
             Scribe_Values.Look(ref openTaskCount, "openTaskCount");
+            Scribe_Values.Look(ref newTodayOpenTaskCount, "newTodayOpenTaskCount", 0);
             Scribe_Values.Look(ref workLeftTotal, "workLeftTotal");
+            Scribe_Values.Look(ref newTodayWorkLeftTotal, "newTodayWorkLeftTotal", 0f);
         }
     }
 
@@ -21,13 +25,17 @@ namespace WorkMonitor.Tracking
     {
         public string groupStorageKey;
         public int openTaskCount;
+        public int newTodayOpenTaskCount;
         public float workLeftTotal;
+        public float newTodayWorkLeftTotal;
 
         public void ExposeData()
         {
             Scribe_Values.Look(ref groupStorageKey, "groupStorageKey");
             Scribe_Values.Look(ref openTaskCount, "openTaskCount");
+            Scribe_Values.Look(ref newTodayOpenTaskCount, "newTodayOpenTaskCount", 0);
             Scribe_Values.Look(ref workLeftTotal, "workLeftTotal");
+            Scribe_Values.Look(ref newTodayWorkLeftTotal, "newTodayWorkLeftTotal", 0f);
         }
     }
 

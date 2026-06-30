@@ -33,13 +33,13 @@ namespace WorkMonitor.Tracking
         private Dictionary<int, Dictionary<string, WorkActivityRecord>> pawnRecords =
             new Dictionary<int, Dictionary<string, WorkActivityRecord>>();
 
-        private Dictionary<int, Dictionary<string, WorkHistoryRingBuffer>> pawnWorkGiverHistory =
-            new Dictionary<int, Dictionary<string, WorkHistoryRingBuffer>>();
+        private Dictionary<int, Dictionary<string, WorkHistoryTierBuffer>> pawnWorkGiverHistory =
+            new Dictionary<int, Dictionary<string, WorkHistoryTierBuffer>>();
 
         private Dictionary<int, ActiveWorkJob> activeJobs = new Dictionary<int, ActiveWorkJob>();
 
-        private Dictionary<string, WorkHistoryRingBuffer> groupHistory =
-            new Dictionary<string, WorkHistoryRingBuffer>();
+        private Dictionary<string, WorkHistoryTierBuffer> groupHistory =
+            new Dictionary<string, WorkHistoryTierBuffer>();
 
         private int lastPrunedHourIndex = -1;
 
@@ -263,8 +263,8 @@ namespace WorkMonitor.Tracking
 
         public int SumPawnWorkGiverTravelTicks(int pawnId, string workGiverDefName, int minHourIndex)
         {
-            if (!pawnWorkGiverHistory.TryGetValue(pawnId, out Dictionary<string, WorkHistoryRingBuffer> perWg)
-                || !perWg.TryGetValue(workGiverDefName, out WorkHistoryRingBuffer buffer))
+            if (!pawnWorkGiverHistory.TryGetValue(pawnId, out Dictionary<string, WorkHistoryTierBuffer> perWg)
+                || !perWg.TryGetValue(workGiverDefName, out WorkHistoryTierBuffer buffer))
             {
                 return 0;
             }
@@ -274,8 +274,8 @@ namespace WorkMonitor.Tracking
 
         public int SumPawnWorkGiverWorkTicks(int pawnId, string workGiverDefName, int minHourIndex)
         {
-            if (!pawnWorkGiverHistory.TryGetValue(pawnId, out Dictionary<string, WorkHistoryRingBuffer> perWg)
-                || !perWg.TryGetValue(workGiverDefName, out WorkHistoryRingBuffer buffer))
+            if (!pawnWorkGiverHistory.TryGetValue(pawnId, out Dictionary<string, WorkHistoryTierBuffer> perWg)
+                || !perWg.TryGetValue(workGiverDefName, out WorkHistoryTierBuffer buffer))
             {
                 return 0;
             }
@@ -296,8 +296,8 @@ namespace WorkMonitor.Tracking
 
         public int SumPawnWorkGiverEndlessJobs(int pawnId, string workGiverDefName, int minHourIndex)
         {
-            if (!pawnWorkGiverHistory.TryGetValue(pawnId, out Dictionary<string, WorkHistoryRingBuffer> perWg)
-                || !perWg.TryGetValue(workGiverDefName, out WorkHistoryRingBuffer buffer))
+            if (!pawnWorkGiverHistory.TryGetValue(pawnId, out Dictionary<string, WorkHistoryTierBuffer> perWg)
+                || !perWg.TryGetValue(workGiverDefName, out WorkHistoryTierBuffer buffer))
             {
                 return 0;
             }
@@ -307,8 +307,8 @@ namespace WorkMonitor.Tracking
 
         public int SumPawnWorkGiverJobs(int pawnId, string workGiverDefName, int minHourIndex)
         {
-            if (!pawnWorkGiverHistory.TryGetValue(pawnId, out Dictionary<string, WorkHistoryRingBuffer> perWg)
-                || !perWg.TryGetValue(workGiverDefName, out WorkHistoryRingBuffer buffer))
+            if (!pawnWorkGiverHistory.TryGetValue(pawnId, out Dictionary<string, WorkHistoryTierBuffer> perWg)
+                || !perWg.TryGetValue(workGiverDefName, out WorkHistoryTierBuffer buffer))
             {
                 return 0;
             }
@@ -318,8 +318,8 @@ namespace WorkMonitor.Tracking
 
         public int SumPawnWorkGiverTicks(int pawnId, string workGiverDefName, int minHourIndex)
         {
-            if (!pawnWorkGiverHistory.TryGetValue(pawnId, out Dictionary<string, WorkHistoryRingBuffer> perWg)
-                || !perWg.TryGetValue(workGiverDefName, out WorkHistoryRingBuffer buffer))
+            if (!pawnWorkGiverHistory.TryGetValue(pawnId, out Dictionary<string, WorkHistoryTierBuffer> perWg)
+                || !perWg.TryGetValue(workGiverDefName, out WorkHistoryTierBuffer buffer))
             {
                 return 0;
             }
@@ -329,8 +329,8 @@ namespace WorkMonitor.Tracking
 
         public float SumPawnWorkGiverWorkUnits(int pawnId, string workGiverDefName, int minHourIndex)
         {
-            if (!pawnWorkGiverHistory.TryGetValue(pawnId, out Dictionary<string, WorkHistoryRingBuffer> perWg)
-                || !perWg.TryGetValue(workGiverDefName, out WorkHistoryRingBuffer buffer))
+            if (!pawnWorkGiverHistory.TryGetValue(pawnId, out Dictionary<string, WorkHistoryTierBuffer> perWg)
+                || !perWg.TryGetValue(workGiverDefName, out WorkHistoryTierBuffer buffer))
             {
                 return 0f;
             }
@@ -338,11 +338,11 @@ namespace WorkMonitor.Tracking
             return buffer.SumWorkUnits(minHourIndex);
         }
 
-        public WorkHistoryRingBuffer GetGroupHistory(string groupKey)
+        public WorkHistoryTierBuffer GetGroupHistory(string groupKey)
         {
-            if (!groupHistory.TryGetValue(groupKey, out WorkHistoryRingBuffer buffer))
+            if (!groupHistory.TryGetValue(groupKey, out WorkHistoryTierBuffer buffer))
             {
-                buffer = new WorkHistoryRingBuffer();
+                buffer = new WorkHistoryTierBuffer();
                 buffer.Configure(GetRetentionHours());
                 groupHistory[groupKey] = buffer;
             }
@@ -350,10 +350,10 @@ namespace WorkMonitor.Tracking
             return buffer;
         }
 
-        public bool TryGetPawnWorkGiverHistory(int pawnId, string workGiverDefName, out WorkHistoryRingBuffer buffer)
+        public bool TryGetPawnWorkGiverHistory(int pawnId, string workGiverDefName, out WorkHistoryTierBuffer buffer)
         {
             buffer = null;
-            if (!pawnWorkGiverHistory.TryGetValue(pawnId, out Dictionary<string, WorkHistoryRingBuffer> perWg)
+            if (!pawnWorkGiverHistory.TryGetValue(pawnId, out Dictionary<string, WorkHistoryTierBuffer> perWg)
                 || !perWg.TryGetValue(workGiverDefName, out buffer))
             {
                 return false;
@@ -366,9 +366,12 @@ namespace WorkMonitor.Tracking
         {
             int retentionHours = WorkMonitorMod.Settings?.ResolveRetentionHours() ?? 24;
             int minHour = WorkMonitorUtility.CurrentHourIndex() - retentionHours;
+            Vector2 longitude = WorkMonitorUtility.MapLongitude();
+            long absTick = Find.TickManager.TicksAbs;
 
-            foreach (WorkHistoryRingBuffer buffer in groupHistory.Values)
+            foreach (WorkHistoryTierBuffer buffer in groupHistory.Values)
             {
+                buffer.RollupIfBoundaryCrossed(absTick, longitude);
                 buffer.Configure(retentionHours);
                 buffer.PruneBefore(minHour);
             }
@@ -380,10 +383,11 @@ namespace WorkMonitor.Tracking
             }
 
             List<int> stalePawnIds = new List<int>();
-            foreach (KeyValuePair<int, Dictionary<string, WorkHistoryRingBuffer>> pawnEntry in pawnWorkGiverHistory)
+            foreach (KeyValuePair<int, Dictionary<string, WorkHistoryTierBuffer>> pawnEntry in pawnWorkGiverHistory)
             {
-                foreach (WorkHistoryRingBuffer buffer in pawnEntry.Value.Values)
+                foreach (WorkHistoryTierBuffer buffer in pawnEntry.Value.Values)
                 {
+                    buffer.RollupIfBoundaryCrossed(absTick, longitude);
                     buffer.Configure(retentionHours);
                     buffer.PruneBefore(minHour);
                 }
@@ -448,7 +452,7 @@ namespace WorkMonitor.Tracking
             }
 
             savedPawnHistory = new List<PawnWorkGiverHistory>();
-            foreach (KeyValuePair<int, Dictionary<string, WorkHistoryRingBuffer>> pawnEntry in pawnWorkGiverHistory)
+            foreach (KeyValuePair<int, Dictionary<string, WorkHistoryTierBuffer>> pawnEntry in pawnWorkGiverHistory)
             {
                 savedPawnHistory.Add(new PawnWorkGiverHistory
                 {
@@ -458,7 +462,7 @@ namespace WorkMonitor.Tracking
             }
 
             savedGroupHistory = new List<GroupHistoryEntry>();
-            foreach (KeyValuePair<string, WorkHistoryRingBuffer> groupEntry in groupHistory)
+            foreach (KeyValuePair<string, WorkHistoryTierBuffer> groupEntry in groupHistory)
             {
                 savedGroupHistory.Add(new GroupHistoryEntry
                 {
@@ -476,18 +480,18 @@ namespace WorkMonitor.Tracking
                 pawnRecords[entry.pawnId] = entry.records ?? new Dictionary<string, WorkActivityRecord>();
             }
 
-            pawnWorkGiverHistory = new Dictionary<int, Dictionary<string, WorkHistoryRingBuffer>>();
+            pawnWorkGiverHistory = new Dictionary<int, Dictionary<string, WorkHistoryTierBuffer>>();
             foreach (PawnWorkGiverHistory entry in savedPawnHistory)
             {
-                pawnWorkGiverHistory[entry.pawnId] = entry.history ?? new Dictionary<string, WorkHistoryRingBuffer>();
+                pawnWorkGiverHistory[entry.pawnId] = entry.history ?? new Dictionary<string, WorkHistoryTierBuffer>();
             }
 
-            groupHistory = new Dictionary<string, WorkHistoryRingBuffer>();
+            groupHistory = new Dictionary<string, WorkHistoryTierBuffer>();
             foreach (GroupHistoryEntry entry in savedGroupHistory)
             {
                 if (!entry.groupKey.NullOrEmpty())
                 {
-                    groupHistory[entry.groupKey] = entry.buffer ?? new WorkHistoryRingBuffer();
+                    groupHistory[entry.groupKey] = entry.buffer ?? new WorkHistoryTierBuffer();
                 }
             }
         }
@@ -640,17 +644,17 @@ namespace WorkMonitor.Tracking
             }
         }
 
-        private WorkHistoryRingBuffer GetPawnWorkGiverHistory(int pawnId, string workGiverDefName)
+        private WorkHistoryTierBuffer GetPawnWorkGiverHistory(int pawnId, string workGiverDefName)
         {
-            if (!pawnWorkGiverHistory.TryGetValue(pawnId, out Dictionary<string, WorkHistoryRingBuffer> perWg))
+            if (!pawnWorkGiverHistory.TryGetValue(pawnId, out Dictionary<string, WorkHistoryTierBuffer> perWg))
             {
-                perWg = new Dictionary<string, WorkHistoryRingBuffer>();
+                perWg = new Dictionary<string, WorkHistoryTierBuffer>();
                 pawnWorkGiverHistory[pawnId] = perWg;
             }
 
-            if (!perWg.TryGetValue(workGiverDefName, out WorkHistoryRingBuffer buffer))
+            if (!perWg.TryGetValue(workGiverDefName, out WorkHistoryTierBuffer buffer))
             {
-                buffer = new WorkHistoryRingBuffer();
+                buffer = new WorkHistoryTierBuffer();
                 buffer.Configure(GetRetentionHours());
                 perWg[workGiverDefName] = buffer;
             }

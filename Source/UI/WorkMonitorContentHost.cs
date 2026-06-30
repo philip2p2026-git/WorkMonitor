@@ -9,6 +9,7 @@ namespace WorkMonitor.UI
     {
         Overview,
         GroupDetail,
+        WorkGiverDetail,
         ColonistDetail
     }
 
@@ -16,17 +17,20 @@ namespace WorkMonitor.UI
     {
         private readonly WorkGroupOverviewPanel overviewPanel = new WorkGroupOverviewPanel();
         private readonly WorkGroupDetailPanel detailPanel = new WorkGroupDetailPanel();
+        private readonly WorkGiverDetailPanel workGiverDetailPanel = new WorkGiverDetailPanel();
         private readonly ColonistDetailPanel colonistDetailPanel = new ColonistDetailPanel();
         private readonly MonitorRangeState rangeState = new MonitorRangeState();
 
         private MonitorView view = MonitorView.Overview;
         private WorkGroupSnapshot selectedGroup;
+        private WorkGiverDef selectedWorkGiver;
         private Pawn selectedColonist;
 
         public void ResetToOverview()
         {
             view = MonitorView.Overview;
             selectedGroup = null;
+            selectedWorkGiver = null;
             selectedColonist = null;
         }
 
@@ -47,7 +51,7 @@ namespace WorkMonitor.UI
 
             if (view == MonitorView.GroupDetail)
             {
-                detailPanel.Draw(rect, rangeState, out bool back, out bool colonistClicked, out ColonistWorkStat selectedColonistStat, out WorkGroupSnapshot groupChanged);
+                detailPanel.Draw(rect, rangeState, out bool back, out bool colonistClicked, out ColonistWorkStat selectedColonistStat, out WorkGroupSnapshot groupChanged, out bool workGiverClicked, out WorkGiverDef workGiver);
                 if (groupChanged != null)
                 {
                     selectedGroup = groupChanged;
@@ -57,6 +61,30 @@ namespace WorkMonitor.UI
                 {
                     view = MonitorView.Overview;
                     selectedGroup = null;
+                }
+                else if (workGiverClicked && workGiver != null)
+                {
+                    selectedWorkGiver = workGiver;
+                    workGiverDetailPanel.SetWorkGiver(selectedGroup, selectedWorkGiver, rangeState);
+                    view = MonitorView.WorkGiverDetail;
+                }
+                else if (colonistClicked && selectedColonistStat?.Pawn != null)
+                {
+                    selectedColonist = selectedColonistStat.Pawn;
+                    colonistDetailPanel.SetColonist(selectedColonist, rangeState, selectedGroup, openGroupDetail: true);
+                    view = MonitorView.ColonistDetail;
+                }
+
+                return;
+            }
+
+            if (view == MonitorView.WorkGiverDetail)
+            {
+                workGiverDetailPanel.Draw(rect, rangeState, out bool back, out bool colonistClicked, out ColonistWorkStat selectedColonistStat);
+                if (back)
+                {
+                    detailPanel.SetGroup(selectedGroup, rangeState);
+                    view = MonitorView.GroupDetail;
                 }
                 else if (colonistClicked && selectedColonistStat?.Pawn != null)
                 {
@@ -77,7 +105,15 @@ namespace WorkMonitor.UI
             }
             else if (colonistBack)
             {
-                view = MonitorView.GroupDetail;
+                if (selectedWorkGiver != null)
+                {
+                    workGiverDetailPanel.SetWorkGiver(selectedGroup, selectedWorkGiver, rangeState);
+                    view = MonitorView.WorkGiverDetail;
+                }
+                else
+                {
+                    view = MonitorView.GroupDetail;
+                }
             }
         }
     }

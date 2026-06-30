@@ -19,6 +19,14 @@ namespace WorkMonitor
         public string skillRoleOverrides = "";
         public string workGiverSkillOverrides = "";
         public int mapSampleIntervalHours = 6;
+        public int defaultRangePreset = (int)UI.MonitorRangePreset.Hours24;
+        public int dayRolloverHour = 0;
+        public int maxDailyBuckets = 20;
+        public int maxQuadrumBuckets = 12;
+        public int maxYearBuckets = 7;
+        public bool yearHistoryUnlimited = false;
+
+        public UI.MonitorRangePreset DefaultRangePreset => (UI.MonitorRangePreset)defaultRangePreset;
 
         public Vector2 monitorWindowSize = new Vector2(720f, 520f);
 
@@ -34,7 +42,7 @@ namespace WorkMonitor
         public int ResolveRetentionHours(int activeRangeHours = -1)
         {
             int range = activeRangeHours > 0 ? activeRangeHours : statsWindowHours;
-            return UnityEngine.Mathf.Clamp(UnityEngine.Mathf.Max(chartHistoryHours, range), 6, MaxRetentionHours);
+            return UnityEngine.Mathf.Clamp(UnityEngine.Mathf.Max(chartHistoryHours, UnityEngine.Mathf.Min(range, MaxRetentionHours)), 6, MaxRetentionHours);
         }
 
         public bool TryGetSkillRoleOverride(string skillDefName, out string label)
@@ -153,6 +161,12 @@ namespace WorkMonitor
             Scribe_Values.Look(ref skillRoleOverrides, "skillRoleOverrides", "");
             Scribe_Values.Look(ref workGiverSkillOverrides, "workGiverSkillOverrides", "");
             Scribe_Values.Look(ref mapSampleIntervalHours, "mapSampleIntervalHours", 6);
+            Scribe_Values.Look(ref defaultRangePreset, "defaultRangePreset", (int)UI.MonitorRangePreset.Hours24);
+            Scribe_Values.Look(ref dayRolloverHour, "dayRolloverHour", 0);
+            Scribe_Values.Look(ref maxDailyBuckets, "maxDailyBuckets", 20);
+            Scribe_Values.Look(ref maxQuadrumBuckets, "maxQuadrumBuckets", 12);
+            Scribe_Values.Look(ref maxYearBuckets, "maxYearBuckets", 7);
+            Scribe_Values.Look(ref yearHistoryUnlimited, "yearHistoryUnlimited", false);
             Scribe_Values.Look(ref monitorWindowSize, "monitorWindowSize", new Vector2(720f, 520f));
             skillRoleOverrideCache = null;
             workGiverSkillOverrideCache = null;

@@ -99,4 +99,26 @@
 	<WorkMonitor.PassionMajor>major</WorkMonitor.PassionMajor>
 	<WorkMonitor.PassionMinor>minor</WorkMonitor.PassionMinor>
 	<WorkMonitor.PassionNone>—</WorkMonitor.PassionNone>
+	<WorkMonitor.Range6h>6h</WorkMonitor.Range6h>
+	<WorkMonitor.Range12h>12h</WorkMonitor.Range12h>
+	<WorkMonitor.Range24h>24h</WorkMonitor.Range24h>
+	<WorkMonitor.Range48h>48h</WorkMonitor.Range48h>
+	<WorkMonitor.Range7d>7d</WorkMonitor.Range7d>
+	<WorkMonitor.Range14d>14d</WorkMonitor.Range14d>
+	<WorkMonitor.Range4Quadrum>4 Quadrum</WorkMonitor.Range4Quadrum>
+	<WorkMonitor.Range8Quadrum>8 Quadrum</WorkMonitor.Range8Quadrum>
+	<WorkMonitor.Range3Year>3 Year</WorkMonitor.Range3Year>
+	<WorkMonitor.Range5Year>5 Year</WorkMonitor.Range5Year>
+	<WorkMonitor.RangeLabel>Time range</WorkMonitor.RangeLabel>
+	<WorkMonitor.DayRolloverHour>Day summary starts at</WorkMonitor.DayRolloverHour>
+	<WorkMonitor.DayRolloverMidnight>Midnight (00:00)</WorkMonitor.DayRolloverMidnight>
+	<WorkMonitor.DayRolloverMorning>Morning (08:00)</WorkMonitor.DayRolloverMorning>
+	<WorkMonitor.MapJobsNewTodayTip>{0} open tasks on map (parentheses = new since today's day start)</WorkMonitor.MapJobsNewTodayTip>
+	<WorkMonitor.MapWorkNewTodayTip>{0} work remaining on map (parentheses = from tasks first seen today)</WorkMonitor.MapWorkNewTodayTip>
+	<WorkMonitor.MapBacklogRow>Map: {0} jobs · {1} work · recorded {2} · sampled {3} ago</WorkMonitor.MapBacklogRow>
+	<WorkMonitor.ChartExistJob>Exist job</WorkMonitor.ChartExistJob>
+	<WorkMonitor.ChartNewJobToday>New job today</WorkMonitor.ChartNewJobToday>
+	<WorkMonitor.ChartExistWork>Exist work</WorkMonitor.ChartExistWork>
+	<WorkMonitor.ChartNewWorkToday>New work today</WorkMonitor.ChartNewWorkToday>
+	<WorkMonitor.WorkGiverDetailTitle>{0} — Detail</WorkMonitor.WorkGiverDetailTitle>
 </LanguageData>

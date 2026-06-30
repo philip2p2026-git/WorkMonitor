@@ -44,11 +44,10 @@ namespace WorkMonitor.UI
             Widgets.Label(new Rect(rect.x, rect.y, rect.width - 200f, 22f), "WorkMonitor.OverviewTitle".Translate());
 
             Text.Font = GameFont.Tiny;
-            if (Widgets.ButtonText(new Rect(rect.xMax - 196f, rect.y, 96f, 24f), "WorkMonitor.LastHours".Translate(rangeState.RangeHours)))
-            {
-                rangeState.CycleRangeHours();
-                RefreshIfNeeded(rangeState, force: true);
-            }
+            WorkMonitorDropdownUtility.DrawRangeDropdown(
+                new Rect(rect.xMax - 196f, rect.y, 110f, 24f),
+                rangeState,
+                () => RefreshIfNeeded(rangeState, force: true));
 
             if (Widgets.ButtonText(new Rect(rect.xMax - 96f, rect.y, 90f, 24f), "WorkMonitor.Refresh".Translate()))
             {
@@ -87,13 +86,17 @@ namespace WorkMonitor.UI
             Widgets.EndScrollView();
 
             int totalOpenTasks = 0;
+            int totalNewTodayTasks = 0;
             float totalMapWork = 0f;
+            float totalNewTodayWork = 0f;
             int totalJobs = 0;
             float totalWork = 0f;
             foreach (WorkGroupStats s in cachedStats)
             {
                 totalOpenTasks += s.TotalMapOpenTasks;
+                totalNewTodayTasks += s.TotalMapNewTodayOpenTasks;
                 totalMapWork += s.TotalMapWorkLeft;
+                totalNewTodayWork += s.TotalMapNewTodayWorkLeft;
                 totalJobs += s.TotalJobCount;
                 totalWork += s.TotalWorkUnits;
             }
@@ -102,8 +105,8 @@ namespace WorkMonitor.UI
                 new Rect(rect.x, rect.yMax - 28f, rect.width, 24f),
                 "WorkMonitor.FooterSummary".Translate(
                     cachedStats.Count,
-                    totalOpenTasks,
-                    WorkMonitorUtility.FormatWorkUnits(totalMapWork),
+                    WorkMonitorUiUtility.FormatMapOpenTasks(totalOpenTasks, totalNewTodayTasks),
+                    WorkMonitorUiUtility.FormatMapWorkLeft(totalMapWork, totalNewTodayWork),
                     totalJobs,
                     WorkMonitorUtility.FormatWorkUnits(totalWork)));
 
@@ -140,8 +143,12 @@ namespace WorkMonitor.UI
                 stats.Group.Label.Truncate(metricsLeft - row.x - StatusWidth - 12f));
 
             WorkMonitorTableColumns.GetOverviewMetricColumns(row, out Rect existJobCol, out Rect existWorkCol, out Rect jobProcessedCol, out Rect workProcessedCol);
-            LabelRight(existJobCol, stats.TotalMapOpenTasks.ToString());
-            LabelRight(existWorkCol, WorkMonitorUtility.FormatWorkUnits(stats.TotalMapWorkLeft));
+            string jobsText = WorkMonitorUiUtility.FormatMapOpenTasks(stats.TotalMapOpenTasks, stats.TotalMapNewTodayOpenTasks);
+            string workText = WorkMonitorUiUtility.FormatMapWorkLeft(stats.TotalMapWorkLeft, stats.TotalMapNewTodayWorkLeft);
+            LabelRight(existJobCol, jobsText);
+            TooltipHandler.TipRegion(existJobCol, "WorkMonitor.MapJobsNewTodayTip".Translate(jobsText));
+            LabelRight(existWorkCol, workText);
+            TooltipHandler.TipRegion(existWorkCol, "WorkMonitor.MapWorkNewTodayTip".Translate(workText));
             LabelRight(jobProcessedCol, stats.TotalJobCount.ToString());
             LabelRight(workProcessedCol, WorkMonitorUtility.FormatWorkUnits(stats.TotalWorkUnits));
         }

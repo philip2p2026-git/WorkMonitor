@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using RimWorld;
 using UnityEngine;
 using Verse;
@@ -23,61 +24,91 @@ namespace WorkMonitor.UI
     public static class WorkChartDataBuilder
     {
         public static void BuildWorkUnitsSeries(
-            WorkHistoryRingBuffer history,
+            WorkHistoryTierBuffer history,
             int minHourIndex,
             int rangeHours,
+            bool useHourly,
             out float[] values,
             out string[] labels)
         {
-            BuildFixedHourlySeries(
-                history,
-                minHourIndex,
-                rangeHours,
-                bucket => bucket != null ? bucket.workUnitsSpent + bucket.estimatedWorkUnitsSpent : 0f,
-                out values,
-                out labels);
+            if (useHourly)
+            {
+                BuildFixedHourlySeries(
+                    history,
+                    minHourIndex,
+                    rangeHours,
+                    bucket => bucket != null ? bucket.workUnitsSpent + bucket.estimatedWorkUnitsSpent : 0f,
+                    out values,
+                    out labels);
+            }
+            else
+            {
+                BuildDailySeries(
+                    history,
+                    minHourIndex,
+                    rangeHours,
+                    d => d.workUnitsSpent + d.estimatedWorkUnitsSpent,
+                    out values,
+                    out labels);
+            }
         }
 
         public static void BuildJobCountSeries(
-            WorkHistoryRingBuffer history,
+            WorkHistoryTierBuffer history,
             int minHourIndex,
             int rangeHours,
+            bool useHourly,
             out float[] values,
             out string[] labels)
         {
-            BuildFixedHourlySeries(
-                history,
-                minHourIndex,
-                rangeHours,
-                bucket => bucket != null ? bucket.jobCount : 0f,
-                out values,
-                out labels);
+            if (useHourly)
+            {
+                BuildFixedHourlySeries(
+                    history,
+                    minHourIndex,
+                    rangeHours,
+                    bucket => bucket != null ? bucket.jobCount : 0f,
+                    out values,
+                    out labels);
+            }
+            else
+            {
+                BuildDailySeries(
+                    history,
+                    minHourIndex,
+                    rangeHours,
+                    d => d.jobCount,
+                    out values,
+                    out labels);
+            }
         }
 
         public static void BuildMapOpenTasksSeries(
-            WorkHistoryRingBuffer colonistHistory,
+            WorkHistoryTierBuffer colonistHistory,
             string groupStorageKey,
             int minHourIndex,
             int rangeHours,
             out float[] values,
+            out float[] newTodayValues,
             out string[] labels)
         {
-            BuildMapMetricSeries(colonistHistory, minHourIndex, rangeHours, groupStorageKey, map: true, out values, out labels);
+            BuildMapMetricSeries(colonistHistory, minHourIndex, rangeHours, groupStorageKey, jobs: true, out values, out newTodayValues, out labels);
         }
 
         public static void BuildMapWorkLeftSeries(
-            WorkHistoryRingBuffer colonistHistory,
+            WorkHistoryTierBuffer colonistHistory,
             string groupStorageKey,
             int minHourIndex,
             int rangeHours,
             out float[] values,
+            out float[] newTodayValues,
             out string[] labels)
         {
-            BuildMapMetricSeries(colonistHistory, minHourIndex, rangeHours, groupStorageKey, map: false, out values, out labels);
+            BuildMapMetricSeries(colonistHistory, minHourIndex, rangeHours, groupStorageKey, jobs: false, out values, out newTodayValues, out labels);
         }
 
         private static void BuildFixedHourlySeries(
-            WorkHistoryRingBuffer history,
+            WorkHistoryTierBuffer history,
             int minHourIndex,
             int rangeHours,
             System.Func<HourlyWorkBucket, float> selector,
@@ -106,21 +137,47 @@ namespace WorkMonitor.UI
             return "-" + hoursAgo + "h";
         }
 
-        private static void BuildMapMetricSeries(
-            WorkHistoryRingBuffer colonistHistory,
+        private static void BuildDailySeries(
+            WorkHistoryTierBuffer history,
             int minHourIndex,
             int rangeHours,
-            string groupStorageKey,
-            bool map,
+            System.Func<DailyWorkBucket, float> selector,
             out float[] values,
             out string[] labels)
         {
+            int dayCount = Mathf.Clamp(rangeHours / 24, 1, 14);
+            values = new float[dayCount];
+            labels = new string[dayCount];
+            int currentHour = WorkMonitorUtility.CurrentHourIndex();
+            int currentDayId = WorkMonitorUtility.CurrentWorkDayId();
+
+            for (int i = 0; i < dayCount; i++)
+            {
+                int targetDayId = currentDayId - (dayCount - 1 - i);
+                DailyWorkBucket bucket = history?.DailyBuckets?.FirstOrDefault(d => d.dayId == targetDayId);
+                values[i] = bucket != null ? selector(bucket) : 0f;
+                labels[i] = i == dayCount - 1 ? "now" : "-" + (dayCount - 1 - i) + "d";
+            }
+        }
+
+        private static void BuildMapMetricSeries(
+            WorkHistoryTierBuffer colonistHistory,
+            int minHourIndex,
+            int rangeHours,
+            string groupStorageKey,
+            bool jobs,
+            out float[] values,
+            out float[] newTodayValues,
+            out string[] labels)
+        {
             values = new float[rangeHours];
+            newTodayValues = new float[rangeHours];
             labels = new string[rangeHours];
 
             MapWorkSampler sampler = MapWorkSampler.EnsureRegistered();
             IReadOnlyList<MapWorkSnapshot> mapHistory = sampler?.GetHistory();
             float lastValue = 0f;
+            float lastNewToday = 0f;
             int mapIndex = 0;
 
             for (int i = 0; i < rangeHours; i++)
@@ -134,7 +191,8 @@ namespace WorkMonitor.UI
                     {
                         if (mapHistory[mapIndex].perGroupKey.TryGetValue(groupStorageKey, out MapWorkGroupSnapshot groupSnap))
                         {
-                            lastValue = map ? groupSnap.openTaskCount : groupSnap.workLeftTotal;
+                            lastValue = jobs ? groupSnap.openTaskCount : groupSnap.workLeftTotal;
+                            lastNewToday = jobs ? groupSnap.newTodayOpenTaskCount : groupSnap.newTodayWorkLeftTotal;
                         }
 
                         mapIndex++;
@@ -142,6 +200,72 @@ namespace WorkMonitor.UI
                 }
 
                 values[i] = lastValue;
+                newTodayValues[i] = lastNewToday;
+            }
+        }
+
+        public static void BuildMapOpenTasksSeriesForWorkGiver(
+            string workGiverDefName,
+            int minHourIndex,
+            int rangeHours,
+            out float[] values,
+            out float[] newTodayValues,
+            out string[] labels)
+        {
+            BuildMapMetricSeriesForWorkGiver(workGiverDefName, minHourIndex, rangeHours, jobs: true, out values, out newTodayValues, out labels);
+        }
+
+        public static void BuildMapWorkLeftSeriesForWorkGiver(
+            string workGiverDefName,
+            int minHourIndex,
+            int rangeHours,
+            out float[] values,
+            out float[] newTodayValues,
+            out string[] labels)
+        {
+            BuildMapMetricSeriesForWorkGiver(workGiverDefName, minHourIndex, rangeHours, jobs: false, out values, out newTodayValues, out labels);
+        }
+
+        private static void BuildMapMetricSeriesForWorkGiver(
+            string workGiverDefName,
+            int minHourIndex,
+            int rangeHours,
+            bool jobs,
+            out float[] values,
+            out float[] newTodayValues,
+            out string[] labels)
+        {
+            values = new float[rangeHours];
+            newTodayValues = new float[rangeHours];
+            labels = new string[rangeHours];
+
+            MapWorkSampler sampler = MapWorkSampler.EnsureRegistered();
+            IReadOnlyList<MapWorkSnapshot> mapHistory = sampler?.GetHistory();
+            float lastValue = 0f;
+            float lastNewToday = 0f;
+            int mapIndex = 0;
+
+            for (int i = 0; i < rangeHours; i++)
+            {
+                int hour = minHourIndex + i;
+                labels[i] = BuildRelativeHourLabel(i, rangeHours);
+
+                if (mapHistory != null)
+                {
+                    while (mapIndex < mapHistory.Count && mapHistory[mapIndex].hourIndex <= hour)
+                    {
+                        if (mapHistory[mapIndex].perWorkGiver.TryGetValue(workGiverDefName, out MapWorkGiverSnapshot wgSnap))
+                        {
+                            lastValue = jobs ? wgSnap.openTaskCount : wgSnap.workLeftTotal;
+                            lastNewToday = jobs ? wgSnap.newTodayOpenTaskCount : wgSnap.newTodayWorkLeftTotal;
+                        }
+
+                        mapIndex++;
+                    }
+                }
+
+                values[i] = lastValue;
+                newTodayValues[i] = lastNewToday;
             }
         }
     }
@@ -183,6 +307,8 @@ namespace WorkMonitor.UI
     {
         private static readonly Color ColonistColor = new Color(0.4f, 0.85f, 0.5f);
         private static readonly Color MapColor = new Color(0.95f, 0.65f, 0.3f);
+        private static readonly Color MapExistingColor = new Color(1f, 0.65f, 0.2f, 0.45f);
+        private static readonly Color MapNewTodayColor = new Color(1f, 0.45f, 0f, 0.85f);
         private static readonly Color GridColor = new Color(0.45f, 0.45f, 0.45f, 0.35f);
 
         public static void Draw(
@@ -194,13 +320,36 @@ namespace WorkMonitor.UI
             string colonistLegend,
             string mapLegend)
         {
+            Draw(rect, colonistValues, mapValues, null, xLabels, title, colonistLegend, mapLegend, null, null);
+        }
+
+        public static void Draw(
+            Rect rect,
+            float[] colonistValues,
+            float[] mapValues,
+            float[] mapNewTodayValues,
+            string[] xLabels,
+            string title,
+            string colonistLegend,
+            string mapLegend,
+            string mapExistingLegend,
+            string mapNewTodayLegend)
+        {
             Widgets.DrawBoxSolid(rect, new Color(0.1f, 0.1f, 0.1f, 0.35f));
             Text.Font = GameFont.Tiny;
             Widgets.Label(new Rect(rect.x + 4f, rect.y + 2f, rect.width - 8f, 16f), title);
 
             float legendY = rect.y + 18f;
             DrawLegendEntry(new Rect(rect.x + 6f, legendY, rect.width * 0.5f - 8f, 14f), ColonistColor, colonistLegend);
-            DrawLegendEntry(new Rect(rect.x + rect.width * 0.5f, legendY, rect.width * 0.5f - 6f, 14f), MapColor, mapLegend);
+            if (mapNewTodayValues != null && !mapExistingLegend.NullOrEmpty())
+            {
+                DrawLegendEntry(new Rect(rect.x + rect.width * 0.5f, legendY, rect.width * 0.25f - 4f, 14f), MapExistingColor, mapExistingLegend);
+                DrawLegendEntry(new Rect(rect.x + rect.width * 0.75f, legendY, rect.width * 0.25f - 4f, 14f), MapNewTodayColor, mapNewTodayLegend);
+            }
+            else
+            {
+                DrawLegendEntry(new Rect(rect.x + rect.width * 0.5f, legendY, rect.width * 0.5f - 6f, 14f), MapColor, mapLegend);
+            }
 
             const float axisWidth = 30f;
             const float xAxisHeight = 16f;
@@ -218,10 +367,41 @@ namespace WorkMonitor.UI
             DrawSeries(plot, colonistValues, yMax, ColonistColor);
             if (mapValues != null && mapValues.Length == colonistValues.Length)
             {
-                DrawSeries(plot, mapValues, yMax, MapColor);
+                if (mapNewTodayValues != null && mapNewTodayValues.Length == mapValues.Length)
+                {
+                    DrawStackedMapFill(plot, mapValues, mapNewTodayValues, yMax);
+                }
+                else
+                {
+                    DrawSeries(plot, mapValues, yMax, MapColor);
+                }
             }
 
             ChartAxisHelper.DrawXAxisLabels(plot, xLabels);
+        }
+
+        private static void DrawStackedMapFill(Rect plot, float[] mapTotals, float[] mapNewToday, float yMax)
+        {
+            int count = mapTotals.Length;
+            float colWidth = plot.width / Mathf.Max(1, count - 1);
+            for (int i = 0; i < count; i++)
+            {
+                float x = plot.x + plot.width * i / Mathf.Max(1, count - 1);
+                float existing = mapTotals[i] - mapNewToday[i];
+                float existingHeight = plot.height * (existing / yMax);
+                float newHeight = plot.height * (mapNewToday[i] / yMax);
+                float sliceWidth = Mathf.Max(2f, colWidth * 0.6f);
+
+                if (existingHeight > 0f)
+                {
+                    Widgets.DrawBoxSolid(new Rect(x - sliceWidth * 0.5f, plot.yMax - existingHeight, sliceWidth, existingHeight), MapExistingColor);
+                }
+
+                if (newHeight > 0f)
+                {
+                    Widgets.DrawBoxSolid(new Rect(x - sliceWidth * 0.5f, plot.yMax - existingHeight - newHeight, sliceWidth, newHeight), MapNewTodayColor);
+                }
+            }
         }
 
         private static float ComputeYMax(float[] colonistValues, float[] mapValues, bool stacked)
@@ -331,6 +511,8 @@ namespace WorkMonitor.UI
     {
         private static readonly Color ColonistColor = new Color(0.4f, 0.85f, 0.5f, 0.9f);
         private static readonly Color MapColor = new Color(0.95f, 0.65f, 0.3f, 0.9f);
+        private static readonly Color MapExistingColor = new Color(1f, 0.65f, 0.2f, 0.45f);
+        private static readonly Color MapNewTodayColor = new Color(1f, 0.45f, 0f, 0.85f);
         private static readonly Color GridColor = new Color(0.45f, 0.45f, 0.45f, 0.35f);
 
         public static void Draw(
@@ -342,13 +524,36 @@ namespace WorkMonitor.UI
             string colonistLegend,
             string mapLegend)
         {
+            Draw(rect, colonistValues, mapValues, null, xLabels, title, colonistLegend, mapLegend, null, null);
+        }
+
+        public static void Draw(
+            Rect rect,
+            float[] colonistValues,
+            float[] mapValues,
+            float[] mapNewTodayValues,
+            string[] xLabels,
+            string title,
+            string colonistLegend,
+            string mapLegend,
+            string mapExistingLegend,
+            string mapNewTodayLegend)
+        {
             Widgets.DrawBoxSolid(rect, new Color(0.1f, 0.1f, 0.1f, 0.35f));
             Text.Font = GameFont.Tiny;
             Widgets.Label(new Rect(rect.x + 4f, rect.y + 2f, rect.width - 8f, 16f), title);
 
             float legendY = rect.y + 18f;
             DrawLegendEntry(new Rect(rect.x + 6f, legendY, rect.width * 0.5f - 8f, 14f), ColonistColor, colonistLegend);
-            DrawLegendEntry(new Rect(rect.x + rect.width * 0.5f, legendY, rect.width * 0.5f - 6f, 14f), MapColor, mapLegend);
+            if (mapNewTodayValues != null && !mapExistingLegend.NullOrEmpty())
+            {
+                DrawLegendEntry(new Rect(rect.x + rect.width * 0.5f, legendY, rect.width * 0.25f - 4f, 14f), MapExistingColor, mapExistingLegend);
+                DrawLegendEntry(new Rect(rect.x + rect.width * 0.75f, legendY, rect.width * 0.25f - 4f, 14f), MapNewTodayColor, mapNewTodayLegend);
+            }
+            else
+            {
+                DrawLegendEntry(new Rect(rect.x + rect.width * 0.5f, legendY, rect.width * 0.5f - 6f, 14f), MapColor, mapLegend);
+            }
 
             const float axisWidth = 30f;
             const float xAxisHeight = 16f;
@@ -374,20 +579,40 @@ namespace WorkMonitor.UI
             for (int i = 0; i < count; i++)
             {
                 float mapValue = mapValues != null && i < mapValues.Length ? mapValues[i] : 0f;
+                float mapNewToday = mapNewTodayValues != null && i < mapNewTodayValues.Length ? mapNewTodayValues[i] : 0f;
+                float mapExisting = mapValue - mapNewToday;
                 float colonistValue = colonistValues[i];
-                float mapHeight = plot.height * (mapValue / yMax);
+                float mapExistingHeight = plot.height * (mapExisting / yMax);
+                float mapNewHeight = plot.height * (mapNewToday / yMax);
                 float colonistHeight = plot.height * (colonistValue / yMax);
                 float x = plot.x + i * colWidth;
                 float sliceWidth = Mathf.Max(1f, colWidth - 1f);
+                float yBottom = plot.yMax;
 
-                if (mapHeight > 0f)
+                if (mapNewTodayValues != null)
                 {
-                    Widgets.DrawBoxSolid(new Rect(x, plot.yMax - mapHeight, sliceWidth, mapHeight), MapColor);
+                    if (mapExistingHeight > 0f)
+                    {
+                        Widgets.DrawBoxSolid(new Rect(x, yBottom - mapExistingHeight, sliceWidth, mapExistingHeight), MapExistingColor);
+                        yBottom -= mapExistingHeight;
+                    }
+
+                    if (mapNewHeight > 0f)
+                    {
+                        Widgets.DrawBoxSolid(new Rect(x, yBottom - mapNewHeight, sliceWidth, mapNewHeight), MapNewTodayColor);
+                        yBottom -= mapNewHeight;
+                    }
+                }
+                else if (mapValue > 0f)
+                {
+                    float mapHeight = plot.height * (mapValue / yMax);
+                    Widgets.DrawBoxSolid(new Rect(x, yBottom - mapHeight, sliceWidth, mapHeight), MapColor);
+                    yBottom -= mapHeight;
                 }
 
                 if (colonistHeight > 0f)
                 {
-                    Widgets.DrawBoxSolid(new Rect(x, plot.yMax - mapHeight - colonistHeight, sliceWidth, colonistHeight), ColonistColor);
+                    Widgets.DrawBoxSolid(new Rect(x, yBottom - colonistHeight, sliceWidth, colonistHeight), ColonistColor);
                 }
             }
 
@@ -547,7 +772,7 @@ namespace WorkMonitor.UI
 
     public static class StackedAreaChart
     {
-        public static void Draw(Rect rect, WorkHistoryRingBuffer history, int minHourIndex, System.Collections.Generic.List<Pawn> colonists)
+        public static void Draw(Rect rect, WorkHistoryTierBuffer history, int minHourIndex, System.Collections.Generic.List<Pawn> colonists)
         {
             Widgets.DrawBoxSolid(rect, new Color(0.1f, 0.1f, 0.1f, 0.35f));
             Text.Font = GameFont.Tiny;

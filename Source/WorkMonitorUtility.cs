@@ -90,5 +90,51 @@ namespace WorkMonitor
             Vector2 location = Find.WorldGrid.LongLatOf(map.Tile);
             return GenDate.DateFullStringAt(absTick, location);
         }
+
+        public static Vector2 MapLongitude()
+        {
+            Map map = Find.CurrentMap ?? Find.AnyPlayerHomeMap;
+            if (map == null)
+            {
+                return Vector2.zero;
+            }
+
+            return Find.WorldGrid.LongLatOf(map.Tile);
+        }
+
+        public static int DayRolloverHour()
+        {
+            return WorkMonitorMod.Settings?.dayRolloverHour ?? 0;
+        }
+
+        public static int GetWorkDayId(long absTick, Vector2 longitude, int rolloverHour)
+        {
+            float lon = longitude.x;
+            long rolloverOffset = rolloverHour * GenDate.TicksPerHour;
+            long adjusted = absTick - rolloverOffset;
+            int year = GenDate.Year(adjusted, lon);
+            int day = GenDate.DayOfYear(adjusted, lon);
+            return year * 1000 + day;
+        }
+
+        public static int CurrentWorkDayId()
+        {
+            if (Find.TickManager == null)
+            {
+                return 0;
+            }
+
+            return GetWorkDayId(Find.TickManager.TicksAbs, MapLongitude(), DayRolloverHour());
+        }
+
+        public static int HourIndexForDayStart(int workDayId, int rolloverHour)
+        {
+            int year = workDayId / 1000;
+            int dayOfYear = workDayId % 1000;
+            float lon = MapLongitude().x;
+            long absTick = (long)(year - 1) * GenDate.TicksPerYear + (dayOfYear - 1) * GenDate.TicksPerDay;
+            absTick += rolloverHour * GenDate.TicksPerHour;
+            return (int)(absTick / WorkMonitorSettings.TicksPerHour);
+        }
     }
 }

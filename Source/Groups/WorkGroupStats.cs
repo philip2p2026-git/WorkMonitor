@@ -28,6 +28,10 @@ namespace WorkMonitor.Groups
         public int TravelTicksSpent;
         public int WorkTicksSpent;
         public float WorkUnitsSpent;
+        public int MapOpenTasks;
+        public int MapNewTodayOpenTasks;
+        public float MapWorkLeft;
+        public float MapNewTodayWorkLeft;
     }
 
     public class ColonistGroupStat
@@ -83,6 +87,24 @@ namespace WorkMonitor.Groups
         public System.Collections.Generic.List<ColonistGroupStat> GroupStats = new System.Collections.Generic.List<ColonistGroupStat>();
     }
 
+    public class WorkGiverDetailStats
+    {
+        public WorkGroupSnapshot Group;
+        public WorkGiverDef WorkGiver;
+        public string Label;
+        public int TotalJobCount;
+        public int TotalEndlessJobCount;
+        public int TotalTravelTicks;
+        public int TotalWorkTicks;
+        public float TotalWorkUnits;
+        public int MapOpenTasks;
+        public int MapNewTodayOpenTasks;
+        public float MapWorkLeft;
+        public float MapNewTodayWorkLeft;
+        public int MapSampleTick;
+        public System.Collections.Generic.List<ColonistWorkStat> ColonistStats = new System.Collections.Generic.List<ColonistWorkStat>();
+    }
+
     public class WorkGroupStats
     {
         public WorkGroupSnapshot Group;
@@ -98,6 +120,8 @@ namespace WorkMonitor.Groups
         public float TotalWorkUnits;
         public int TotalMapOpenTasks;
         public float TotalMapWorkLeft;
+        public int TotalMapNewTodayOpenTasks;
+        public float TotalMapNewTodayWorkLeft;
         public int MapSampleTick;
         public System.Collections.Generic.List<WorkGiverStat> WorkGiverStats = new System.Collections.Generic.List<WorkGiverStat>();
         public System.Collections.Generic.List<ColonistWorkStat> ColonistStats = new System.Collections.Generic.List<ColonistWorkStat>();

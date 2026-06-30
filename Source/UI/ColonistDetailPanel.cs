@@ -74,11 +74,10 @@ namespace WorkMonitor.UI
 
             float toolbarX = inspectRect.xMax + ColonistIconGap;
             Text.Font = GameFont.Tiny;
-            if (Widgets.ButtonText(new Rect(toolbarX, rect.y, 96f, 26f), "WorkMonitor.LastHours".Translate(rangeState.RangeHours)))
-            {
-                rangeState.CycleRangeHours();
-                SetColonist(stats.Pawn, rangeState);
-            }
+            WorkMonitorDropdownUtility.DrawRangeDropdown(
+                new Rect(toolbarX, rect.y, 110f, 26f),
+                rangeState,
+                () => SetColonist(stats.Pawn, rangeState));
 
             if (Widgets.ButtonText(new Rect(toolbarX + 100f, rect.y, 80f, 26f), "WorkMonitor.Refresh".Translate()))
             {

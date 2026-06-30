@@ -19,26 +19,26 @@ namespace WorkMonitor.Tracking
     public class PawnWorkGiverHistory : IExposable
     {
         public int pawnId;
-        public Dictionary<string, WorkHistoryRingBuffer> history = new Dictionary<string, WorkHistoryRingBuffer>();
+        public Dictionary<string, WorkHistoryTierBuffer> history = new Dictionary<string, WorkHistoryTierBuffer>();
 
         public void ExposeData()
         {
             Scribe_Values.Look(ref pawnId, "pawnId");
             Scribe_Collections.Look(ref history, "history", LookMode.Value, LookMode.Deep);
-            history ??= new Dictionary<string, WorkHistoryRingBuffer>();
+            history ??= new Dictionary<string, WorkHistoryTierBuffer>();
         }
     }
 
     public class GroupHistoryEntry : IExposable
     {
         public string groupKey;
-        public WorkHistoryRingBuffer buffer = new WorkHistoryRingBuffer();
+        public WorkHistoryTierBuffer buffer = new WorkHistoryTierBuffer();
 
         public void ExposeData()
         {
             Scribe_Values.Look(ref groupKey, "groupKey");
             Scribe_Deep.Look(ref buffer, "buffer");
-            buffer ??= new WorkHistoryRingBuffer();
+            buffer ??= new WorkHistoryTierBuffer();
         }
     }
 }

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using RimWorld;
+using UnityEngine;
 using Verse;
 using WorkMonitor.Tracking.MapWork;
 
@@ -12,6 +13,7 @@ namespace WorkMonitor.Tracking
         private MapWorkSnapshot latestSnapshot;
         private int lastSampledHour = -1;
         private List<MapWorkSnapshot> historyBuffer = new List<MapWorkSnapshot>();
+        private Dictionary<string, int> taskFirstSeenDayId = new Dictionary<string, int>();
 
         public static MapWorkSampler Instance
         {
@@ -95,7 +97,7 @@ namespace WorkMonitor.Tracking
             }
 
             lastSampledHour = hour;
-            latestSnapshot = BuildSnapshot(map, hour, Find.TickManager.TicksGame);
+            latestSnapshot = BuildSnapshot(map, hour, Find.TickManager.TicksGame, Find.TickManager.TicksAbs);
             historyBuffer.Add(latestSnapshot);
             int maxHistory = WorkMonitorMod.Settings?.ResolveRetentionHours() ?? 48;
             while (historyBuffer.Count > maxHistory)
@@ -109,8 +111,10 @@ namespace WorkMonitor.Tracking
             base.ExposeData();
             Scribe_Deep.Look(ref latestSnapshot, "latestSnapshot");
             Scribe_Collections.Look(ref historyBuffer, "historyBuffer", LookMode.Deep);
+            Scribe_Collections.Look(ref taskFirstSeenDayId, "taskFirstSeenDayId", LookMode.Value, LookMode.Value);
             Scribe_Values.Look(ref lastSampledHour, "lastSampledHour", -1);
             historyBuffer ??= new List<MapWorkSnapshot>();
+            taskFirstSeenDayId ??= new Dictionary<string, int>();
         }
 
         public static int NormalizeInterval(int hours)
@@ -125,7 +129,7 @@ namespace WorkMonitor.Tracking
             };
         }
 
-        private static MapWorkSnapshot BuildSnapshot(Map map, int hourIndex, int sampleTick)
+        private MapWorkSnapshot BuildSnapshot(Map map, int hourIndex, int sampleTick, long absTick)
         {
             MapWorkSnapshot snapshot = new MapWorkSnapshot
             {
@@ -134,12 +138,17 @@ namespace WorkMonitor.Tracking
             };
 
             List<ScannedMapTarget> targets = new List<ScannedMapTarget>();
+            HashSet<string> currentKeys = new HashSet<string>();
             HashSet<string> seenKeys = new HashSet<string>();
 
             foreach (IMapWorkTargetProvider provider in MapWorkProviderRegistry.All)
             {
                 provider.Collect(map, targets);
             }
+
+            Vector2 longitude = Find.WorldGrid.LongLatOf(map.Tile);
+            int rolloverHour = WorkMonitorUtility.DayRolloverHour();
+            int currentDayId = WorkMonitorUtility.GetWorkDayId(absTick, longitude, rolloverHour);
 
             foreach (ScannedMapTarget target in targets)
             {
@@ -148,11 +157,24 @@ namespace WorkMonitor.Tracking
                     continue;
                 }
 
+                currentKeys.Add(target.DedupeKey);
+                if (!taskFirstSeenDayId.ContainsKey(target.DedupeKey))
+                {
+                    taskFirstSeenDayId[target.DedupeKey] = currentDayId;
+                }
+
+                bool isNewToday = taskFirstSeenDayId[target.DedupeKey] == currentDayId;
+
                 foreach (string workGiverDefName in target.WorkGiverDefNames)
                 {
                     MapWorkGiverSnapshot wgSnap = snapshot.GetOrCreateWorkGiver(workGiverDefName);
                     wgSnap.openTaskCount++;
                     wgSnap.workLeftTotal += target.WorkLeft;
+                    if (isNewToday)
+                    {
+                        wgSnap.newTodayOpenTaskCount++;
+                        wgSnap.newTodayWorkLeftTotal += target.WorkLeft;
+                    }
                 }
 
                 foreach (string groupKey in target.GroupKeys)
@@ -160,7 +182,26 @@ namespace WorkMonitor.Tracking
                     MapWorkGroupSnapshot groupSnap = snapshot.GetOrCreateGroup(groupKey);
                     groupSnap.openTaskCount++;
                     groupSnap.workLeftTotal += target.WorkLeft;
+                    if (isNewToday)
+                    {
+                        groupSnap.newTodayOpenTaskCount++;
+                        groupSnap.newTodayWorkLeftTotal += target.WorkLeft;
+                    }
                 }
+            }
+
+            List<string> staleKeys = new List<string>();
+            foreach (KeyValuePair<string, int> entry in taskFirstSeenDayId)
+            {
+                if (!currentKeys.Contains(entry.Key) && entry.Value < currentDayId - 1)
+                {
+                    staleKeys.Add(entry.Key);
+                }
+            }
+
+            foreach (string key in staleKeys)
+            {
+                taskFirstSeenDayId.Remove(key);
             }
 
             return snapshot;

@@ -36,5 +36,19 @@ namespace WorkMonitor.UI
 
             return options;
         }
+
+        public static bool DrawRangeDropdown(Rect rect, MonitorRangeState rangeState, System.Action onChanged)
+        {
+            List<FloatMenuOption> options = BuildOptions(
+                MonitorRangeState.AllPresets,
+                MonitorRangeState.PresetToLabel,
+                preset =>
+                {
+                    rangeState.SetPreset(preset);
+                    onChanged?.Invoke();
+                });
+            TooltipHandler.TipRegion(rect, "WorkMonitor.RangeLabel".Translate());
+            return DrawDropdown(rect, rangeState.Label, options);
+        }
     }
 }
