@@ -336,7 +336,10 @@ namespace WorkMonitor.UI
                     colonistGroup = stats.Group;
                 }
 
-                DrawColonistL1Row(row, colonist, ColonistWorkQuery.FormatColonistGroupInterest(colonist.PawnId, stats.Group));
+                DrawColonistL1Row(
+                    row,
+                    colonist,
+                    ColonistWorkQuery.FormatColonistSkillGroupInterest(colonist.PawnId, stats.Group));
                 y += RowHeight;
                 rowIndex++;
 
@@ -525,7 +528,7 @@ namespace WorkMonitor.UI
                         colonistGroup = null;
                     }
 
-                    DrawColonistL1Row(row, node.Summary, ResolveColonistTopInterest(node));
+                    DrawColonistL1Row(row, node.Summary, "");
                 }
                 else
                 {
@@ -570,7 +573,7 @@ namespace WorkMonitor.UI
                         selectedGroup = groupNode.Group;
                     }
 
-                    DrawColonistTopGroupRow(groupRow, groupNode, node.IsUnassigned);
+                    DrawColonistTopGroupRow(groupRow, groupNode, node.PawnId, node.IsUnassigned);
                     y += RowHeight;
                     rowIndex++;
 
@@ -655,12 +658,13 @@ namespace WorkMonitor.UI
             DrawOverviewMetrics(row, mapJobs, mapNewToday, mapWork, mapWorkNewToday, 0, 0f);
         }
 
-        private static void DrawColonistTopGroupRow(Rect row, ColonistOverviewGroupNode groupNode, bool isUnassignedParent)
+        private static void DrawColonistTopGroupRow(Rect row, ColonistOverviewGroupNode groupNode, int pawnId, bool isUnassignedParent)
         {
             WorkGroupStats groupStats = groupNode.GroupStats;
             Text.Font = GameFont.Small;
+            bool showInterest = !isUnassignedParent && pawnId > 0;
             float labelLeft = WorkMonitorTableColumns.OverviewLabelLeft(row.x, hasExpand: true, hasStatus: true);
-            float labelWidth = WorkMonitorTableColumns.OverviewLabelWidth(row, labelLeft, hasInterest: false);
+            float labelWidth = WorkMonitorTableColumns.OverviewLabelWidth(row, labelLeft, hasInterest: showInterest);
 
             Color dot = WorkMonitorUiUtility.StatusColor(groupStats.Status);
             float dotSize = 10f;
@@ -670,6 +674,11 @@ namespace WorkMonitor.UI
                 dot);
 
             Widgets.Label(new Rect(labelLeft, row.y, labelWidth, row.height), groupNode.Group.Label.Truncate(labelWidth));
+
+            if (showInterest)
+            {
+                DrawColonistInterest(row, ColonistWorkQuery.FormatColonistSkillGroupInterest(pawnId, groupNode.Group));
+            }
 
             int jobCount = 0;
             float workUnits = 0f;
@@ -796,26 +805,6 @@ namespace WorkMonitor.UI
             DrawOverviewMetrics(row, stats.TotalMapOpenTasks, stats.TotalMapNewTodayOpenTasks, stats.TotalMapWorkLeft, stats.TotalMapNewTodayWorkLeft, stats.TotalJobCount, stats.TotalWorkUnits);
         }
 
-        private static string ResolveColonistTopInterest(ColonistOverviewNode node)
-        {
-            if (node.IsUnassigned)
-            {
-                return "";
-            }
-
-            Passion max = Passion.None;
-            foreach (ColonistOverviewGroupNode groupNode in node.Groups)
-            {
-                Passion passion = ColonistWorkQuery.ResolvePassionForGroup(node.PawnId, groupNode.Group);
-                if ((int)passion > (int)max)
-                {
-                    max = passion;
-                }
-            }
-
-            return WorkMonitorUiUtility.PassionShort(max);
-        }
-
         private static void DrawColonistInterest(Rect row, string interest)
         {
             WorkMonitorTableColumns.GetOverviewInterestColumn(row, out Rect interestCol);
@@ -829,32 +818,43 @@ namespace WorkMonitor.UI
         private void DrawColonistL1Row(Rect row, ColonistWorkStat colonist, string interest)
         {
             Text.Font = GameFont.Small;
+            bool hasInterest = !interest.NullOrEmpty();
             float labelLeft = WorkMonitorTableColumns.OverviewLabelLeft(row.x, hasExpand: true, hasStatus: false);
             float portraitWidth = WorkMonitorUiUtility.ColonistPortraitSize + 4f;
             Rect portraitRect = new Rect(labelLeft, row.y, portraitWidth, row.height);
             WorkMonitorUiUtility.DrawColonistPortrait(portraitRect, colonist);
 
             float nameLeft = labelLeft + portraitWidth;
-            float nameWidth = WorkMonitorTableColumns.OverviewLabelWidth(row, nameLeft, hasInterest: true);
+            float nameWidth = WorkMonitorTableColumns.OverviewLabelWidth(row, nameLeft, hasInterest: hasInterest);
             WorkMonitorUiUtility.DrawColonistLabel(new Rect(nameLeft, row.y, nameWidth, row.height), colonist);
 
-            DrawColonistInterest(row, interest);
+            if (hasInterest)
+            {
+                DrawColonistInterest(row, interest);
+            }
+
             DrawOverviewColonistMetrics(row, colonist.JobCount, colonist.WorkUnitsSpent);
         }
 
         private void DrawColonistL2Row(Rect row, ColonistWorkStat colonist, WorkGiverDef workGiver, WorkGroupSnapshot group)
         {
             Text.Font = GameFont.Small;
+            string interest = ColonistWorkQuery.FormatColonistWorkGiverInterest(colonist.PawnId, workGiver, group);
+            bool hasInterest = !interest.NullOrEmpty();
             float labelLeft = row.x + 4f;
             float portraitWidth = WorkMonitorUiUtility.ColonistPortraitSize + 4f;
             Rect portraitRect = new Rect(labelLeft, row.y, portraitWidth, row.height);
             WorkMonitorUiUtility.DrawColonistPortrait(portraitRect, colonist);
 
             float nameLeft = labelLeft + portraitWidth;
-            float nameWidth = WorkMonitorTableColumns.OverviewLabelWidth(row, nameLeft, hasInterest: true);
+            float nameWidth = WorkMonitorTableColumns.OverviewLabelWidth(row, nameLeft, hasInterest: hasInterest);
             WorkMonitorUiUtility.DrawColonistLabel(new Rect(nameLeft, row.y, nameWidth, row.height), colonist);
 
-            DrawColonistInterest(row, ColonistWorkQuery.FormatColonistWorkGiverInterest(colonist.PawnId, workGiver, group));
+            if (hasInterest)
+            {
+                DrawColonistInterest(row, interest);
+            }
+
             DrawOverviewColonistMetrics(row, colonist.JobCount, colonist.WorkUnitsSpent);
         }
 
@@ -1125,6 +1125,10 @@ namespace WorkMonitor.UI
                 _ => OverviewLayoutMode.WorkTypeColonistFirst
             };
             ClearExpandCaches();
+            if (boundRangeState != null)
+            {
+                RefreshIfNeeded(boundRangeState, force: true);
+            }
         }
 
         private void ExpandOneLevel()

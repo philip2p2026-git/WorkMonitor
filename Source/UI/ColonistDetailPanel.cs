@@ -388,7 +388,7 @@ namespace WorkMonitor.UI
 
             WorkMonitorUiUtility.DrawInterestValue(
                 interestCol,
-                ColonistWorkQuery.FormatColonistGroupInterest(stats.PawnId, groupStat.Group));
+                ColonistWorkQuery.FormatColonistSkillGroupInterest(stats.PawnId, groupStat.Group));
             WorkMonitorUiUtility.LabelRightStatValue(jobCol, groupStat.JobCount.ToString());
             WorkMonitorUiUtility.LabelRightStatValue(endlessCol, groupStat.EndlessJobCount.ToString());
             WorkMonitorUiUtility.LabelRightStatValue(workCol, WorkMonitorUtility.FormatWorkUnits(groupStat.WorkUnitsSpent));

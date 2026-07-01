@@ -183,30 +183,49 @@ namespace WorkMonitor.Groups
             return pawn.skills.MaxPassionOfRelevantSkillsFor(workGiver.workType);
         }
 
+        public static Passion ResolvePassionForSkillWorkGiversInGroup(int pawnId, WorkGroupSnapshot group)
+        {
+            if (group?.WorkGivers == null)
+            {
+                return Passion.None;
+            }
+
+            Passion max = Passion.None;
+            foreach (WorkGiverDef workGiver in group.WorkGivers)
+            {
+                if (!WorkGiverSkillUtility.UsesRelevantSkill(workGiver))
+                {
+                    continue;
+                }
+
+                Passion passion = ResolvePassionForWorkGiver(pawnId, workGiver);
+                if ((int)passion > (int)max)
+                {
+                    max = passion;
+                }
+            }
+
+            return max;
+        }
+
         public static string FormatColonistGroupInterest(int pawnId, WorkGroupSnapshot group)
         {
             return WorkMonitorUiUtility.PassionShort(ResolvePassionForGroup(pawnId, group));
         }
 
+        public static string FormatColonistSkillGroupInterest(int pawnId, WorkGroupSnapshot group)
+        {
+            return WorkMonitorUiUtility.PassionShort(ResolvePassionForSkillWorkGiversInGroup(pawnId, group));
+        }
+
         public static string FormatColonistWorkGiverInterest(int pawnId, WorkGiverDef workGiver, WorkGroupSnapshot group)
         {
-            Passion wgPassion = ResolvePassionForWorkGiver(pawnId, workGiver);
-            if (wgPassion == Passion.Major)
+            if (!WorkGiverSkillUtility.UsesRelevantSkill(workGiver))
             {
-                return "++";
+                return "";
             }
 
-            if (wgPassion == Passion.Minor)
-            {
-                return "+";
-            }
-
-            if (group != null && ResolvePassionForGroup(pawnId, group) != Passion.None)
-            {
-                return "+";
-            }
-
-            return "";
+            return WorkMonitorUiUtility.PassionShort(ResolvePassionForWorkGiver(pawnId, workGiver));
         }
     }
 }

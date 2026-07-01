@@ -68,6 +68,10 @@ namespace WorkMonitor.UI
                 ? OverviewLayoutMode.WorkTypeColonistFirst
                 : OverviewLayoutMode.WorkTypeWorkGiverFirst;
             ClearExpandCaches();
+            if (stats != null && boundRangeState != null)
+            {
+                SetGroup(stats.Group, boundRangeState);
+            }
         }
 
         public void Draw(Rect rect, MonitorRangeState rangeState, out bool back, out bool colonistClicked, out ColonistWorkStat selectedColonist, out WorkGroupSnapshot groupChanged, out bool workGiverClicked, out WorkGiverDef selectedWorkGiver)
@@ -414,7 +418,7 @@ namespace WorkMonitor.UI
                     row,
                     colonist,
                     iconsCol,
-                    ColonistWorkQuery.FormatColonistGroupInterest(colonist.PawnId, stats.Group),
+                    ColonistWorkQuery.FormatColonistSkillGroupInterest(colonist.PawnId, stats.Group),
                     out bool inspectClicked) && inspectClicked && !colonist.IsAbsent)
                 {
                     ColonistInspectUtility.OpenPawnProfile(colonist.Pawn);
