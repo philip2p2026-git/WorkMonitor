@@ -225,10 +225,18 @@ namespace WorkMonitor.UI
             GUI.color = prev;
         }
 
+        public static void DrawInterestValue(Rect rect, string interest)
+        {
+            if (interest.NullOrEmpty())
+            {
+                return;
+            }
+
+            LabelRightStatValue(rect, interest);
+        }
+
         public static void DrawColonistLabel(Rect labelCol, ColonistWorkStat colonist)
         {
-            string passion = PassionShort(colonist.Passion);
-            string nameText = (passion + " " + colonist.Label).Trim();
             float iconReserve = colonist.IsAbsent ? AbsentIconSize + 4f : 0f;
             float nameWidth = Mathf.Max(0f, labelCol.width - iconReserve);
 
@@ -238,7 +246,7 @@ namespace WorkMonitor.UI
                 GUI.color = new Color(0.55f, 0.55f, 0.55f);
             }
 
-            Widgets.Label(new Rect(labelCol.x, labelCol.y, nameWidth, labelCol.height), nameText.Truncate(nameWidth));
+            Widgets.Label(new Rect(labelCol.x, labelCol.y, nameWidth, labelCol.height), colonist.Label.Truncate(nameWidth));
             GUI.color = prev;
 
             if (colonist.IsAbsent)

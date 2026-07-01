@@ -15,6 +15,7 @@
 	<WorkMonitor.Time>Time</WorkMonitor.Time>
 	<WorkMonitor.Worked>Worked</WorkMonitor.Worked>
 	<WorkMonitor.Interest>Interest</WorkMonitor.Interest>
+	<WorkMonitor.ColonistInterestTip>++ major passion for this WorkGiver's work type; + minor passion for this WorkGiver or passion elsewhere in the work type; blank = none.</WorkMonitor.ColonistInterestTip>
 	<WorkMonitor.Capable>capable {0}</WorkMonitor.Capable>
 	<WorkMonitor.Enabled>enabled {0}</WorkMonitor.Enabled>
 	<WorkMonitor.WorkedCount>worked {0}</WorkMonitor.WorkedCount>

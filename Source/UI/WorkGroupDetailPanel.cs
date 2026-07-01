@@ -400,6 +400,7 @@ namespace WorkMonitor.UI
                     out _,
                     out _,
                     out _,
+                    out _,
                     out _);
 
                 Rect clickRect = new Rect(labelCol.x, row.y, row.xMax - labelCol.x, row.height);
@@ -409,7 +410,12 @@ namespace WorkMonitor.UI
                     selectedColonist = colonist;
                 }
 
-                if (DrawColonistRow(row, colonist, iconsCol, out bool inspectClicked) && inspectClicked && !colonist.IsAbsent)
+                if (DrawColonistRow(
+                    row,
+                    colonist,
+                    iconsCol,
+                    ColonistWorkQuery.FormatColonistGroupInterest(colonist.PawnId, stats.Group),
+                    out bool inspectClicked) && inspectClicked && !colonist.IsAbsent)
                 {
                     ColonistInspectUtility.OpenPawnProfile(colonist.Pawn);
                 }
@@ -465,15 +471,16 @@ namespace WorkMonitor.UI
             GetColonistTableColumns(
                 row,
                 out _,
-                out Rect iconsCol,
+                out _,
                 out Rect labelCol,
+                out _,
+                out Rect kpiJobCol,
+                out Rect kpiWorkCol,
                 out Rect jobsCol,
                 out Rect endlessCol,
                 out Rect workCol,
                 out Rect walkCol,
-                out Rect workTimeCol,
-                out Rect kpiJobsCol,
-                out Rect kpiWorkCol);
+                out Rect activeWorkCol);
 
             Color prev = GUI.color;
             GUI.color = new Color(0.85f, 0.85f, 0.85f);
@@ -485,8 +492,8 @@ namespace WorkMonitor.UI
             WorkMonitorUiUtility.LabelRightStatValue(endlessCol, "0");
             WorkMonitorUiUtility.LabelRightStatValue(workCol, "—");
             WorkMonitorUiUtility.LabelRightStatValue(walkCol, "—");
-            WorkMonitorUiUtility.LabelRightStatValue(workTimeCol, "—");
-            WorkMonitorUiUtility.LabelRightStatValue(kpiJobsCol, "—");
+            WorkMonitorUiUtility.LabelRightStatValue(activeWorkCol, "—");
+            WorkMonitorUiUtility.LabelRightStatValue(kpiJobCol, "—");
             WorkMonitorUiUtility.LabelRightStatValue(kpiWorkCol, "—");
 
             y += RowHeight;
@@ -525,6 +532,8 @@ namespace WorkMonitor.UI
                     showHours,
                     rowIndex,
                     workGiver,
+                    interestPawnId: 0,
+                    stats.Group,
                     out WorkGiverDef clickedWg))
                 {
                     workGiverClicked = true;
@@ -580,6 +589,8 @@ namespace WorkMonitor.UI
                     showHours,
                     rowIndex,
                     workGiver,
+                    interestPawnId: 0,
+                    stats.Group,
                     out WorkGiverDef clickedWg))
                 {
                     workGiverClicked = true;
@@ -737,6 +748,8 @@ namespace WorkMonitor.UI
                     showHours,
                     rowIndex,
                     wg.WorkGiver,
+                    pawnId,
+                    stats.Group,
                     out WorkGiverDef clickedWg))
                 {
                     workGiverClicked = true;
@@ -773,6 +786,7 @@ namespace WorkMonitor.UI
                     out _,
                     out _,
                     out _,
+                    out _,
                     out _);
 
                 Rect clickRect = new Rect(labelCol.x, row.y, row.xMax - labelCol.x, row.height);
@@ -782,7 +796,12 @@ namespace WorkMonitor.UI
                     selectedColonist = colonist;
                 }
 
-                if (DrawColonistRow(row, colonist, iconsCol, out bool inspectClicked) && inspectClicked && !colonist.IsAbsent)
+                if (DrawColonistRow(
+                    row,
+                    colonist,
+                    iconsCol,
+                    ColonistWorkQuery.FormatColonistWorkGiverInterest(colonist.PawnId, detail.WorkGiver, stats.Group),
+                    out bool inspectClicked) && inspectClicked && !colonist.IsAbsent)
                 {
                     ColonistInspectUtility.OpenPawnProfile(colonist.Pawn);
                 }
@@ -806,6 +825,8 @@ namespace WorkMonitor.UI
             bool showHours,
             int rowIndex,
             WorkGiverDef navigateTarget,
+            int interestPawnId,
+            WorkGroupSnapshot group,
             out WorkGiverDef clickedWorkGiver)
         {
             clickedWorkGiver = null;
@@ -816,6 +837,7 @@ namespace WorkMonitor.UI
                 out _,
                 out _,
                 out Rect labelCol,
+                out Rect interestCol,
                 out Rect kpiJobCol,
                 out Rect kpiWorkCol,
                 out Rect jobsCol,
@@ -835,7 +857,7 @@ namespace WorkMonitor.UI
             GUI.color = new Color(0.8f, 0.8f, 0.8f);
             if (labelIndentFromArea.HasValue)
             {
-                float labelWidth = kpiJobCol.x - area.x - labelIndentFromArea.Value - 8f;
+                float labelWidth = interestCol.x - area.x - labelIndentFromArea.Value - 8f;
                 Widgets.Label(
                     new Rect(area.x + labelIndentFromArea.Value, columnRow.y, labelWidth, columnRow.height),
                     label.Truncate(labelWidth));
@@ -846,6 +868,13 @@ namespace WorkMonitor.UI
             }
 
             GUI.color = prev;
+
+            if (interestPawnId > 0 && navigateTarget != null)
+            {
+                WorkMonitorUiUtility.DrawInterestValue(
+                    interestCol,
+                    ColonistWorkQuery.FormatColonistWorkGiverInterest(interestPawnId, navigateTarget, group));
+            }
 
             float hours = ticksSpent / (float)WorkMonitorSettings.TicksPerHour;
             float jobsPerHour = hours > 0f ? jobCount / hours : 0f;
@@ -917,6 +946,7 @@ namespace WorkMonitor.UI
                 out Rect portraitCol,
                 out Rect iconsCol,
                 out Rect labelCol,
+                out Rect interestCol,
                 out Rect kpiJobCol,
                 out Rect kpiWorkCol,
                 out Rect jobsCol,
@@ -932,6 +962,8 @@ namespace WorkMonitor.UI
                 workGiverFirst
                     ? "WorkMonitor.WorkGiver".Translate()
                     : "WorkMonitor.Colonist".Translate());
+            LabelRight(interestCol, "WorkMonitor.Interest".Translate());
+            TooltipHandler.TipRegion(interestCol, "WorkMonitor.ColonistInterestTip".Translate());
             LabelRight(kpiJobCol, "WorkMonitor.KpiJobs".Translate());
             LabelRight(kpiWorkCol, "WorkMonitor.KpiWork".Translate());
 
@@ -947,7 +979,7 @@ namespace WorkMonitor.UI
             GUI.color = prev;
         }
 
-        private static bool DrawColonistRow(Rect row, ColonistWorkStat colonist, Rect iconsCol, out bool inspectClicked)
+        private static bool DrawColonistRow(Rect row, ColonistWorkStat colonist, Rect iconsCol, string interest, out bool inspectClicked)
         {
             inspectClicked = false;
 
@@ -957,6 +989,7 @@ namespace WorkMonitor.UI
                 out Rect portraitCol,
                 out _,
                 out Rect labelCol,
+                out Rect interestCol,
                 out Rect kpiJobCol,
                 out Rect kpiWorkCol,
                 out Rect jobsCol,
@@ -967,6 +1000,7 @@ namespace WorkMonitor.UI
 
             WorkMonitorUiUtility.DrawColonistPortrait(portraitCol, colonist);
             WorkMonitorUiUtility.DrawColonistLabel(labelCol, colonist);
+            WorkMonitorUiUtility.DrawInterestValue(interestCol, interest);
 
             Rect inspectRect = new Rect(iconsCol.x, row.y + (row.height - ColonistIconSize) * 0.5f, ColonistIconSize, ColonistIconSize);
             if (!colonist.IsAbsent)
@@ -1084,6 +1118,7 @@ namespace WorkMonitor.UI
             out Rect portraitCol,
             out Rect iconsCol,
             out Rect labelCol,
+            out Rect interestCol,
             out Rect kpiJobCol,
             out Rect kpiWorkCol,
             out Rect jobsCol,
@@ -1097,6 +1132,7 @@ namespace WorkMonitor.UI
                 out portraitCol,
                 out iconsCol,
                 out labelCol,
+                out interestCol,
                 out kpiJobCol,
                 out kpiWorkCol,
                 out jobsCol,

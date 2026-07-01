@@ -321,14 +321,26 @@ namespace WorkMonitor.UI
                 Rect columnRow = new Rect(area.x, y, tableWidth, RowHeight);
                 WorkMonitorUiUtility.DrawRowBackground(columnRow, MonitorRowKind.WorkGiver, rowIndex);
 
-                WorkMonitorTableColumns.GetColonistGroupColumns(columnRow, out Rect jobsCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol, out Rect shareCol);
+                WorkMonitorTableColumns.GetColonistGroupColumns(
+                    columnRow,
+                    out Rect interestCol,
+                    out Rect jobsCol,
+                    out Rect endlessCol,
+                    out Rect workCol,
+                    out Rect walkCol,
+                    out Rect activeWorkCol,
+                    out Rect shareCol);
 
                 Text.Font = GameFont.Tiny;
                 Color prev = GUI.color;
                 GUI.color = new Color(0.8f, 0.8f, 0.8f);
-                float labelWidth = jobsCol.x - area.x - WorkGiverIndent - 8f;
+                float labelWidth = interestCol.x - area.x - WorkGiverIndent - 8f;
                 Widgets.Label(new Rect(area.x + WorkGiverIndent, columnRow.y, labelWidth, columnRow.height), wg.Label.Truncate(labelWidth));
                 GUI.color = prev;
+
+                WorkMonitorUiUtility.DrawInterestValue(
+                    interestCol,
+                    ColonistWorkQuery.FormatColonistWorkGiverInterest(stats.PawnId, wg.WorkGiver, group));
 
                 WorkMonitorUiUtility.LabelRightWorkGiverStatValue(jobsCol, wg.JobCount.ToString());
                 WorkMonitorUiUtility.LabelRightWorkGiverStatValue(endlessCol, wg.EndlessJobCount.ToString());
@@ -350,7 +362,9 @@ namespace WorkMonitor.UI
 
             float metricsLeft = WorkMonitorTableColumns.ColonistGroupMetricsLeftEdge(row);
             Widgets.Label(new Rect(row.x + ExpandButtonWidth, row.y, metricsLeft - row.x - ExpandButtonWidth - 8f, row.height), "WorkMonitor.Group".Translate());
-            WorkMonitorTableColumns.GetColonistGroupColumns(row, out Rect jobCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol, out Rect shareCol);
+            WorkMonitorTableColumns.GetColonistGroupColumns(row, out Rect interestCol, out Rect jobCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol, out Rect shareCol);
+            LabelRight(interestCol, "WorkMonitor.Interest".Translate());
+            TooltipHandler.TipRegion(interestCol, "WorkMonitor.ColonistInterestTip".Translate());
             LabelRight(jobCol, "WorkMonitor.Jobs".Translate());
             LabelRight(endlessCol, "WorkMonitor.EndlessJobs".Translate());
             TooltipHandler.TipRegion(endlessCol, "WorkMonitor.EndlessJobsTip".Translate());
@@ -369,9 +383,12 @@ namespace WorkMonitor.UI
             Text.Font = GameFont.Small;
             float metricsLeft = WorkMonitorTableColumns.ColonistGroupMetricsLeftEdge(row);
             Widgets.Label(new Rect(row.x + ExpandButtonWidth, row.y, metricsLeft - row.x - ExpandButtonWidth - 8f, row.height), groupStat.Group.Label.Truncate(metricsLeft - row.x - ExpandButtonWidth - 8f));
-            WorkMonitorTableColumns.GetColonistGroupColumns(row, out Rect jobCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol, out Rect shareCol);
+            WorkMonitorTableColumns.GetColonistGroupColumns(row, out Rect interestCol, out Rect jobCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol, out Rect shareCol);
             bool showHours = WorkMonitorMod.Settings?.showTimeInHours ?? true;
 
+            WorkMonitorUiUtility.DrawInterestValue(
+                interestCol,
+                ColonistWorkQuery.FormatColonistGroupInterest(stats.PawnId, groupStat.Group));
             WorkMonitorUiUtility.LabelRightStatValue(jobCol, groupStat.JobCount.ToString());
             WorkMonitorUiUtility.LabelRightStatValue(endlessCol, groupStat.EndlessJobCount.ToString());
             WorkMonitorUiUtility.LabelRightStatValue(workCol, WorkMonitorUtility.FormatWorkUnits(groupStat.WorkUnitsSpent));

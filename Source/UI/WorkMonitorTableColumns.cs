@@ -28,6 +28,7 @@ namespace WorkMonitor.UI
         public const float OverviewWorkGiverIndent = 16f;
         public const float ColonistIconSize = 18f;
         public const float ColonistIconGap = 4f;
+        public const float ColonistInterestWidth = 28f;
         private const float GroupDetailKpiJobWidth = 63f;
         private const float GroupDetailKpiWorkWidth = 78f;
         private const float GroupDetailJobsWidth = 63f;
@@ -40,6 +41,7 @@ namespace WorkMonitor.UI
             out Rect portraitCol,
             out Rect iconsCol,
             out Rect labelCol,
+            out Rect interestCol,
             out Rect kpiJobCol,
             out Rect kpiWorkCol,
             out Rect jobsCol,
@@ -55,7 +57,8 @@ namespace WorkMonitor.UI
             float jobsX = endlessX - GroupDetailColumnGap - GroupDetailJobsWidth;
             float kpiWorkX = jobsX - GroupDetailColumnGap - GroupDetailKpiWorkWidth;
             float kpiJobX = kpiWorkX - GroupDetailColumnGap - GroupDetailKpiJobWidth;
-            float iconX = kpiJobX - GroupDetailColumnGap - ColonistIconSize;
+            float interestX = kpiJobX - GroupDetailColumnGap - ColonistInterestWidth;
+            float iconX = interestX - GroupDetailColumnGap - ColonistIconSize;
             float labelX = row.x + ExpandButtonWidth + ColonistIconGap + WorkMonitorUiUtility.ColonistPortraitSize + ColonistIconGap;
             float labelWidth = iconX - GroupDetailColumnGap - labelX;
             float portraitX = row.x + ExpandButtonWidth + ColonistIconGap;
@@ -63,6 +66,7 @@ namespace WorkMonitor.UI
             portraitCol = new Rect(portraitX, row.y, WorkMonitorUiUtility.ColonistPortraitSize, row.height);
             labelCol = new Rect(labelX, row.y, Mathf.Max(labelWidth, 48f), row.height);
             iconsCol = new Rect(iconX, row.y, ColonistIconSize, row.height);
+            interestCol = new Rect(interestX, row.y, ColonistInterestWidth, row.height);
             kpiJobCol = new Rect(kpiJobX, row.y, GroupDetailKpiJobWidth, row.height);
             kpiWorkCol = new Rect(kpiWorkX, row.y, GroupDetailKpiWorkWidth, row.height);
             jobsCol = new Rect(jobsX, row.y, GroupDetailJobsWidth, row.height);
@@ -77,6 +81,7 @@ namespace WorkMonitor.UI
             out Rect portraitCol,
             out Rect iconsCol,
             out Rect labelCol,
+            out Rect interestCol,
             out Rect kpiJobCol,
             out Rect kpiWorkCol,
             out Rect jobsCol,
@@ -92,13 +97,15 @@ namespace WorkMonitor.UI
             float jobsX = endlessX - GroupDetailColumnGap - GroupDetailJobsWidth;
             float kpiWorkX = jobsX - GroupDetailColumnGap - GroupDetailKpiWorkWidth;
             float kpiJobX = kpiWorkX - GroupDetailColumnGap - GroupDetailKpiJobWidth;
-            float iconX = kpiJobX - GroupDetailColumnGap - ColonistIconSize;
+            float interestX = kpiJobX - GroupDetailColumnGap - ColonistInterestWidth;
+            float iconX = interestX - GroupDetailColumnGap - ColonistIconSize;
             float labelX = row.x + WorkMonitorUiUtility.ColonistPortraitSize + ColonistIconGap;
             float labelWidth = iconX - GroupDetailColumnGap - labelX;
 
             portraitCol = new Rect(row.x, row.y, WorkMonitorUiUtility.ColonistPortraitSize, row.height);
             labelCol = new Rect(labelX, row.y, Mathf.Max(labelWidth, 48f), row.height);
             iconsCol = new Rect(iconX, row.y, ColonistIconSize, row.height);
+            interestCol = new Rect(interestX, row.y, ColonistInterestWidth, row.height);
             kpiJobCol = new Rect(kpiJobX, row.y, GroupDetailKpiJobWidth, row.height);
             kpiWorkCol = new Rect(kpiWorkX, row.y, GroupDetailKpiWorkWidth, row.height);
             jobsCol = new Rect(jobsX, row.y, GroupDetailJobsWidth, row.height);
@@ -172,6 +179,7 @@ namespace WorkMonitor.UI
 
         public static void GetColonistGroupColumns(
             Rect row,
+            out Rect interestCol,
             out Rect jobCol,
             out Rect endlessCol,
             out Rect workCol,
@@ -185,7 +193,9 @@ namespace WorkMonitor.UI
             float workX = walkX - ColumnGap - ColonistWorkWidth;
             float endlessX = workX - ColumnGap - ColonistEndlessWidth;
             float jobX = endlessX - ColumnGap - ColonistJobWidth;
+            float interestX = jobX - ColumnGap - ColonistInterestWidth;
 
+            interestCol = new Rect(interestX, row.y, ColonistInterestWidth, row.height);
             jobCol = new Rect(jobX, row.y, ColonistJobWidth, row.height);
             endlessCol = new Rect(endlessX, row.y, ColonistEndlessWidth, row.height);
             workCol = new Rect(workX, row.y, ColonistWorkWidth, row.height);
@@ -196,12 +206,13 @@ namespace WorkMonitor.UI
 
         public static float ColonistGroupMetricsLeftEdge(Rect row)
         {
-            GetColonistGroupColumns(row, out Rect jobCol, out _, out _, out _, out _, out _);
-            return jobCol.x;
+            GetColonistGroupColumns(row, out Rect interestCol, out _, out _, out _, out _, out _, out _);
+            return interestCol.x;
         }
 
         public static void GetColonistWorkGiverColumns(
             Rect row,
+            out Rect interestCol,
             out Rect jobCol,
             out Rect endlessCol,
             out Rect workCol,
@@ -215,7 +226,9 @@ namespace WorkMonitor.UI
             float workX = walkX - ColumnGap - ColonistWorkWidth;
             float endlessX = workX - ColumnGap - ColonistEndlessWidth;
             float jobX = endlessX - ColumnGap - ColonistJobWidth;
+            float interestX = jobX - ColumnGap - ColonistInterestWidth;
 
+            interestCol = new Rect(interestX, row.y, ColonistInterestWidth, row.height);
             jobCol = new Rect(jobX, row.y, ColonistJobWidth, row.height);
             endlessCol = new Rect(endlessX, row.y, ColonistEndlessWidth, row.height);
             workCol = new Rect(workX, row.y, ColonistWorkWidth, row.height);
@@ -226,8 +239,8 @@ namespace WorkMonitor.UI
 
         public static float ColonistWorkGiverMetricsLeftEdge(Rect row)
         {
-            GetColonistWorkGiverColumns(row, out Rect jobCol, out _, out _, out _, out _, out _);
-            return jobCol.x;
+            GetColonistWorkGiverColumns(row, out Rect interestCol, out _, out _, out _, out _, out _, out _);
+            return interestCol.x;
         }
 
         public static void GetGroupDetailColonistTimeColumns(
@@ -249,6 +262,7 @@ namespace WorkMonitor.UI
             GetOverviewMetricColumns(row, out Rect existJobCol, out Rect existWorkCol, out Rect jobProcessedCol, out Rect workProcessedCol);
             GetOverviewInterestColumn(row, out Rect interestCol);
             labelRight(interestCol, "WorkMonitor.Interest".Translate());
+            TooltipHandler.TipRegion(interestCol, "WorkMonitor.ColonistInterestTip".Translate());
             labelRight(existJobCol, "WorkMonitor.ExistJob".Translate());
             labelRight(existWorkCol, "WorkMonitor.ExistWork".Translate());
             labelRight(jobProcessedCol, "WorkMonitor.JobProcessed".Translate());

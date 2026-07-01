@@ -3,6 +3,7 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using WorkMonitor.Tracking;
+using WorkMonitor.UI;
 
 namespace WorkMonitor.Groups
 {
@@ -180,6 +181,32 @@ namespace WorkMonitor.Groups
             }
 
             return pawn.skills.MaxPassionOfRelevantSkillsFor(workGiver.workType);
+        }
+
+        public static string FormatColonistGroupInterest(int pawnId, WorkGroupSnapshot group)
+        {
+            return WorkMonitorUiUtility.PassionShort(ResolvePassionForGroup(pawnId, group));
+        }
+
+        public static string FormatColonistWorkGiverInterest(int pawnId, WorkGiverDef workGiver, WorkGroupSnapshot group)
+        {
+            Passion wgPassion = ResolvePassionForWorkGiver(pawnId, workGiver);
+            if (wgPassion == Passion.Major)
+            {
+                return "++";
+            }
+
+            if (wgPassion == Passion.Minor)
+            {
+                return "+";
+            }
+
+            if (group != null && ResolvePassionForGroup(pawnId, group) != Passion.None)
+            {
+                return "+";
+            }
+
+            return "";
         }
     }
 }

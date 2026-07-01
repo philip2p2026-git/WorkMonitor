@@ -156,7 +156,7 @@ namespace WorkMonitor.UI
                 Rect row = new Rect(area.x, y, area.width, RowHeight);
                 WorkMonitorUiUtility.DrawRowBackground(row, MonitorRowKind.Colonist, rowIndex);
 
-                GetColonistTableColumns(row, out Rect portraitCol, out Rect iconsCol, out Rect labelCol, out _, out _, out _, out _, out _, out _, out _);
+                GetColonistTableColumns(row, out Rect portraitCol, out Rect iconsCol, out Rect labelCol, out _, out _, out _, out _, out _, out _, out _, out _);
                 Rect clickRect = new Rect(labelCol.x, row.y, row.xMax - labelCol.x, row.height);
                 if (Widgets.ButtonInvisible(clickRect))
                 {
@@ -164,7 +164,7 @@ namespace WorkMonitor.UI
                     selectedColonist = colonist;
                 }
 
-                DrawColonistRow(row, colonist, iconsCol);
+                DrawColonistRow(row, colonist, iconsCol, stats);
                 y += RowHeight;
                 rowIndex++;
             }
@@ -185,10 +185,12 @@ namespace WorkMonitor.UI
             Text.Font = GameFont.Tiny;
             Color prev = GUI.color;
             GUI.color = new Color(0.72f, 0.72f, 0.72f);
-            GetColonistTableColumns(row, out Rect portraitCol, out Rect iconsCol, out Rect labelCol, out Rect kpiJobCol, out Rect kpiWorkCol, out Rect jobsCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol);
+            GetColonistTableColumns(row, out Rect portraitCol, out Rect iconsCol, out Rect labelCol, out Rect interestCol, out Rect kpiJobCol, out Rect kpiWorkCol, out Rect jobsCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol);
             Widgets.Label(portraitCol, "");
             Widgets.Label(labelCol, "WorkMonitor.Colonist".Translate());
             Widgets.Label(iconsCol, "");
+            LabelRight(interestCol, "WorkMonitor.Interest".Translate());
+            TooltipHandler.TipRegion(interestCol, "WorkMonitor.ColonistInterestTip".Translate());
             LabelRight(kpiJobCol, "WorkMonitor.KpiJobs".Translate());
             LabelRight(kpiWorkCol, "WorkMonitor.KpiWork".Translate());
             LabelRight(jobsCol, "WorkMonitor.Jobs".Translate());
@@ -199,10 +201,10 @@ namespace WorkMonitor.UI
             GUI.color = prev;
         }
 
-        private static void DrawColonistRow(Rect row, ColonistWorkStat colonist, Rect iconsCol)
+        private void DrawColonistRow(Rect row, ColonistWorkStat colonist, Rect iconsCol, WorkGiverDetailStats detail)
         {
             Text.Font = GameFont.Small;
-            GetColonistTableColumns(row, out Rect portraitCol, out _, out Rect labelCol, out Rect kpiJobCol, out Rect kpiWorkCol, out Rect jobsCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol);
+            GetColonistTableColumns(row, out Rect portraitCol, out _, out Rect labelCol, out Rect interestCol, out Rect kpiJobCol, out Rect kpiWorkCol, out Rect jobsCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol);
             WorkMonitorUiUtility.DrawColonistPortrait(portraitCol, colonist);
             Rect inspectRect = new Rect(iconsCol.x, row.y + (row.height - ColonistIconSize) * 0.5f, ColonistIconSize, ColonistIconSize);
             if (!colonist.IsAbsent)
@@ -224,6 +226,9 @@ namespace WorkMonitor.UI
             }
 
             WorkMonitorUiUtility.DrawColonistLabel(labelCol, colonist);
+            WorkMonitorUiUtility.DrawInterestValue(
+                interestCol,
+                ColonistWorkQuery.FormatColonistWorkGiverInterest(colonist.PawnId, detail.WorkGiver, detail.Group));
             WorkMonitorUiUtility.LabelRightStatValue(kpiJobCol, FormatPerHour(colonist.JobsPerHour, integer: true));
             WorkMonitorUiUtility.LabelRightStatValue(kpiWorkCol, FormatPerHour(colonist.WorkUnitsPerHour, integer: false));
             WorkMonitorUiUtility.LabelRightStatValue(jobsCol, colonist.JobCount.ToString());
@@ -238,6 +243,7 @@ namespace WorkMonitor.UI
             out Rect portraitCol,
             out Rect iconsCol,
             out Rect labelCol,
+            out Rect interestCol,
             out Rect kpiJobCol,
             out Rect kpiWorkCol,
             out Rect jobsCol,
@@ -251,6 +257,7 @@ namespace WorkMonitor.UI
                 out portraitCol,
                 out iconsCol,
                 out labelCol,
+                out interestCol,
                 out kpiJobCol,
                 out kpiWorkCol,
                 out jobsCol,

@@ -152,6 +152,7 @@ namespace WorkMonitor.Groups
                 {
                     WorkGiver = wg,
                     Label = WorkGiverLabelUtility.Format(wg),
+                    Passion = ColonistWorkQuery.ResolvePassionForWorkGiver(pawnId, wg),
                     JobCount = jobs,
                     EndlessJobCount = endless,
                     TicksSpent = ticks,

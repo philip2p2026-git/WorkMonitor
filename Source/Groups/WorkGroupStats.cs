@@ -56,6 +56,7 @@ namespace WorkMonitor.Groups
     {
         public WorkGiverDef WorkGiver;
         public string Label;
+        public Passion Passion;
         public int JobCount;
         public int EndlessJobCount;
         public int TicksSpent;
