@@ -675,7 +675,7 @@ namespace WorkMonitor.UI
                 return;
             }
 
-            float yMax = ComputeStackedYMax(colonistValues, mapValues);
+            float yMax = ComputeYMax(colonistValues, mapValues);
             DrawYAxis(new Rect(rect.x + 2f, plot.y, axisWidth, plot.height), yMax);
 
             for (int tick = 1; tick <= 3; tick++)
@@ -685,61 +685,69 @@ namespace WorkMonitor.UI
                 Widgets.DrawLine(new Vector2(plot.x, y), new Vector2(plot.xMax, y), GridColor, 1f);
             }
 
+            const float barGap = 1f;
             int count = colonistValues.Length;
             float colWidth = plot.width / Mathf.Max(1, count);
+            float barWidth = Mathf.Max(1f, (colWidth - barGap) * 0.5f);
             for (int i = 0; i < count; i++)
             {
                 float mapValue = mapValues != null && i < mapValues.Length ? mapValues[i] : 0f;
                 float mapNewToday = mapNewTodayValues != null && i < mapNewTodayValues.Length ? mapNewTodayValues[i] : 0f;
                 float mapExisting = mapValue - mapNewToday;
                 float colonistValue = colonistValues[i];
-                float mapExistingHeight = plot.height * (mapExisting / yMax);
-                float mapNewHeight = plot.height * (mapNewToday / yMax);
-                float colonistHeight = plot.height * (colonistValue / yMax);
-                float x = plot.x + i * colWidth;
-                float sliceWidth = Mathf.Max(1f, colWidth - 1f);
+                float slotX = plot.x + i * colWidth;
+                float orangeX = slotX;
+                float greenX = slotX + barWidth + barGap;
                 float yBottom = plot.yMax;
 
-                if (mapNewTodayValues != null)
+                if (mapValue > 0f)
                 {
-                    if (mapExistingHeight > 0f)
+                    if (mapNewTodayValues != null)
                     {
-                        Widgets.DrawBoxSolid(new Rect(x, yBottom - mapExistingHeight, sliceWidth, mapExistingHeight), MapExistingColor);
-                        yBottom -= mapExistingHeight;
+                        float mapExistingHeight = plot.height * (mapExisting / yMax);
+                        float mapNewHeight = plot.height * (mapNewToday / yMax);
+
+                        if (mapExistingHeight > 0f)
+                        {
+                            Widgets.DrawBoxSolid(new Rect(orangeX, yBottom - mapExistingHeight, barWidth, mapExistingHeight), MapExistingColor);
+                            yBottom -= mapExistingHeight;
+                        }
+
+                        if (mapNewHeight > 0f)
+                        {
+                            Widgets.DrawBoxSolid(new Rect(orangeX, yBottom - mapNewHeight, barWidth, mapNewHeight), MapNewTodayColor);
+                        }
+                    }
+                    else
+                    {
+                        float mapHeight = plot.height * (mapValue / yMax);
+                        Widgets.DrawBoxSolid(new Rect(orangeX, plot.yMax - mapHeight, barWidth, mapHeight), MapColor);
                     }
 
-                    if (mapNewHeight > 0f)
+                    if (colonistValue > 0f)
                     {
-                        Widgets.DrawBoxSolid(new Rect(x, yBottom - mapNewHeight, sliceWidth, mapNewHeight), MapNewTodayColor);
-                        yBottom -= mapNewHeight;
+                        float orangeHeight = plot.height * (mapValue / yMax);
+                        float greenClamped = Mathf.Min(colonistValue, mapValue);
+                        float greenHeight = plot.height * (greenClamped / yMax);
+                        float orangeTopY = plot.yMax - orangeHeight;
+                        Widgets.DrawBoxSolid(new Rect(greenX, orangeTopY, barWidth, greenHeight), ColonistColor);
                     }
-                }
-                else if (mapValue > 0f)
-                {
-                    float mapHeight = plot.height * (mapValue / yMax);
-                    Widgets.DrawBoxSolid(new Rect(x, yBottom - mapHeight, sliceWidth, mapHeight), MapColor);
-                    yBottom -= mapHeight;
-                }
-
-                if (colonistHeight > 0f)
-                {
-                    Widgets.DrawBoxSolid(new Rect(x, yBottom - colonistHeight, sliceWidth, colonistHeight), ColonistColor);
                 }
             }
 
             ChartAxisHelper.DrawXAxisLabels(plot, xLabels);
         }
 
-        private static float ComputeStackedYMax(float[] colonistValues, float[] mapValues)
+        private static float ComputeYMax(float[] colonistValues, float[] mapValues)
         {
             float yMax = 0.01f;
             for (int i = 0; i < colonistValues.Length; i++)
             {
                 float mapValue = mapValues != null && i < mapValues.Length ? mapValues[i] : 0f;
-                float total = colonistValues[i] + mapValue;
-                if (total > yMax)
+                float peak = Mathf.Max(mapValue, colonistValues[i]);
+                if (peak > yMax)
                 {
-                    yMax = total;
+                    yMax = peak;
                 }
             }
 
