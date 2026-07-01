@@ -3,6 +3,7 @@ using System.Linq;
 using RimWorld;
 using UnityEngine;
 using Verse;
+using WorkMonitor.Groups;
 using WorkMonitor.Tracking;
 
 namespace WorkMonitor.UI
@@ -927,6 +928,494 @@ namespace WorkMonitor.UI
 
                 x += colWidth;
             }
+        }
+    }
+
+    public struct PieSliceData
+    {
+        public string Label;
+        public float Value;
+        public Color Color;
+        public float NewTodayValue;
+        public int TravelTicks;
+        public int WorkTicks;
+    }
+
+    public enum PieSliceSplitMode
+    {
+        None,
+        WalkWork,
+        NewTodayOlder
+    }
+
+    public enum PieValueFormat
+    {
+        Integer,
+        WorkUnits,
+        Duration
+    }
+
+    public static class PieChartPalette
+    {
+        public const float SwatchSize = 10f;
+        public const float SwatchGap = 4f;
+        public const float SwatchTotalWidth = SwatchSize + SwatchGap;
+
+        private static readonly Dictionary<string, int> GroupIndexCache = new Dictionary<string, int>();
+
+        public static Color ForWorkGroup(WorkGroupKey key)
+        {
+            return Color.HSVToRGB(ResolveGroupIndex(key) * 0.618f % 1f, 0.58f, 0.88f);
+        }
+
+        public static Color ForWorkGiver(int indexInList)
+        {
+            return Color.HSVToRGB(indexInList * 0.618f % 1f, 0.58f, 0.88f);
+        }
+
+        public static Color Lighten(Color baseColor)
+        {
+            return new Color(
+                Mathf.Min(1f, baseColor.r + 0.28f),
+                Mathf.Min(1f, baseColor.g + 0.28f),
+                Mathf.Min(1f, baseColor.b + 0.28f),
+                baseColor.a);
+        }
+
+        public static Color Darken(Color baseColor)
+        {
+            return new Color(baseColor.r * 0.62f, baseColor.g * 0.62f, baseColor.b * 0.62f, baseColor.a);
+        }
+
+        public static void DrawSwatch(Rect row, float left, Color? color)
+        {
+            Rect swatch = new Rect(left, row.y + (row.height - SwatchSize) * 0.5f, SwatchSize, SwatchSize);
+            if (color.HasValue)
+            {
+                Widgets.DrawBoxSolid(swatch, color.Value);
+            }
+        }
+
+        private static int ResolveGroupIndex(WorkGroupKey key)
+        {
+            string storageKey = key.StorageKey;
+            if (GroupIndexCache.TryGetValue(storageKey, out int cached))
+            {
+                return cached;
+            }
+
+            int index = 0;
+            foreach (WorkGroupSnapshot group in WorkGroupRegistry.GetAllGroups())
+            {
+                if (group.Key.StorageKey == storageKey)
+                {
+                    GroupIndexCache[storageKey] = index;
+                    return index;
+                }
+
+                index++;
+            }
+
+            GroupIndexCache[storageKey] = index;
+            return index;
+        }
+    }
+
+    public static class DistributionPieChart
+    {
+        private static readonly Color WalkColor = new Color(0.55f, 0.75f, 0.95f);
+        private static readonly Color WorkColor = new Color(0.4f, 0.85f, 0.5f);
+        private static readonly Color SplitHintColor = new Color(0.75f, 0.75f, 0.75f);
+        private static readonly Color SliceEdgeColor = new Color(0.06f, 0.06f, 0.06f, 0.95f);
+        private const float SliceEdgeWidth = 1.25f;
+
+        private struct PieArcHit
+        {
+            public float StartDeg;
+            public float EndDeg;
+            public float InnerRadiusFrac;
+            public float OuterRadiusFrac;
+            public string Tooltip;
+        }
+
+        public static void Draw(
+            Rect rect,
+            string title,
+            List<PieSliceData> slices,
+            PieSliceSplitMode splitMode,
+            PieValueFormat valueFormat)
+        {
+            Widgets.DrawBoxSolid(rect, new Color(0.1f, 0.1f, 0.1f, 0.35f));
+            Text.Font = GameFont.Tiny;
+            Widgets.Label(new Rect(rect.x + 4f, rect.y + 2f, rect.width - 8f, 16f), title);
+
+            float headerBottom = rect.y + 18f;
+            if (splitMode == PieSliceSplitMode.WalkWork)
+            {
+                DrawSplitHint(new Rect(rect.x + 4f, rect.y + 16f, rect.width - 8f, 14f), WorkColor, WalkColor,
+                    "WorkMonitor.PieSplitInner".Translate("WorkMonitor.WorkTime".Translate()),
+                    "WorkMonitor.PieSplitOuter".Translate("WorkMonitor.Walk".Translate()));
+                headerBottom = rect.y + 30f;
+            }
+            else if (splitMode == PieSliceSplitMode.NewTodayOlder)
+            {
+                DrawSplitHint(new Rect(rect.x + 4f, rect.y + 16f, rect.width - 8f, 14f),
+                    PieChartPalette.Lighten(Color.white), PieChartPalette.Darken(Color.white),
+                    "WorkMonitor.PieSplitInner".Translate("WorkMonitor.ChartNewJobToday".Translate()),
+                    "WorkMonitor.PieSplitOuter".Translate("WorkMonitor.PieSplitOlder".Translate()));
+                headerBottom = rect.y + 30f;
+            }
+
+            Rect plot = new Rect(rect.x + 8f, headerBottom + 4f, rect.width - 16f, rect.yMax - headerBottom - 8f);
+            float total = 0f;
+            if (slices != null)
+            {
+                foreach (PieSliceData slice in slices)
+                {
+                    if (slice.Value > 0f)
+                    {
+                        total += slice.Value;
+                    }
+                }
+            }
+
+            if (slices == null || slices.Count == 0 || total <= 0f)
+            {
+                Text.Anchor = TextAnchor.MiddleCenter;
+                Widgets.Label(plot, "-");
+                Text.Anchor = TextAnchor.UpperLeft;
+                return;
+            }
+
+            float radius = Mathf.Min(plot.width, plot.height) * 0.45f;
+            Vector2 center = new Vector2(plot.x + plot.width * 0.5f, plot.y + plot.height * 0.5f);
+            var hits = new List<PieArcHit>();
+            float cursor = 0f;
+
+            foreach (PieSliceData slice in slices)
+            {
+                if (slice.Value <= 0f)
+                {
+                    continue;
+                }
+
+                float sliceSpan = 360f * (slice.Value / total);
+                float sliceEnd = cursor + sliceSpan;
+
+                if (splitMode == PieSliceSplitMode.WalkWork)
+                {
+                    int travel = slice.TravelTicks;
+                    int work = slice.WorkTicks;
+                    int tickTotal = travel + work;
+                    if (tickTotal <= 0)
+                    {
+                        AddSectorHit(hits, cursor, sliceEnd, 0f, 1f, slice.Label, FormatValue(slice.Value, valueFormat), null);
+                        if (Event.current.type == EventType.Repaint)
+                        {
+                            DrawAnnulusSector(center, 0f, radius, cursor, sliceEnd, slice.Color);
+                            DrawWedgeEdges(center, radius, cursor, sliceEnd, -1f);
+                        }
+                    }
+                    else
+                    {
+                        float workFrac = work / (float)tickTotal;
+                        DrawRadialSplit(
+                            center,
+                            radius,
+                            cursor,
+                            sliceEnd,
+                            workFrac,
+                            BlendSliceColor(slice.Color, WorkColor, 0.42f),
+                            BlendSliceColor(slice.Color, WalkColor, 0.55f),
+                            hits,
+                            slice.Label,
+                            work,
+                            travel,
+                            valueFormat,
+                            newTodayQualifier: "WorkMonitor.PieSliceHoverWork".Translate(),
+                            outerQualifier: "WorkMonitor.PieSliceHoverWalk".Translate());
+                    }
+                }
+                else if (splitMode == PieSliceSplitMode.NewTodayOlder)
+                {
+                    float newToday = Mathf.Clamp(slice.NewTodayValue, 0f, slice.Value);
+                    float older = slice.Value - newToday;
+                    float newFrac = newToday / slice.Value;
+                    DrawRadialSplit(
+                        center,
+                        radius,
+                        cursor,
+                        sliceEnd,
+                        newFrac,
+                        PieChartPalette.Lighten(slice.Color),
+                        PieChartPalette.Darken(slice.Color),
+                        hits,
+                        slice.Label,
+                        newToday,
+                        older,
+                        valueFormat,
+                        newTodayQualifier: "WorkMonitor.PieSliceHoverNewToday".Translate(),
+                        outerQualifier: "WorkMonitor.PieSliceHoverOlder".Translate());
+                }
+                else
+                {
+                    AddSectorHit(hits, cursor, sliceEnd, 0f, 1f, slice.Label, FormatValue(slice.Value, valueFormat), null);
+                    if (Event.current.type == EventType.Repaint)
+                    {
+                        DrawAnnulusSector(center, 0f, radius, cursor, sliceEnd, slice.Color);
+                        DrawWedgeEdges(center, radius, cursor, sliceEnd, -1f);
+                    }
+                }
+
+                cursor = sliceEnd;
+            }
+
+            if (plot.Contains(Event.current.mousePosition))
+            {
+                string tip = HitTest(hits, center, radius, Event.current.mousePosition);
+                if (!tip.NullOrEmpty())
+                {
+                    TooltipHandler.TipRegion(plot, tip);
+                }
+            }
+        }
+
+        private static void DrawRadialSplit(
+            Vector2 center,
+            float radius,
+            float startDeg,
+            float endDeg,
+            float innerPortion,
+            Color innerColor,
+            Color outerColor,
+            List<PieArcHit> hits,
+            string label,
+            float innerValue,
+            float outerValue,
+            PieValueFormat valueFormat,
+            string newTodayQualifier = null,
+            string outerQualifier = null)
+        {
+            innerPortion = Mathf.Clamp01(innerPortion);
+            string innerQual = newTodayQualifier ?? "WorkMonitor.PieSliceHoverWalk".Translate();
+            string outerQual = outerQualifier ?? "WorkMonitor.PieSliceHoverWork".Translate();
+            float innerR = radius * innerPortion;
+
+            if (innerPortion > 0.001f)
+            {
+                AddSectorHit(hits, startDeg, endDeg, 0f, innerPortion, label, FormatValue(innerValue, valueFormat), innerQual);
+                if (Event.current.type == EventType.Repaint)
+                {
+                    DrawAnnulusSector(center, 0f, innerR, startDeg, endDeg, innerColor);
+                }
+            }
+
+            if (innerPortion < 0.999f)
+            {
+                AddSectorHit(hits, startDeg, endDeg, innerPortion, 1f, label, FormatValue(outerValue, valueFormat), outerQual);
+                if (Event.current.type == EventType.Repaint)
+                {
+                    DrawAnnulusSector(center, innerR, radius, startDeg, endDeg, outerColor);
+                }
+            }
+
+            if (Event.current.type == EventType.Repaint)
+            {
+                DrawWedgeEdges(center, radius, startDeg, endDeg, innerPortion);
+            }
+        }
+
+        private static Color BlendSliceColor(Color sliceColor, Color accent, float accentWeight)
+        {
+            float w = Mathf.Clamp01(accentWeight);
+            return new Color(
+                Mathf.Lerp(sliceColor.r, accent.r, w),
+                Mathf.Lerp(sliceColor.g, accent.g, w),
+                Mathf.Lerp(sliceColor.b, accent.b, w),
+                sliceColor.a);
+        }
+
+        private static void DrawWedgeEdges(
+            Vector2 center,
+            float radius,
+            float startDeg,
+            float endDeg,
+            float innerPortionFrac)
+        {
+            DrawRadialEdge(center, 0f, radius, startDeg);
+            DrawRadialEdge(center, 0f, radius, endDeg);
+            DrawArcEdge(center, radius, startDeg, endDeg);
+
+            if (innerPortionFrac > 0.001f && innerPortionFrac < 0.999f)
+            {
+                DrawArcEdge(center, radius * innerPortionFrac, startDeg, endDeg);
+            }
+        }
+
+        private static void DrawRadialEdge(Vector2 center, float innerRadius, float outerRadius, float clockwiseDeg)
+        {
+            Vector2 inner = PointOnCircle(center, innerRadius, clockwiseDeg);
+            Vector2 outer = PointOnCircle(center, outerRadius, clockwiseDeg);
+            Widgets.DrawLine(inner, outer, SliceEdgeColor, SliceEdgeWidth);
+        }
+
+        private static void DrawArcEdge(Vector2 center, float arcRadius, float startDeg, float endDeg)
+        {
+            float span = endDeg - startDeg;
+            if (span <= 0.001f || arcRadius <= 0.001f)
+            {
+                return;
+            }
+
+            int segments = Mathf.Clamp(Mathf.CeilToInt(span / 3f), 2, 120);
+            float step = span / segments;
+            Vector2 prev = PointOnCircle(center, arcRadius, startDeg);
+            for (int i = 1; i <= segments; i++)
+            {
+                float deg = startDeg + step * i;
+                Vector2 next = PointOnCircle(center, arcRadius, deg);
+                Widgets.DrawLine(prev, next, SliceEdgeColor, SliceEdgeWidth);
+                prev = next;
+            }
+        }
+
+        private static void AddSectorHit(
+            List<PieArcHit> hits,
+            float startDeg,
+            float endDeg,
+            float innerRadiusFrac,
+            float outerRadiusFrac,
+            string label,
+            string value,
+            string qualifier)
+        {
+            hits.Add(new PieArcHit
+            {
+                StartDeg = startDeg,
+                EndDeg = endDeg,
+                InnerRadiusFrac = innerRadiusFrac,
+                OuterRadiusFrac = outerRadiusFrac,
+                Tooltip = FormatHover(label, value, qualifier)
+            });
+        }
+
+        private static void DrawSplitHint(Rect rect, Color leftColor, Color rightColor, string leftLabel, string rightLabel)
+        {
+            Color prev = GUI.color;
+            Widgets.DrawBoxSolid(new Rect(rect.x, rect.y + 3f, 8f, 8f), leftColor);
+            GUI.color = SplitHintColor;
+            float x = rect.x + 12f;
+            Widgets.Label(new Rect(x, rect.y, 60f, rect.height), leftLabel);
+            x += 52f;
+            Widgets.Label(new Rect(x, rect.y, 8f, rect.height), "\u25AA");
+            x += 10f;
+            Widgets.DrawBoxSolid(new Rect(x, rect.y + 3f, 8f, 8f), rightColor);
+            x += 12f;
+            Widgets.Label(new Rect(x, rect.y, rect.width - (x - rect.x), rect.height), rightLabel);
+            GUI.color = prev;
+        }
+
+        private static string FormatHover(string label, string value, string qualifier)
+        {
+            string item = qualifier.NullOrEmpty() ? label : label + " (" + qualifier + ")";
+            return "WorkMonitor.PieSliceHover".Translate(item, value);
+        }
+
+        private static string FormatValue(float value, PieValueFormat format)
+        {
+            return format switch
+            {
+                PieValueFormat.WorkUnits => WorkMonitorUtility.FormatWorkUnits(value),
+                PieValueFormat.Duration => WorkMonitorUtility.FormatDuration(
+                    Mathf.RoundToInt(value),
+                    WorkMonitorMod.Settings?.showTimeInHours ?? true),
+                _ => Mathf.RoundToInt(value).ToString()
+            };
+        }
+
+        private static string HitTest(List<PieArcHit> hits, Vector2 center, float radius, Vector2 mouse)
+        {
+            Vector2 local = mouse - center;
+            float dist = local.magnitude;
+            if (dist > radius || radius <= 0f)
+            {
+                return null;
+            }
+
+            float distFrac = dist / radius;
+            float clockwise = ClockwiseDegreesFromTop(local);
+            foreach (PieArcHit hit in hits)
+            {
+                if (clockwise >= hit.StartDeg
+                    && clockwise < hit.EndDeg
+                    && distFrac >= hit.InnerRadiusFrac
+                    && distFrac < hit.OuterRadiusFrac)
+                {
+                    return hit.Tooltip;
+                }
+            }
+
+            return null;
+        }
+
+        private static float ClockwiseDegreesFromTop(Vector2 local)
+        {
+            float ang = Mathf.Atan2(local.y, local.x) * Mathf.Rad2Deg;
+            return (ang + 90f + 360f) % 360f;
+        }
+
+        private static Vector2 PointOnCircle(Vector2 center, float radius, float clockwiseFromTop)
+        {
+            float rad = (-90f + clockwiseFromTop) * Mathf.Deg2Rad;
+            return new Vector2(
+                center.x + Mathf.Cos(rad) * radius,
+                center.y + Mathf.Sin(rad) * radius);
+        }
+
+        private static void DrawAnnulusSector(
+            Vector2 center,
+            float innerRadius,
+            float outerRadius,
+            float startClockwise,
+            float endClockwise,
+            Color color)
+        {
+            float span = endClockwise - startClockwise;
+            if (span <= 0.001f || outerRadius <= innerRadius + 0.001f)
+            {
+                return;
+            }
+
+            int segments = Mathf.Clamp(Mathf.CeilToInt(span / 2f), 1, 180);
+            float step = span / segments;
+            Material mat = SolidColorMaterials.SimpleSolidColorMaterial(color);
+            mat.SetPass(0);
+
+            GL.PushMatrix();
+            GL.MultMatrix(GUI.matrix);
+            GL.Begin(GL.TRIANGLES);
+            GL.Color(color);
+
+            for (int i = 0; i < segments; i++)
+            {
+                float a0 = startClockwise + step * i;
+                float a1 = startClockwise + step * (i + 1);
+                Vector2 p0Inner = PointOnCircle(center, innerRadius, a0);
+                Vector2 p1Inner = PointOnCircle(center, innerRadius, a1);
+                Vector2 p0Outer = PointOnCircle(center, outerRadius, a0);
+                Vector2 p1Outer = PointOnCircle(center, outerRadius, a1);
+
+                GL.Vertex3(p0Inner.x, p0Inner.y, 0f);
+                GL.Vertex3(p0Outer.x, p0Outer.y, 0f);
+                GL.Vertex3(p1Outer.x, p1Outer.y, 0f);
+
+                GL.Vertex3(p0Inner.x, p0Inner.y, 0f);
+                GL.Vertex3(p1Outer.x, p1Outer.y, 0f);
+                GL.Vertex3(p1Inner.x, p1Inner.y, 0f);
+            }
+
+            GL.End();
+            GL.PopMatrix();
         }
     }
 }

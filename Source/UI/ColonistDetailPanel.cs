@@ -16,12 +16,14 @@ namespace WorkMonitor.UI
         private const float ExpandButtonWidth = WorkMonitorTableColumns.ExpandButtonWidth;
         private const float WorkGiverIndent = 16f;
         private const float ExpandAllWidth = 76f;
+        private const float ChartHeight = 168f;
 
         private Vector2 scroll;
         private ColonistStats stats;
         private MonitorRangeState boundRangeState;
         private WorkGroupSnapshot returnGroup;
         private WorkGiverDef returnWorkGiver;
+        private readonly ColonistWorkTypePieChartPanel pieChartPanel = new ColonistWorkTypePieChartPanel();
         private readonly HashSet<string> expandedGroupKeys = new HashSet<string>();
         private readonly Dictionary<string, ColonistGroupWorkDetail> groupDetailCache = new Dictionary<string, ColonistGroupWorkDetail>();
         private int pendingColonistPawnId;
@@ -155,7 +157,10 @@ namespace WorkMonitor.UI
             Rect header = new Rect(rect.x, rect.y + 32f, rect.width, 18f);
             DrawHeader(header);
 
-            Rect content = new Rect(rect.x, header.yMax + 8f, rect.width, rect.yMax - header.yMax - 12f);
+            Rect chartRect = new Rect(rect.x, header.yMax + 4f, rect.width, ChartHeight);
+            pieChartPanel.Draw(chartRect, stats);
+
+            Rect content = new Rect(rect.x, chartRect.yMax + 6f, rect.width, rect.yMax - chartRect.yMax - 12f);
             float viewHeight = CalculateGroupsViewHeight();
             Rect viewRect = new Rect(0f, 0f, content.width - 16f, viewHeight);
             Widgets.BeginScrollView(content, ref scroll, viewRect);
@@ -367,7 +372,8 @@ namespace WorkMonitor.UI
             GUI.color = new Color(0.72f, 0.72f, 0.72f);
 
             float metricsLeft = WorkMonitorTableColumns.ColonistGroupMetricsLeftEdge(row);
-            Widgets.Label(new Rect(row.x + ExpandButtonWidth, row.y, metricsLeft - row.x - ExpandButtonWidth - 8f, row.height), "WorkMonitor.Group".Translate());
+            float labelLeft = row.x + ExpandButtonWidth + PieChartPalette.SwatchTotalWidth;
+            Widgets.Label(new Rect(labelLeft, row.y, metricsLeft - labelLeft - 8f, row.height), "WorkMonitor.Group".Translate());
             WorkMonitorTableColumns.GetColonistGroupColumns(row, out Rect interestCol, out Rect jobCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol, out Rect shareCol);
             LabelRight(interestCol, "WorkMonitor.Interest".Translate());
             TooltipHandler.TipRegion(interestCol, "WorkMonitor.ColonistInterestTip".Translate());
@@ -388,7 +394,16 @@ namespace WorkMonitor.UI
         {
             Text.Font = GameFont.Small;
             float metricsLeft = WorkMonitorTableColumns.ColonistGroupMetricsLeftEdge(row);
-            Widgets.Label(new Rect(row.x + ExpandButtonWidth, row.y, metricsLeft - row.x - ExpandButtonWidth - 8f, row.height), groupStat.Group.Label.Truncate(metricsLeft - row.x - ExpandButtonWidth - 8f));
+            float swatchLeft = row.x + ExpandButtonWidth;
+            float labelLeft = swatchLeft + PieChartPalette.SwatchTotalWidth;
+            bool showSwatch = groupStat.JobCount > 0 || groupStat.WorkUnitsSpent > 0f || groupStat.TicksSpent > 0;
+            PieChartPalette.DrawSwatch(
+                row,
+                swatchLeft,
+                showSwatch ? PieChartPalette.ForWorkGroup(groupStat.Group.Key) : (Color?)null);
+            Widgets.Label(
+                new Rect(labelLeft, row.y, metricsLeft - labelLeft - 8f, row.height),
+                groupStat.Group.Label.Truncate(metricsLeft - labelLeft - 8f));
             WorkMonitorTableColumns.GetColonistGroupColumns(row, out Rect interestCol, out Rect jobCol, out Rect endlessCol, out Rect workCol, out Rect walkCol, out Rect activeWorkCol, out Rect shareCol);
             bool showHours = WorkMonitorMod.Settings?.showTimeInHours ?? true;
 

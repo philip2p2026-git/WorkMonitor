@@ -11,6 +11,8 @@ namespace WorkMonitor.UI
     {
         private const float RowHeight = 24f;
         private const float ChartHeight = 168f;
+        private const float MapPieHeight = 168f;
+        private const float MapPieGap = 12f;
         private const float ColonistIconSize = WorkMonitorTableColumns.ColonistIconSize;
         private const float JobsWidth = 63f;
         private const float EndlessJobWidth = 66f;
@@ -24,6 +26,7 @@ namespace WorkMonitor.UI
         private const float ToolbarGap = 4f;
 
         private readonly WorkGroupChartPanel chartPanel = new WorkGroupChartPanel();
+        private readonly WorkGroupMapBacklogPieChartPanel mapPiePanel = new WorkGroupMapBacklogPieChartPanel();
         private Vector2 scroll;
         private WorkGroupStats stats;
         private List<WorkGroupStats> allStats = new List<WorkGroupStats>();
@@ -127,13 +130,15 @@ namespace WorkMonitor.UI
             chartPanel.Draw(chartRect, stats, allStats, rangeState);
 
             Rect content = new Rect(rect.x, chartRect.yMax + 6f, rect.width, rect.yMax - chartRect.yMax - 12f);
-            float viewHeight = 150f + CalculateColonistViewHeight() + stats.WorkGiverStats.Count * RowHeight;
+            float viewHeight = 150f + CalculateColonistViewHeight() + MapPieGap + MapPieHeight + MapPieGap + stats.WorkGiverStats.Count * RowHeight + RowHeight;
             Rect view = new Rect(0f, 0f, content.width - 16f, viewHeight);
             Widgets.BeginScrollView(content, ref scroll, view);
 
             float y = 0f;
             DrawColonistTable(new Rect(0f, y, view.width, viewHeight - y), rangeState, ref y, out colonistClicked, out selectedColonist, out workGiverClicked, out selectedWorkGiver);
-            y += 12f;
+            y += MapPieGap;
+            mapPiePanel.Draw(new Rect(0f, y, view.width, MapPieHeight), stats);
+            y += MapPieHeight + MapPieGap;
             DrawWorkGiverTable(new Rect(0f, y, view.width, viewHeight - y), ref y, out bool mapWgClicked, out WorkGiverDef mapWg);
             if (mapWgClicked)
             {
@@ -932,12 +937,13 @@ namespace WorkMonitor.UI
             y += RowHeight;
 
             int rowIndex = 0;
-            foreach (WorkGiverStat wg in stats.WorkGiverStats)
+            for (int i = 0; i < stats.WorkGiverStats.Count; i++)
             {
+                WorkGiverStat wg = stats.WorkGiverStats[i];
                 Rect row = new Rect(area.x, y, area.width, RowHeight);
                 WorkMonitorUiUtility.DrawRowBackground(row, MonitorRowKind.WorkGiver, rowIndex);
 
-                DrawWorkGiverRow(row, wg, out bool clicked);
+                DrawWorkGiverRow(row, wg, i, out bool clicked);
                 if (clicked)
                 {
                     workGiverClicked = true;
@@ -1062,7 +1068,7 @@ namespace WorkMonitor.UI
 
             GetMapTableColumns(row, out Rect labelCol, out Rect mapJobsCol, out Rect mapWorkCol, out Rect colonistJobsCol, out Rect endlessCol);
 
-            Widgets.Label(labelCol, "WorkMonitor.WorkGiver".Translate());
+            Widgets.Label(new Rect(labelCol.x + PieChartPalette.SwatchTotalWidth, labelCol.y, labelCol.width - PieChartPalette.SwatchTotalWidth, labelCol.height), "WorkMonitor.WorkGiver".Translate());
             LabelRight(mapJobsCol, "WorkMonitor.ExistJob".Translate());
             TooltipHandler.TipRegion(mapJobsCol, "WorkMonitor.ExistJobTip".Translate());
             LabelRight(mapWorkCol, "WorkMonitor.ExistWork".Translate());
@@ -1076,7 +1082,7 @@ namespace WorkMonitor.UI
             GUI.color = prev;
         }
 
-        private void DrawWorkGiverRow(Rect row, WorkGiverStat wg, out bool clicked)
+        private void DrawWorkGiverRow(Rect row, WorkGiverStat wg, int workGiverIndex, out bool clicked)
         {
             clicked = false;
             Text.Font = GameFont.Small;
@@ -1087,7 +1093,17 @@ namespace WorkMonitor.UI
                 clicked = true;
             }
 
-            WorkGiverLabelUtility.Draw(row, labelCol.x, labelCol.width, wg.WorkGiver, GameFont.Small);
+            bool showSwatch = wg.MapOpenTasks > 0 || wg.MapWorkLeft > 0f;
+            PieChartPalette.DrawSwatch(
+                row,
+                labelCol.x,
+                showSwatch ? PieChartPalette.ForWorkGiver(workGiverIndex) : (Color?)null);
+            WorkGiverLabelUtility.Draw(
+                row,
+                labelCol.x + PieChartPalette.SwatchTotalWidth,
+                labelCol.width - PieChartPalette.SwatchTotalWidth,
+                wg.WorkGiver,
+                GameFont.Small);
             string mapJobsText = WorkMonitorUiUtility.FormatMapOpenTasks(wg.MapOpenTasks, wg.MapNewTodayOpenTasks);
             string mapWorkText = WorkMonitorUiUtility.FormatMapWorkLeft(wg.MapWorkLeft, wg.MapNewTodayWorkLeft);
             WorkMonitorUiUtility.LabelRightWorkGiverStatValue(mapJobsCol, mapJobsText);
@@ -1105,7 +1121,7 @@ namespace WorkMonitor.UI
 
             Color prev = GUI.color;
             GUI.color = new Color(0.85f, 0.85f, 0.85f);
-            Widgets.Label(labelCol, "WorkMonitor.MapTotal".Translate(stats.Group.Label));
+            Widgets.Label(new Rect(labelCol.x + PieChartPalette.SwatchTotalWidth, labelCol.y, labelCol.width - PieChartPalette.SwatchTotalWidth, labelCol.height), "WorkMonitor.MapTotal".Translate(stats.Group.Label));
             string mapJobsText = WorkMonitorUiUtility.FormatMapOpenTasks(stats.TotalMapOpenTasks, stats.TotalMapNewTodayOpenTasks);
             string mapWorkText = WorkMonitorUiUtility.FormatMapWorkLeft(stats.TotalMapWorkLeft, stats.TotalMapNewTodayWorkLeft);
             WorkMonitorUiUtility.LabelRightStatValue(mapJobsCol, mapJobsText);

@@ -145,6 +145,14 @@
 	<WorkMonitor.ChartNewJobToday>New job today</WorkMonitor.ChartNewJobToday>
 	<WorkMonitor.ChartExistWork>Exist work</WorkMonitor.ChartExistWork>
 	<WorkMonitor.ChartNewWorkToday>New work today</WorkMonitor.ChartNewWorkToday>
+	<WorkMonitor.PieSliceHover>{0} - {1}</WorkMonitor.PieSliceHover>
+	<WorkMonitor.PieSliceHoverWalk>walk</WorkMonitor.PieSliceHoverWalk>
+	<WorkMonitor.PieSliceHoverWork>work</WorkMonitor.PieSliceHoverWork>
+	<WorkMonitor.PieSliceHoverNewToday>new today</WorkMonitor.PieSliceHoverNewToday>
+	<WorkMonitor.PieSliceHoverOlder>older</WorkMonitor.PieSliceHoverOlder>
+	<WorkMonitor.PieSplitOlder>Older</WorkMonitor.PieSplitOlder>
+	<WorkMonitor.PieSplitInner>Inner: {0}</WorkMonitor.PieSplitInner>
+	<WorkMonitor.PieSplitOuter>Outer: {0}</WorkMonitor.PieSplitOuter>
 	<WorkMonitor.ColonistAbsentTip>Colonist is not currently on this map (dead, away, or otherwise absent). Historical work stats are retained.</WorkMonitor.ColonistAbsentTip>
 	<WorkMonitor.SettingsExport>Export backed data (CSV)</WorkMonitor.SettingsExport>
 	<WorkMonitor.SettingsSectionRange>Range and history</WorkMonitor.SettingsSectionRange>
