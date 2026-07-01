@@ -138,7 +138,7 @@ Source/
     ├── BulkExpandUtility.cs, OverviewLayoutMode.cs
     ├── WorkMonitorTableColumns.cs, MonitorRowKind.cs
     ├── WorkMonitorUiUtility.cs, WorkMonitorDropdownUtility.cs
-    ├── WorkGiverLabelUtility.cs, WorkGiverSkillUtility.cs
+    ├── WorkGiverLabelUtility.cs, WorkGiverSkillMarkerMode.cs, WorkGiverSkillUtility.cs
     ├── ColonistInspectUtility.cs, WorkTabHighlightController.cs
 ```
 
@@ -404,9 +404,7 @@ Map table columns always read **latest** snapshot only (not range-summed). Map c
 | `maxDailyBuckets` / `maxQuadrumBuckets` / `maxYearBuckets` | 20 / 12 / 7 | Coarse history caps. **No settings UI.** |
 | `yearHistoryUnlimited` | false | Disable year-bucket cap when true. **No settings UI.** |
 | `showTimeInHours` | true | Display ticks as hours. |
-| `showSkillOnWorkGiverLabels` | true | Draw RimWorld skill icon before work giver label (or text `{skill}` when format includes it). |
-| `workGiverLabelFormat` | `{label}` | Label template; default icon + name; use `{skill}: {label}` for text-only skill prefix. |
-| `skillRoleOverrides` | `""` | `SkillDef=label` comma list (text mode when format includes `{skill}`). |
+| `skillMarkerMode` | `Parentheses` | Text marker for skill-related work givers: Off, `(skill) label`, or `* label`. Migrates from legacy `showSkillOnWorkGiverLabels` on load. |
 | `workGiverSkillOverrides` | `""` | `WorkGiverDef=true/false` comma list. |
 | `monitorWindowSize` | 720×520 | Standalone monitor window size. **No settings UI.** |
 
@@ -417,8 +415,8 @@ Exposed in `WorkMonitorMod.DrawSettingsContents` (mod options):
 - Default range preset and overview layout (sliders on one row)
 - Day rollover slider (00:00, 05:00, 08:00; default 05:00)
 - Green/yellow status thresholds and UI refresh interval (ticks)
-- Show time in hours; show skill on work-giver labels (RimWorld skill icons by default)
-- Work-giver label format; skill role overrides (text mode); work-giver skill overrides
+- Show time in hours; skill marker slider (Off / (skill) / *; default (skill))
+- Work-giver skill overrides
 - Map sample interval (cycle 1/2/3/6/12 h; default 1 h)
 - CSV export: colonist, map work-giver, both, open export folder
 
@@ -624,7 +622,7 @@ Opening **colonist work detail** from WorkType or WorkGiver detail pre-selects t
 | `WorkGroupMonitorWindow.cs` | Standalone window (Work tab monitor button) | hosts `WorkMonitorContentHost` | — |
 | `WorkMonitorUiUtility.cs` | Shared drawing/formatting (`FormatTimeShare`, stat labels) | — | — |
 | `WorkMonitorDropdownUtility.cs` | WorkType / colonist / work-giver dropdowns | — | — |
-| `WorkGiverLabelUtility.cs`, `WorkGiverSkillUtility.cs` | Skill-prefixed labels and passion resolution | — | — |
+| `WorkGiverLabelUtility.cs`, `WorkGiverSkillMarkerMode.cs`, `WorkGiverSkillUtility.cs` | Text skill markers on work-giver labels and passion resolution | — | — |
 | `ColonistInspectUtility.cs` | Open colonist bio from info icon | — | — |
 | `WorkTabHighlightController.cs` | Highlight matching Work Tab column | — | — |
 | `MonitorRowKind.cs` | Row kind enum (Colonist / WorkType / WorkGiver / Total) | — | — |

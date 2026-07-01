@@ -107,9 +107,10 @@
 	<WorkMonitor.JobsWorkUnitsSummary>{0} jobs · {1} work · {2}</WorkMonitor.JobsWorkUnitsSummary>
 	<WorkMonitor.WorkGiverRow>{0} — {1} jobs · {2}</WorkMonitor.WorkGiverRow>
 	<WorkMonitor.WorkGiverRowUnits>{0} — {1} jobs · {2} work · {3}</WorkMonitor.WorkGiverRowUnits>
-	<WorkMonitor.SettingsShowSkillOnWorkGiver>Show skill role on WorkGiver labels</WorkMonitor.SettingsShowSkillOnWorkGiver>
-	<WorkMonitor.SettingsWorkGiverLabelFormat>WorkGiver label format ({skill}, {label})</WorkMonitor.SettingsWorkGiverLabelFormat>
-	<WorkMonitor.SettingsSkillRoleOverrides>Skill role overrides for text mode when format includes {skill} (SkillDef=Label, comma-separated). Example: Shooting=Marksmanship, Intellectual=Science. Default display uses RimWorld skill icons.</WorkMonitor.SettingsSkillRoleOverrides>
+	<WorkMonitor.SettingsSkillMarker>Skill marker on WorkGiver labels</WorkMonitor.SettingsSkillMarker>
+	<WorkMonitor.SkillMarkerOff>Off</WorkMonitor.SkillMarkerOff>
+	<WorkMonitor.SkillMarkerParentheses>(skill)</WorkMonitor.SkillMarkerParentheses>
+	<WorkMonitor.SkillMarkerAsterisk>*</WorkMonitor.SkillMarkerAsterisk>
 	<WorkMonitor.SettingsWorkGiverSkillOverrides>WorkGiver skill overrides (WorkGiverDef=true/false, comma-separated)</WorkMonitor.SettingsWorkGiverSkillOverrides>
 	<WorkMonitor.SettingsMapSampleInterval>Map work sample interval</WorkMonitor.SettingsMapSampleInterval>
 	<WorkMonitor.SettingsMapSampleCycle>Cycle map sample interval</WorkMonitor.SettingsMapSampleCycle>

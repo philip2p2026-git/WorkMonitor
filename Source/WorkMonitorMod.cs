@@ -10,7 +10,7 @@ namespace WorkMonitor
 {
     public class WorkMonitorMod : Mod
     {
-        private const float SettingsContentHeight = 580f;
+        private const float SettingsContentHeight = 520f;
         private const float SettingsRowHeight = 28f;
         private const float SettingsSectionGap = 10f;
         private const float SettingsControlGap = 6f;
@@ -68,12 +68,7 @@ namespace WorkMonitor
             DrawDisplayCheckboxesRow(listing);
             listing.Gap(SettingsControlGap);
 
-            listing.Label("WorkMonitor.SettingsWorkGiverLabelFormat".Translate());
-            Settings.workGiverLabelFormat = listing.TextEntry(Settings.workGiverLabelFormat ?? "{label}");
-            listing.Gap(SettingsControlGap);
-
-            listing.Label("WorkMonitor.SettingsSkillRoleOverrides".Translate());
-            Settings.skillRoleOverrides = listing.TextEntry(Settings.skillRoleOverrides ?? "");
+            DrawSkillMarkerSliderRow(listing);
             listing.Gap(SettingsControlGap);
 
             listing.Label("WorkMonitor.SettingsWorkGiverSkillOverrides".Translate());
@@ -259,22 +254,44 @@ namespace WorkMonitor
         private static void DrawDisplayCheckboxesRow(Listing_Standard listing)
         {
             Rect row = listing.GetRect(SettingsRowHeight);
-            float gap = 8f;
-            float columnWidth = (row.width - gap) * 0.5f;
 
             bool showTimeInHours = Settings.showTimeInHours;
             Widgets.CheckboxLabeled(
-                new Rect(row.x, row.y, columnWidth, row.height),
+                new Rect(row.x, row.y, row.width, row.height),
                 "WorkMonitor.SettingsShowTimeInHours".Translate(),
                 ref showTimeInHours);
             Settings.showTimeInHours = showTimeInHours;
+        }
 
-            bool showSkillOnWorkGiver = Settings.showSkillOnWorkGiverLabels;
-            Widgets.CheckboxLabeled(
-                new Rect(row.x + columnWidth + gap, row.y, columnWidth, row.height),
-                "WorkMonitor.SettingsShowSkillOnWorkGiver".Translate(),
-                ref showSkillOnWorkGiver);
-            Settings.showSkillOnWorkGiverLabels = showSkillOnWorkGiver;
+        private static void DrawSkillMarkerSliderRow(Listing_Standard listing)
+        {
+            Rect row = listing.GetRect(SettingsRowHeight);
+            float labelWidth = 132f;
+            float valueWidth = 72f;
+            float sliderWidth = row.width - labelWidth - valueWidth - SettingsControlGap;
+
+            Widgets.Label(new Rect(row.x, row.y, labelWidth, row.height), "WorkMonitor.SettingsSkillMarker".Translate());
+
+            int markerIndex = (int)Settings.skillMarkerMode;
+            float sliderValue = Widgets.HorizontalSlider(
+                new Rect(row.x + labelWidth, row.y + 4f, sliderWidth, row.height),
+                markerIndex,
+                0f,
+                2f,
+                true);
+            int newIndex = Mathf.Clamp(Mathf.RoundToInt(sliderValue), 0, 2);
+            if (newIndex != markerIndex)
+            {
+                Settings.skillMarkerMode = (WorkGiverSkillMarkerMode)newIndex;
+            }
+
+            string valueText = Settings.skillMarkerMode switch
+            {
+                WorkGiverSkillMarkerMode.Parentheses => "WorkMonitor.SkillMarkerParentheses".Translate(),
+                WorkGiverSkillMarkerMode.Asterisk => "WorkMonitor.SkillMarkerAsterisk".Translate(),
+                _ => "WorkMonitor.SkillMarkerOff".Translate()
+            };
+            DrawRightLabel(new Rect(row.xMax - valueWidth, row.y, valueWidth, row.height), valueText);
         }
 
         private static void DrawMapSampleSliderRow(Listing_Standard listing)

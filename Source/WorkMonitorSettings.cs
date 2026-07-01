@@ -15,13 +15,11 @@ namespace WorkMonitor
         public int refreshIntervalTicks = 60;
         public bool showTimeInHours = true;
         public UI.OverviewLayoutMode overviewLayoutMode = UI.OverviewLayoutMode.WorkTypeColonistFirst;
-        public bool showSkillOnWorkGiverLabels = true;
+        public UI.WorkGiverSkillMarkerMode skillMarkerMode = UI.WorkGiverSkillMarkerMode.Parentheses;
 
         public bool WorkGiverFirst => overviewLayoutMode == UI.OverviewLayoutMode.WorkTypeWorkGiverFirst;
 
         public bool ColonistTopLevel => overviewLayoutMode == UI.OverviewLayoutMode.ColonistTopLevel;
-        public string workGiverLabelFormat = "{label}";
-        public string skillRoleOverrides = "";
         public string workGiverSkillOverrides = "";
         public int mapSampleIntervalHours = 1;
         public int defaultRangePreset = (int)UI.MonitorRangePreset.Hours24;
@@ -37,7 +35,6 @@ namespace WorkMonitor
 
         public Vector2 monitorWindowSize = new Vector2(720f, 520f);
 
-        private Dictionary<string, string> skillRoleOverrideCache;
         private Dictionary<string, bool> workGiverSkillOverrideCache;
 
         public int StatsWindowTicks => statsWindowHours * TicksPerHour;
@@ -101,18 +98,6 @@ namespace WorkMonitor
             return NormalizeDayRolloverHour(hour).ToString("00") + ":00";
         }
 
-        public bool TryGetSkillRoleOverride(string skillDefName, out string label)
-        {
-            label = null;
-            if (skillDefName.NullOrEmpty())
-            {
-                return false;
-            }
-
-            EnsureOverrideCache();
-            return skillRoleOverrideCache.TryGetValue(skillDefName, out label);
-        }
-
         public bool TryGetWorkGiverSkillOverride(string workGiverDefName, out bool usesSkill)
         {
             usesSkill = false;
@@ -167,43 +152,6 @@ namespace WorkMonitor
             }
         }
 
-        private void EnsureOverrideCache()
-        {
-            if (skillRoleOverrideCache != null)
-            {
-                return;
-            }
-
-            skillRoleOverrideCache = new Dictionary<string, string>();
-            if (skillRoleOverrides.NullOrEmpty())
-            {
-                return;
-            }
-
-            string[] pairs = skillRoleOverrides.Split(',');
-            foreach (string pair in pairs)
-            {
-                string trimmed = pair.Trim();
-                if (trimmed.NullOrEmpty())
-                {
-                    continue;
-                }
-
-                int eq = trimmed.IndexOf('=');
-                if (eq <= 0)
-                {
-                    continue;
-                }
-
-                string key = trimmed.Substring(0, eq).Trim();
-                string value = trimmed.Substring(eq + 1).Trim();
-                if (!key.NullOrEmpty() && !value.NullOrEmpty())
-                {
-                    skillRoleOverrideCache[key] = value;
-                }
-            }
-        }
-
         public override void ExposeData()
         {
             Scribe_Values.Look(ref statsWindowHours, "statsWindowHours", 24);
@@ -231,13 +179,30 @@ namespace WorkMonitor
                 }
             }
 
-            Scribe_Values.Look(ref showSkillOnWorkGiverLabels, "showSkillOnWorkGiverLabels", true);
-            Scribe_Values.Look(ref workGiverLabelFormat, "workGiverLabelFormat", "{label}");
-            if (Scribe.mode == LoadSaveMode.LoadingVars && workGiverLabelFormat == "{skill}: {label}")
+            int skillMarkerModeInt = (int)skillMarkerMode;
+            Scribe_Values.Look(ref skillMarkerModeInt, "skillMarkerMode", -1);
+
+            bool legacyShowSkillOnWorkGiverLabels = true;
+            Scribe_Values.Look(ref legacyShowSkillOnWorkGiverLabels, "showSkillOnWorkGiverLabels", true);
+            string legacyWorkGiverLabelFormat = null;
+            Scribe_Values.Look(ref legacyWorkGiverLabelFormat, "workGiverLabelFormat", "{skill} {label}");
+            string legacySkillRoleOverrides = null;
+            Scribe_Values.Look(ref legacySkillRoleOverrides, "skillRoleOverrides", "");
+
+            if (Scribe.mode == LoadSaveMode.LoadingVars)
             {
-                workGiverLabelFormat = "{label}";
+                if (skillMarkerModeInt < 0)
+                {
+                    skillMarkerMode = legacyShowSkillOnWorkGiverLabels
+                        ? UI.WorkGiverSkillMarkerMode.Parentheses
+                        : UI.WorkGiverSkillMarkerMode.Off;
+                }
+                else
+                {
+                    skillMarkerMode = (UI.WorkGiverSkillMarkerMode)Mathf.Clamp(skillMarkerModeInt, 0, 2);
+                }
             }
-            Scribe_Values.Look(ref skillRoleOverrides, "skillRoleOverrides", "");
+
             Scribe_Values.Look(ref workGiverSkillOverrides, "workGiverSkillOverrides", "");
             Scribe_Values.Look(ref mapSampleIntervalHours, "mapSampleIntervalHours", 1);
             Scribe_Values.Look(ref defaultRangePreset, "defaultRangePreset", (int)UI.MonitorRangePreset.Hours24);
@@ -251,7 +216,6 @@ namespace WorkMonitor
             Scribe_Values.Look(ref maxYearBuckets, "maxYearBuckets", 7);
             Scribe_Values.Look(ref yearHistoryUnlimited, "yearHistoryUnlimited", false);
             Scribe_Values.Look(ref monitorWindowSize, "monitorWindowSize", new Vector2(720f, 520f));
-            skillRoleOverrideCache = null;
             workGiverSkillOverrideCache = null;
         }
     }
