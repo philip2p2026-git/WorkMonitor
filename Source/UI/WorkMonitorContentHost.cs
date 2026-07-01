@@ -35,6 +35,25 @@ namespace WorkMonitor.UI
             overviewPanel.ClearExpandCaches();
         }
 
+        public void OpenColonistDetail(Pawn pawn, WorkGroupSnapshot initialGroup = null, bool openGroupDetail = false)
+        {
+            if (pawn == null || pawn.Dead)
+            {
+                return;
+            }
+
+            selectedColonistPawnId = pawn.thingIDNumber;
+            selectedGroup = initialGroup;
+            selectedWorkGiver = null;
+            colonistDetailPanel.SetColonist(
+                selectedColonistPawnId,
+                rangeState,
+                initialGroup,
+                openGroupDetail,
+                returnGroup: null);
+            view = MonitorView.ColonistDetail;
+        }
+
         public void Draw(Rect rect)
         {
             if (view == MonitorView.Overview)

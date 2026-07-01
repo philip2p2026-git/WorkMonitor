@@ -22,6 +22,17 @@ namespace WorkMonitor.Patches
             Find.MainTabsRoot.SetCurrentTab(history);
         }
 
+        public static void OpenColonistWork(Pawn pawn)
+        {
+            if (pawn == null || pawn.Dead)
+            {
+                return;
+            }
+
+            Open();
+            ContentHost.OpenColonistDetail(pawn);
+        }
+
         public static void Draw(Rect rect)
         {
             rect.yMin += 17f;
