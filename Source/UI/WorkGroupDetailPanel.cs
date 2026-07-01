@@ -124,10 +124,10 @@ namespace WorkMonitor.UI
             DrawHeader(header);
 
             Rect chartRect = new Rect(rect.x, header.yMax + 4f, rect.width, ChartHeight);
-            chartPanel.Draw(chartRect, stats, allStats, rangeState, () => SetGroup(stats.Group, rangeState));
+            chartPanel.Draw(chartRect, stats, allStats, rangeState);
 
             Rect content = new Rect(rect.x, chartRect.yMax + 6f, rect.width, rect.yMax - chartRect.yMax - 12f);
-            float viewHeight = 126f + CalculateColonistViewHeight() + stats.WorkGiverStats.Count * RowHeight;
+            float viewHeight = 150f + CalculateColonistViewHeight() + stats.WorkGiverStats.Count * RowHeight;
             Rect view = new Rect(0f, 0f, content.width - 16f, viewHeight);
             Widgets.BeginScrollView(content, ref scroll, view);
 
@@ -296,12 +296,9 @@ namespace WorkMonitor.UI
             selectedWorkGiver = null;
 
             Text.Font = GameFont.Small;
+            float tableWidth = area.width;
             float expandCollapseWidth = ExpandAllWidth * 2f + ToolbarGap;
             float toolbarWidth = LayoutToggleWidth + expandCollapseWidth + 4f;
-            float tableWidth = area.width - toolbarWidth;
-            Rect titleRect = new Rect(area.x, y, tableWidth, 22f);
-            Widgets.Label(titleRect, "WorkMonitor.Colonists".Translate());
-            TooltipHandler.TipRegion(titleRect, "WorkMonitor.ColonistsTip".Translate());
 
             string layoutLabel = WorkGiverFirst
                 ? "WorkMonitor.GroupByWorkGiver".Translate()
@@ -329,6 +326,12 @@ namespace WorkMonitor.UI
             }
 
             TooltipHandler.TipRegion(collapseRect, "WorkMonitor.ExpandAllLevelTip".Translate());
+
+            y += RowHeight;
+
+            Rect titleRect = new Rect(area.x, y, tableWidth, 22f);
+            Widgets.Label(titleRect, "WorkMonitor.Colonists".Translate());
+            TooltipHandler.TipRegion(titleRect, "WorkMonitor.ColonistsTip".Translate());
 
             y += RowHeight;
 

@@ -115,10 +115,13 @@ namespace WorkMonitor.UI
                 new Rect(toolbarRight - RangeWidth, rect.y, RangeWidth, 24f),
                 rangeState,
                 () => RefreshIfNeeded(rangeState, force: true));
-            toolbarRight -= RangeWidth + ToolbarGap;
 
+            Text.Font = GameFont.Small;
+            Widgets.Label(new Rect(rect.x, rect.y, toolbarRight - RangeWidth - ToolbarGap - rect.x - 6f, 22f), "WorkMonitor.OverviewTitle".Translate());
+
+            float tableToolbarY = rect.y + 28f;
             float expandCollapseWidth = ExpandAllWidth * 2f + ToolbarGap;
-            Rect collapseRect = new Rect(toolbarRight - ExpandAllWidth, rect.y, ExpandAllWidth, 24f);
+            Rect collapseRect = new Rect(rect.xMax - ExpandAllWidth, tableToolbarY, ExpandAllWidth, 24f);
             if (Widgets.ButtonText(collapseRect, "WorkMonitor.CollapseAll".Translate()))
             {
                 CollapseOneLevel();
@@ -126,7 +129,7 @@ namespace WorkMonitor.UI
 
             TooltipHandler.TipRegion(collapseRect, BulkExpandTooltip());
 
-            Rect expandRect = new Rect(toolbarRight - expandCollapseWidth, rect.y, ExpandAllWidth, 24f);
+            Rect expandRect = new Rect(rect.xMax - expandCollapseWidth, tableToolbarY, ExpandAllWidth, 24f);
             if (Widgets.ButtonText(expandRect, "WorkMonitor.ExpandAll".Translate()))
             {
                 ExpandOneLevel();
@@ -134,15 +137,13 @@ namespace WorkMonitor.UI
 
             TooltipHandler.TipRegion(expandRect, BulkExpandTooltip());
 
-            toolbarRight -= expandCollapseWidth + ToolbarGap;
-
             string layoutLabel = LayoutMode switch
             {
                 OverviewLayoutMode.WorkTypeWorkGiverFirst => "WorkMonitor.GroupByWorkGiver".Translate(),
                 OverviewLayoutMode.ColonistTopLevel => "WorkMonitor.GroupByColonistTop".Translate(),
                 _ => "WorkMonitor.GroupByColonist".Translate()
             };
-            Rect layoutRect = new Rect(toolbarRight - LayoutToggleWidth, rect.y, LayoutToggleWidth, 24f);
+            Rect layoutRect = new Rect(rect.xMax - expandCollapseWidth - ToolbarGap - LayoutToggleWidth, tableToolbarY, LayoutToggleWidth, 24f);
             if (Widgets.ButtonText(layoutRect, layoutLabel))
             {
                 ToggleLayout();
@@ -150,13 +151,10 @@ namespace WorkMonitor.UI
 
             TooltipHandler.TipRegion(layoutRect, "WorkMonitor.OverviewLayoutTip".Translate());
 
-            Text.Font = GameFont.Small;
-            Widgets.Label(new Rect(rect.x, rect.y, layoutRect.x - rect.x - 6f, 22f), "WorkMonitor.OverviewTitle".Translate());
-
-            Rect header = new Rect(rect.x, rect.y + 28f, rect.width, 20f);
+            Rect header = new Rect(rect.x, tableToolbarY + 28f, rect.width, 20f);
             DrawHeader(header);
 
-            Rect listRect = new Rect(rect.x, rect.y + 52f, rect.width, rect.height - 92f);
+            Rect listRect = new Rect(rect.x, header.yMax + 4f, rect.width, rect.yMax - header.yMax - 32f);
             float viewHeight = CalculateViewHeight();
             Rect viewRect = new Rect(0f, 0f, listRect.width - 16f, viewHeight);
             Widgets.BeginScrollView(listRect, ref scroll, viewRect);

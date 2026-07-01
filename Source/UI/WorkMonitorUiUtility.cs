@@ -33,8 +33,8 @@ namespace WorkMonitor.UI
         {
             return passion switch
             {
-                Passion.Major => "++",
-                Passion.Minor => "+",
+                Passion.Major => "\u2665\u2665",
+                Passion.Minor => "\u2665",
                 _ => ""
             };
         }
@@ -53,7 +53,7 @@ namespace WorkMonitor.UI
                 return "—";
             }
 
-            return major + "++/" + total + "+";
+            return major + "\u2665\u2665/" + total + "\u2665";
         }
 
         public static void DrawShareBar(Rect rect, float percent)

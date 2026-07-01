@@ -9,15 +9,8 @@ namespace WorkMonitor.UI
 {
     public class WorkGroupChartPanel
     {
-        public void Draw(Rect rect, WorkGroupStats stats, List<WorkGroupStats> allStats, MonitorRangeState rangeState, System.Action onRangeChanged)
+        public void Draw(Rect rect, WorkGroupStats stats, List<WorkGroupStats> allStats, MonitorRangeState rangeState)
         {
-            Text.Font = GameFont.Tiny;
-            Widgets.Label(new Rect(rect.x, rect.y, 50f, 18f), "WorkMonitor.Range".Translate());
-            WorkMonitorDropdownUtility.DrawRangeDropdown(
-                new Rect(rect.x + 52f, rect.y, 110f, 24f),
-                rangeState,
-                onRangeChanged);
-
             WorkActivityTracker tracker = WorkActivityTracker.EnsureRegistered();
             WorkHistoryTierBuffer history = tracker?.GetGroupHistory(stats.Group.Key.StorageKey);
             int minHour = rangeState.MinHourIndex;
@@ -26,8 +19,8 @@ namespace WorkMonitor.UI
 
             float gap = 8f;
             float cellW = (rect.width - gap) / 2f;
-            float chartY = rect.y + 28f;
-            float chartH = rect.height - 28f;
+            float chartY = rect.y;
+            float chartH = rect.height;
 
             WorkChartDataBuilder.BuildJobCountSeries(history, minHour, rangeHours, rangeState.UsesHourlyChart, out float[] colonistJobs, out string[] jobLabels);
             WorkChartDataBuilder.BuildMapOpenTasksSeries(history, groupKey, minHour, rangeHours, out float[] mapJobs, out float[] mapNewJobs, out _);

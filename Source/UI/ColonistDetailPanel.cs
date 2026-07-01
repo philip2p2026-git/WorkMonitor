@@ -178,7 +178,7 @@ namespace WorkMonitor.UI
 
         private float CalculateGroupsViewHeight()
         {
-            float height = RowHeight * 2f;
+            float height = RowHeight * 3f;
             foreach (ColonistGroupStat groupStat in stats.GroupStats)
             {
                 height += RowHeight;
@@ -224,9 +224,8 @@ namespace WorkMonitor.UI
             groupClicked = false;
             selectedGroup = null;
             Text.Font = GameFont.Small;
-            float tableWidth = area.width - ExpandAllWidth - 4f;
-            Rect titleRect = new Rect(area.x, y, tableWidth, 22f);
-            Widgets.Label(titleRect, "WorkMonitor.Groups".Translate());
+            float tableWidth = area.width;
+
             string expandLabel = AllGroupsExpanded()
                 ? "WorkMonitor.CollapseAll".Translate()
                 : "WorkMonitor.ExpandAll".Translate();
@@ -234,6 +233,12 @@ namespace WorkMonitor.UI
             {
                 ToggleExpandAllGroups();
             }
+
+            y += RowHeight;
+
+            Rect titleRect = new Rect(area.x, y, tableWidth, 22f);
+            Widgets.Label(titleRect, "WorkMonitor.Groups".Translate());
+
             y += RowHeight;
 
             DrawGroupHeader(new Rect(area.x, y, tableWidth, RowHeight));
