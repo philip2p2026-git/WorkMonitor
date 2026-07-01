@@ -47,6 +47,9 @@
 	<WorkMonitor.ExpandAll>Expand all</WorkMonitor.ExpandAll>
 	<WorkMonitor.CollapseAll>Collapse all</WorkMonitor.CollapseAll>
 	<WorkMonitor.GroupByColonist>By colonist</WorkMonitor.GroupByColonist>
+	<WorkMonitor.GroupByColonistTop>By colonist (top)</WorkMonitor.GroupByColonistTop>
+	<WorkMonitor.UnassignedBacklog>Unassigned backlog</WorkMonitor.UnassignedBacklog>
+	<WorkMonitor.UnassignedBacklogTip>Map backlog with no colonist work in the selected range.</WorkMonitor.UnassignedBacklogTip>
 	<WorkMonitor.GroupByWorkGiver>By work giver</WorkMonitor.GroupByWorkGiver>
 	<WorkMonitor.GroupDetailLayoutTip>Switch colonist breakdown between colonist-first and work-giver-first grouping.</WorkMonitor.GroupDetailLayoutTip>
 	<WorkMonitor.OverviewLayoutTip>Switch overview sub-rows between colonist-first and work-giver-first grouping (shared with WorkType detail).</WorkMonitor.OverviewLayoutTip>

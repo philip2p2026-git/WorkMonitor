@@ -58,12 +58,20 @@ namespace WorkMonitor.UI
                     workGiverDetailPanel.SetWorkGiver(selectedGroup, selectedWorkGiver, rangeState);
                     view = MonitorView.WorkGiverDetail;
                 }
-                else if (colonistClicked && selectedColonistStat != null && selectedColonistStat.PawnId > 0 && colonistGroup != null)
+                else if (colonistClicked && selectedColonistStat != null && selectedColonistStat.PawnId > 0)
                 {
-                    selectedGroup = colonistGroup;
                     selectedColonistPawnId = selectedColonistStat.PawnId;
                     selectedWorkGiver = null;
-                    colonistDetailPanel.SetColonist(selectedColonistPawnId, rangeState, selectedGroup, openGroupDetail: true, returnGroup: selectedGroup);
+                    if (colonistGroup != null)
+                    {
+                        selectedGroup = colonistGroup;
+                        colonistDetailPanel.SetColonist(selectedColonistPawnId, rangeState, selectedGroup, openGroupDetail: true, returnGroup: selectedGroup);
+                    }
+                    else
+                    {
+                        colonistDetailPanel.SetColonist(selectedColonistPawnId, rangeState, openGroupDetail: false);
+                    }
+
                     view = MonitorView.ColonistDetail;
                 }
                 else if (groupClicked && clickedGroup != null)
@@ -133,14 +141,21 @@ namespace WorkMonitor.UI
             }
             else if (colonistBack)
             {
-                if (selectedWorkGiver != null)
+                if (selectedWorkGiver != null && selectedGroup != null)
                 {
                     workGiverDetailPanel.SetWorkGiver(selectedGroup, selectedWorkGiver, rangeState);
                     view = MonitorView.WorkGiverDetail;
                 }
+                else if (selectedGroup != null)
+                {
+                    detailPanel.SetGroup(selectedGroup, rangeState);
+                    view = MonitorView.GroupDetail;
+                }
                 else
                 {
-                    view = MonitorView.GroupDetail;
+                    view = MonitorView.Overview;
+                    selectedGroup = null;
+                    selectedWorkGiver = null;
                 }
             }
         }

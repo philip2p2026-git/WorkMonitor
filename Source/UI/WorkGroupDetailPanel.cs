@@ -35,7 +35,7 @@ namespace WorkMonitor.UI
         private readonly Dictionary<string, WorkGiverDetailStats> workGiverDetailCache = new Dictionary<string, WorkGiverDetailStats>();
         private List<WorkGiverDef> activeWorkGivers;
 
-        private static bool WorkGiverFirst => WorkMonitorMod.Settings?.groupDetailWorkGiverFirst ?? false;
+        private static bool WorkGiverFirst => WorkMonitorMod.Settings?.WorkGiverFirst ?? false;
 
         public WorkGroupSnapshot CurrentGroup => stats?.Group;
 
@@ -64,7 +64,9 @@ namespace WorkMonitor.UI
                 return;
             }
 
-            settings.groupDetailWorkGiverFirst = !settings.groupDetailWorkGiverFirst;
+            settings.overviewLayoutMode = settings.WorkGiverFirst
+                ? OverviewLayoutMode.WorkTypeColonistFirst
+                : OverviewLayoutMode.WorkTypeWorkGiverFirst;
             ClearExpandCaches();
         }
 
@@ -200,6 +202,11 @@ namespace WorkMonitor.UI
             }
 
             float colonistHeight = stats.ColonistStats.Count * RowHeight;
+            if (HasMapOnlyBacklog())
+            {
+                colonistHeight += RowHeight;
+            }
+
             foreach (ColonistWorkStat colonist in stats.ColonistStats)
             {
                 if (expandedColonistIds.Contains(colonist.PawnId))
@@ -207,6 +214,11 @@ namespace WorkMonitor.UI
                     ColonistGroupWorkDetail detail = GetColonistDetail(colonist.PawnId);
                     colonistHeight += detail.WorkGiverStats.Count * RowHeight;
                 }
+            }
+
+            if (expandedColonistIds.Contains(BulkExpandUtility.UnassignedBacklogPawnId))
+            {
+                colonistHeight += GetMapOnlyWorkGivers().Count * RowHeight;
             }
 
             return colonistHeight;
@@ -410,6 +422,128 @@ namespace WorkMonitor.UI
                     DrawExpandedWorkGivers(area, tableWidth, colonist.PawnId, ref y, ref rowIndex, ref workGiverClicked, ref selectedWorkGiver);
                 }
             }
+
+            if (HasMapOnlyBacklog())
+            {
+                DrawUnassignedBacklogColonistRow(
+                    area,
+                    tableWidth,
+                    ref y,
+                    ref rowIndex,
+                    ref workGiverClicked,
+                    ref selectedWorkGiver);
+            }
+        }
+
+        private void DrawUnassignedBacklogColonistRow(
+            Rect area,
+            float tableWidth,
+            ref float y,
+            ref int rowIndex,
+            ref bool workGiverClicked,
+            ref WorkGiverDef selectedWorkGiver)
+        {
+            int pawnId = BulkExpandUtility.UnassignedBacklogPawnId;
+            bool expanded = expandedColonistIds.Contains(pawnId);
+
+            Rect row = new Rect(area.x, y, tableWidth, RowHeight);
+            WorkMonitorUiUtility.DrawRowBackground(row, MonitorRowKind.Colonist, rowIndex);
+
+            Rect expandRect = new Rect(row.x, row.y, ExpandButtonWidth, row.height);
+            if (Widgets.ButtonText(expandRect, expanded ? "▼" : "▶"))
+            {
+                if (expanded)
+                {
+                    expandedColonistIds.Remove(pawnId);
+                }
+                else
+                {
+                    expandedColonistIds.Add(pawnId);
+                }
+            }
+
+            GetColonistTableColumns(
+                row,
+                out _,
+                out Rect iconsCol,
+                out Rect labelCol,
+                out Rect jobsCol,
+                out Rect endlessCol,
+                out Rect workCol,
+                out Rect walkCol,
+                out Rect workTimeCol,
+                out Rect kpiJobsCol,
+                out Rect kpiWorkCol);
+
+            Color prev = GUI.color;
+            GUI.color = new Color(0.85f, 0.85f, 0.85f);
+            Widgets.Label(labelCol, "WorkMonitor.UnassignedBacklog".Translate().Truncate(labelCol.width));
+            GUI.color = prev;
+            TooltipHandler.TipRegion(row, "WorkMonitor.UnassignedBacklogTip".Translate());
+
+            WorkMonitorUiUtility.LabelRightStatValue(jobsCol, "0");
+            WorkMonitorUiUtility.LabelRightStatValue(endlessCol, "0");
+            WorkMonitorUiUtility.LabelRightStatValue(workCol, "—");
+            WorkMonitorUiUtility.LabelRightStatValue(walkCol, "—");
+            WorkMonitorUiUtility.LabelRightStatValue(workTimeCol, "—");
+            WorkMonitorUiUtility.LabelRightStatValue(kpiJobsCol, "—");
+            WorkMonitorUiUtility.LabelRightStatValue(kpiWorkCol, "—");
+
+            y += RowHeight;
+            rowIndex++;
+
+            if (expanded)
+            {
+                DrawExpandedMapOnlyWorkGivers(area, tableWidth, ref y, ref rowIndex, ref workGiverClicked, ref selectedWorkGiver);
+            }
+        }
+
+        private void DrawExpandedMapOnlyWorkGivers(
+            Rect area,
+            float tableWidth,
+            ref float y,
+            ref int rowIndex,
+            ref bool workGiverClicked,
+            ref WorkGiverDef selectedWorkGiver)
+        {
+            bool showHours = WorkMonitorMod.Settings?.showTimeInHours ?? true;
+
+            foreach (WorkGiverDef workGiver in GetMapOnlyWorkGivers())
+            {
+                Rect columnRow = new Rect(area.x, y, tableWidth, RowHeight);
+                if (DrawWorkGiverBreakdownRow(
+                    area,
+                    columnRow,
+                    WorkGiverIndent,
+                    WorkGiverLabelUtility.Format(workGiver),
+                    0,
+                    0,
+                    0f,
+                    0,
+                    0,
+                    0,
+                    showHours,
+                    rowIndex,
+                    workGiver,
+                    out WorkGiverDef clickedWg))
+                {
+                    workGiverClicked = true;
+                    selectedWorkGiver = clickedWg;
+                }
+
+                y += RowHeight;
+                rowIndex++;
+            }
+        }
+
+        private bool HasMapOnlyBacklog()
+        {
+            return GetMapOnlyWorkGivers().Count > 0;
+        }
+
+        private List<WorkGiverDef> GetMapOnlyWorkGivers()
+        {
+            return BulkExpandUtility.GetMapOnlyWorkGivers(stats, GetWorkGiverDetail);
         }
 
         private void DrawWorkGiverFirstRows(
@@ -509,6 +643,11 @@ namespace WorkMonitor.UI
                 {
                     expandedColonistIds.Add(colonist.PawnId);
                 }
+
+                if (HasMapOnlyBacklog())
+                {
+                    expandedColonistIds.Add(BulkExpandUtility.UnassignedBacklogPawnId);
+                }
             }
         }
 
@@ -536,7 +675,7 @@ namespace WorkMonitor.UI
 
         private bool AllColonistsExpanded()
         {
-            if (stats.ColonistStats.Count == 0)
+            if (stats.ColonistStats.Count == 0 && !HasMapOnlyBacklog())
             {
                 return true;
             }
@@ -547,6 +686,11 @@ namespace WorkMonitor.UI
                 {
                     return false;
                 }
+            }
+
+            if (HasMapOnlyBacklog() && !expandedColonistIds.Contains(BulkExpandUtility.UnassignedBacklogPawnId))
+            {
+                return false;
             }
 
             return true;

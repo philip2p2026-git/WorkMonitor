@@ -524,7 +524,7 @@ WorkType detail
 WorkType overview
 ```
 
-**WorkType overview tree:** Layout toggle **By colonist** / **By work giver** shares `groupDetailWorkGiverFirst` with WorkType detail. Expand ▶/▼ on WorkType and L1 rows; separate **Expand all** and **Collapse all** buttons (each advances one level per click). WG-first L1 includes work givers with colonist activity in range **or** map backlog (`ExistJob` / `ExistWork` > 0). Sub-rows reuse overview columns: map backlog on WorkType and work-giver rows; colonist processed metrics on colonist rows; interest on WorkType rows only. Click anywhere on a row (except ▶/▼) navigates to the matching detail view. L2 data from `ColonistStatsAggregator.BuildGroupDetail` and `WorkGiverStatsAggregator.Build` (lazy-cached).
+**WorkType overview tree:** Layout toggle cycles **By colonist** (WorkType → colonist → WorkGiver) / **By work giver** (WorkType → WorkGiver → colonist) / **By colonist (top)** (colonist → WorkType → WorkGiver). Setting: `overviewLayoutMode` (`OverviewLayoutMode`); legacy `groupDetailWorkGiverFirst` bool migrates on load. WorkType detail layout toggle switches only the first two modes. Expand ▶/▼ on WorkType and L1 rows (and colonist L0 in top layout); separate **Expand all** and **Collapse all** buttons (each advances one level per click). WG-first L1 includes work givers with colonist activity in range **or** map backlog (`ExistJob` / `ExistWork` > 0). Colonist-first appends an **Unassigned backlog** pseudo-colonist row (`PawnId = 0`) at the end of each expanded WorkType when map-only work givers exist; same row on WorkType detail colonist table. Sub-rows reuse overview columns: map backlog on WorkType and work-giver rows; colonist processed metrics on colonist rows; interest on WorkType rows only. Click anywhere on a row (except ▶/▼) navigates to the matching detail view. L2 data from `ColonistStatsAggregator.BuildGroupDetail` and `WorkGiverStatsAggregator.Build` (lazy-cached). Colonist-top layout uses `ColonistOverviewTreeBuilder`; unassigned backlog is a final L0 node.
 
 **WorkType detail colonist table:** expand/collapse per colonist (▶/▼) to show per–work-giver metrics; separate **Expand all** and **Collapse all** buttons with the same progressive one-level-per-click behavior (`BulkExpandUtility`). WG-first rows use the same colonist-or-map visibility rule as overview. Expanded rows use `ColonistStatsAggregator.BuildGroupDetail`. KPI columns show jobs/h and work/h for the selected range.
 
@@ -538,7 +538,7 @@ Opening **colonist work detail** from WorkType or WorkGiver detail pre-selects t
 | Click a WorkType row (overview) | **WorkType detail** for that row |
 | Click colonist sub-row (overview) | **Colonist work detail** |
 | Click work giver sub-row (overview) | **WorkGiver detail** |
-| Overview layout toggle | Switch colonist-first / work-giver-first (shared setting with detail) |
+| Overview layout toggle | Cycle colonist-first / work-giver-first / colonist-top (overview); detail toggles first two only |
 | WorkType dropdown on detail | Switch detail row without returning to overview |
 | Range dropdown (any view) | Change `MonitorRangeState`; rebuilds stats/charts |
 | Highlight button | `WorkTabHighlightController.HighlightGroup` — jumps to Work tab |
@@ -556,6 +556,8 @@ Opening **colonist work detail** from WorkType or WorkGiver detail pre-selects t
 | `WorkMonitorTableColumns.cs` | Shared column rects for colonist/work-giver tables | — | — |
 | `WorkGroupOverviewPanel.cs` | WorkType overview — expandable tree, layout toggle, progressive expand | `Overview` | — |
 | `BulkExpandUtility.cs` | Shared progressive expand/collapse helpers | — | — |
+| `OverviewLayoutMode.cs` | Overview layout enum (3 modes) | — | — |
+| `ColonistOverviewTreeBuilder.cs` | Colonist-top overview tree data | — | — |
 | `WorkGroupDetailPanel.cs` | WorkType detail — colonist list + map WorkGiver list | `GroupDetail` | — |
 | `WorkGroupChartPanel.cs` | Charts (dual colonist/map stream, new-today stack) | `GroupDetail`, `WorkGiverDetail` | — |
 | `WorkGiverDetailPanel.cs` | WorkGiver detail — single-WG colonist breakdown | `WorkGiverDetail` | — |

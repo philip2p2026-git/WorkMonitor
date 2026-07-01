@@ -30,8 +30,15 @@ namespace WorkMonitor.UI
         private readonly Dictionary<string, Dictionary<int, ColonistGroupWorkDetail>> colonistDetailCache = new Dictionary<string, Dictionary<int, ColonistGroupWorkDetail>>();
         private readonly Dictionary<string, Dictionary<string, WorkGiverDetailStats>> workGiverDetailCache = new Dictionary<string, Dictionary<string, WorkGiverDetailStats>>();
         private readonly Dictionary<string, List<WorkGiverDef>> activeWorkGiversCache = new Dictionary<string, List<WorkGiverDef>>();
+        private List<ColonistOverviewNode> cachedColonistTree = new List<ColonistOverviewNode>();
+        private readonly HashSet<string> expandedColonistTopKeys = new HashSet<string>();
 
-        private static bool WorkGiverFirst => WorkMonitorMod.Settings?.groupDetailWorkGiverFirst ?? false;
+        private static OverviewLayoutMode LayoutMode =>
+            WorkMonitorMod.Settings?.overviewLayoutMode ?? OverviewLayoutMode.WorkTypeColonistFirst;
+
+        private static bool WorkGiverFirst => LayoutMode == OverviewLayoutMode.WorkTypeWorkGiverFirst;
+
+        private static bool ColonistTopLevel => LayoutMode == OverviewLayoutMode.ColonistTopLevel;
 
         public void ClearExpandCaches()
         {
@@ -40,6 +47,8 @@ namespace WorkMonitor.UI
             colonistDetailCache.Clear();
             workGiverDetailCache.Clear();
             activeWorkGiversCache.Clear();
+            expandedColonistTopKeys.Clear();
+            cachedColonistTree.Clear();
         }
 
         public void RefreshIfNeeded(MonitorRangeState rangeState, bool force = false)
@@ -57,6 +66,7 @@ namespace WorkMonitor.UI
 
             boundRangeState = rangeState;
             cachedStats = WorkGroupStatsAggregator.BuildAll(rangeState.RangeHours);
+            cachedColonistTree = ColonistOverviewTreeBuilder.Build(rangeState.RangeHours, cachedStats);
             colonistDetailCache.Clear();
             workGiverDetailCache.Clear();
             activeWorkGiversCache.Clear();
@@ -126,9 +136,12 @@ namespace WorkMonitor.UI
 
             toolbarRight -= expandCollapseWidth + ToolbarGap;
 
-            string layoutLabel = WorkGiverFirst
-                ? "WorkMonitor.GroupByWorkGiver".Translate()
-                : "WorkMonitor.GroupByColonist".Translate();
+            string layoutLabel = LayoutMode switch
+            {
+                OverviewLayoutMode.WorkTypeWorkGiverFirst => "WorkMonitor.GroupByWorkGiver".Translate(),
+                OverviewLayoutMode.ColonistTopLevel => "WorkMonitor.GroupByColonistTop".Translate(),
+                _ => "WorkMonitor.GroupByColonist".Translate()
+            };
             Rect layoutRect = new Rect(toolbarRight - LayoutToggleWidth, rect.y, LayoutToggleWidth, 24f);
             if (Widgets.ButtonText(layoutRect, layoutLabel))
             {
@@ -150,10 +163,9 @@ namespace WorkMonitor.UI
 
             float y = 0f;
             int rowIndex = 0;
-            foreach (WorkGroupStats stats in cachedStats)
+            if (ColonistTopLevel)
             {
-                DrawGroupTree(
-                    stats,
+                DrawColonistTopLevelTree(
                     rangeState,
                     viewRect.width,
                     ref y,
@@ -166,6 +178,26 @@ namespace WorkMonitor.UI
                     ref workGiverClicked,
                     ref selectedWorkGiver,
                     ref workGiverGroup);
+            }
+            else
+            {
+                foreach (WorkGroupStats stats in cachedStats)
+                {
+                    DrawGroupTree(
+                        stats,
+                        rangeState,
+                        viewRect.width,
+                        ref y,
+                        ref rowIndex,
+                        ref groupClicked,
+                        ref selectedGroup,
+                        ref colonistClicked,
+                        ref selectedColonist,
+                        ref colonistGroup,
+                        ref workGiverClicked,
+                        ref selectedWorkGiver,
+                        ref workGiverGroup);
+                }
             }
 
             Widgets.EndScrollView();
@@ -332,6 +364,334 @@ namespace WorkMonitor.UI
                     rowIndex++;
                 }
             }
+
+            DrawUnassignedBacklogColonistFirst(
+                stats,
+                rangeState,
+                width,
+                storageKey,
+                ref y,
+                ref rowIndex,
+                ref workGiverClicked,
+                ref selectedWorkGiver,
+                ref workGiverGroup);
+        }
+
+        private void DrawUnassignedBacklogColonistFirst(
+            WorkGroupStats stats,
+            MonitorRangeState rangeState,
+            float width,
+            string storageKey,
+            ref float y,
+            ref int rowIndex,
+            ref bool workGiverClicked,
+            ref WorkGiverDef selectedWorkGiver,
+            ref WorkGroupSnapshot workGiverGroup)
+        {
+            List<WorkGiverDef> mapOnly = GetMapOnlyWorkGivers(stats, rangeState);
+            if (mapOnly.Count == 0)
+            {
+                return;
+            }
+
+            string level2Key = Level2PawnKey(storageKey, BulkExpandUtility.UnassignedBacklogPawnId);
+            bool expanded = expandedLevel2Keys.Contains(level2Key);
+
+            BulkExpandUtility.SumMapOnlyMetrics(
+                stats,
+                wg => GetWorkGiverDetail(stats.Group, wg, rangeState),
+                out int mapJobs,
+                out int mapNewToday,
+                out float mapWork,
+                out float mapWorkNewToday);
+
+            Rect row = new Rect(ColonistIndent, y, width - ColonistIndent, RowHeight);
+            WorkMonitorUiUtility.DrawRowBackground(row, MonitorRowKind.Colonist, rowIndex);
+
+            Rect expandRect = new Rect(row.x, row.y, ExpandButtonWidth, row.height);
+            if (Widgets.ButtonText(expandRect, expanded ? "▼" : "▶"))
+            {
+                if (expanded)
+                {
+                    expandedLevel2Keys.Remove(level2Key);
+                }
+                else
+                {
+                    expandedLevel2Keys.Add(level2Key);
+                }
+            }
+
+            DrawUnassignedColonistL1Row(row, mapJobs, mapNewToday, mapWork, mapWorkNewToday);
+            TooltipHandler.TipRegion(row, "WorkMonitor.UnassignedBacklogTip".Translate());
+            y += RowHeight;
+            rowIndex++;
+
+            if (!expanded)
+            {
+                return;
+            }
+
+            foreach (WorkGiverDef workGiver in mapOnly)
+            {
+                WorkGiverStat mapStat = FindWorkGiverStat(stats, workGiver);
+                Rect wgRow = new Rect(ColonistIndent + WorkGiverIndent, y, width - ColonistIndent - WorkGiverIndent, RowHeight);
+                WorkMonitorUiUtility.DrawRowBackground(wgRow, MonitorRowKind.WorkGiver, rowIndex);
+
+                if (Widgets.ButtonInvisible(wgRow))
+                {
+                    workGiverClicked = true;
+                    selectedWorkGiver = workGiver;
+                    workGiverGroup = stats.Group;
+                }
+
+                DrawWorkGiverL2Row(wgRow, WorkGiverLabelUtility.Format(workGiver), mapStat, 0, 0f);
+                y += RowHeight;
+                rowIndex++;
+            }
+        }
+
+        private void DrawUnassignedColonistL1Row(Rect row, int mapJobs, int mapNewToday, float mapWork, float mapWorkNewToday)
+        {
+            Text.Font = GameFont.Small;
+            float labelLeft = WorkMonitorTableColumns.OverviewLabelLeft(row.x, hasExpand: true, hasStatus: false);
+            float labelWidth = WorkMonitorTableColumns.OverviewLabelWidth(row, labelLeft, hasInterest: false);
+            Color prev = GUI.color;
+            GUI.color = new Color(0.85f, 0.85f, 0.85f);
+            Widgets.Label(new Rect(labelLeft, row.y, labelWidth, row.height), "WorkMonitor.UnassignedBacklog".Translate().Truncate(labelWidth));
+            GUI.color = prev;
+
+            WorkMonitorTableColumns.GetOverviewMetricColumns(row, out Rect existJobCol, out Rect existWorkCol, out Rect jobProcessedCol, out Rect workProcessedCol);
+            WorkMonitorUiUtility.LabelRightStatValue(existJobCol, WorkMonitorUiUtility.FormatMapOpenTasks(mapJobs, mapNewToday));
+            WorkMonitorUiUtility.LabelRightStatValue(existWorkCol, WorkMonitorUiUtility.FormatMapWorkLeft(mapWork, mapWorkNewToday));
+            WorkMonitorUiUtility.LabelRightStatValue(jobProcessedCol, "0");
+            WorkMonitorUiUtility.LabelRightStatValue(workProcessedCol, EmptyMetric);
+        }
+
+        private List<WorkGiverDef> GetMapOnlyWorkGivers(WorkGroupStats stats, MonitorRangeState rangeState)
+        {
+            return BulkExpandUtility.GetMapOnlyWorkGivers(stats, wg => GetWorkGiverDetail(stats.Group, wg, rangeState));
+        }
+
+        private void DrawColonistTopLevelTree(
+            MonitorRangeState rangeState,
+            float width,
+            ref float y,
+            ref int rowIndex,
+            ref bool groupClicked,
+            ref WorkGroupSnapshot selectedGroup,
+            ref bool colonistClicked,
+            ref ColonistWorkStat selectedColonist,
+            ref WorkGroupSnapshot colonistGroup,
+            ref bool workGiverClicked,
+            ref WorkGiverDef selectedWorkGiver,
+            ref WorkGroupSnapshot workGiverGroup)
+        {
+            foreach (ColonistOverviewNode node in cachedColonistTree)
+            {
+                string colonistKey = ColonistTopColonistKey(node.PawnId);
+                bool colonistExpanded = expandedColonistTopKeys.Contains(colonistKey);
+
+                Rect row = new Rect(0f, y, width, RowHeight);
+                WorkMonitorUiUtility.DrawRowBackground(row, MonitorRowKind.Colonist, rowIndex);
+
+                Rect expandRect = new Rect(row.x, row.y, ExpandButtonWidth, row.height);
+                if (Widgets.ButtonText(expandRect, colonistExpanded ? "▼" : "▶"))
+                {
+                    if (colonistExpanded)
+                    {
+                        expandedColonistTopKeys.Remove(colonistKey);
+                    }
+                    else
+                    {
+                        expandedColonistTopKeys.Add(colonistKey);
+                    }
+                }
+
+                if (!node.IsUnassigned)
+                {
+                    Rect navRect = new Rect(row.x + ExpandButtonWidth, row.y, row.width - ExpandButtonWidth, row.height);
+                    if (Widgets.ButtonInvisible(navRect))
+                    {
+                        colonistClicked = true;
+                        selectedColonist = node.Summary;
+                        colonistGroup = null;
+                    }
+
+                    DrawColonistL1Row(row, node.Summary);
+                }
+                else
+                {
+                    DrawUnassignedColonistTopL0Row(row, node);
+                    TooltipHandler.TipRegion(row, "WorkMonitor.UnassignedBacklogTip".Translate());
+                }
+
+                y += RowHeight;
+                rowIndex++;
+
+                if (!colonistExpanded)
+                {
+                    continue;
+                }
+
+                foreach (ColonistOverviewGroupNode groupNode in node.Groups)
+                {
+                    string groupKey = ColonistTopGroupKey(node.PawnId, groupNode.Group.Key.StorageKey);
+                    bool groupExpanded = expandedColonistTopKeys.Contains(groupKey);
+                    WorkGroupStats groupStats = groupNode.GroupStats;
+
+                    Rect groupRow = new Rect(ColonistIndent, y, width - ColonistIndent, RowHeight);
+                    WorkMonitorUiUtility.DrawRowBackground(groupRow, MonitorRowKind.WorkType, rowIndex);
+
+                    Rect groupExpandRect = new Rect(groupRow.x, groupRow.y, ExpandButtonWidth, groupRow.height);
+                    if (Widgets.ButtonText(groupExpandRect, groupExpanded ? "▼" : "▶"))
+                    {
+                        if (groupExpanded)
+                        {
+                            expandedColonistTopKeys.Remove(groupKey);
+                        }
+                        else
+                        {
+                            expandedColonistTopKeys.Add(groupKey);
+                        }
+                    }
+
+                    Rect groupNavRect = new Rect(groupRow.x + ExpandButtonWidth, groupRow.y, groupRow.width - ExpandButtonWidth, groupRow.height);
+                    if (Widgets.ButtonInvisible(groupNavRect))
+                    {
+                        groupClicked = true;
+                        selectedGroup = groupNode.Group;
+                    }
+
+                    DrawColonistTopGroupRow(groupRow, groupNode, node.IsUnassigned);
+                    y += RowHeight;
+                    rowIndex++;
+
+                    if (!groupExpanded)
+                    {
+                        continue;
+                    }
+
+                    if (node.IsUnassigned)
+                    {
+                        foreach (ColonistOverviewMapOnlyEntry entry in groupNode.MapOnlyWorkGivers)
+                        {
+                            Rect wgRow = new Rect(ColonistIndent + WorkGiverIndent, y, width - ColonistIndent - WorkGiverIndent, RowHeight);
+                            WorkMonitorUiUtility.DrawRowBackground(wgRow, MonitorRowKind.WorkGiver, rowIndex);
+
+                            if (Widgets.ButtonInvisible(wgRow))
+                            {
+                                workGiverClicked = true;
+                                selectedWorkGiver = entry.WorkGiver;
+                                workGiverGroup = groupNode.Group;
+                            }
+
+                            DrawWorkGiverL2Row(wgRow, entry.Label, entry.MapStat, 0, 0f);
+                            y += RowHeight;
+                            rowIndex++;
+                        }
+                    }
+                    else
+                    {
+                        foreach (ColonistWorkGiverStat wg in groupNode.ColonistWorkGivers)
+                        {
+                            WorkGiverStat mapStat = FindWorkGiverStat(groupStats, wg.WorkGiver);
+                            Rect wgRow = new Rect(ColonistIndent + WorkGiverIndent, y, width - ColonistIndent - WorkGiverIndent, RowHeight);
+                            WorkMonitorUiUtility.DrawRowBackground(wgRow, MonitorRowKind.WorkGiver, rowIndex);
+
+                            if (Widgets.ButtonInvisible(wgRow))
+                            {
+                                workGiverClicked = true;
+                                selectedWorkGiver = wg.WorkGiver;
+                                workGiverGroup = groupNode.Group;
+                            }
+
+                            DrawWorkGiverL2Row(wgRow, wg.Label, mapStat, wg.JobCount, wg.WorkUnitsSpent);
+                            y += RowHeight;
+                            rowIndex++;
+                        }
+                    }
+                }
+            }
+        }
+
+        private static void DrawUnassignedColonistTopL0Row(Rect row, ColonistOverviewNode node)
+        {
+            Text.Font = GameFont.Small;
+            float labelLeft = WorkMonitorTableColumns.OverviewLabelLeft(row.x, hasExpand: true, hasStatus: false);
+            float labelWidth = WorkMonitorTableColumns.OverviewLabelWidth(row, labelLeft, hasInterest: false);
+            Color prev = GUI.color;
+            GUI.color = new Color(0.85f, 0.85f, 0.85f);
+            Widgets.Label(new Rect(labelLeft, row.y, labelWidth, row.height), node.Summary.Label.Truncate(labelWidth));
+            GUI.color = prev;
+
+            int mapJobs = 0;
+            int mapNewToday = 0;
+            float mapWork = 0f;
+            float mapWorkNewToday = 0f;
+            foreach (ColonistOverviewGroupNode groupNode in node.Groups)
+            {
+                foreach (ColonistOverviewMapOnlyEntry entry in groupNode.MapOnlyWorkGivers)
+                {
+                    if (entry.MapStat == null)
+                    {
+                        continue;
+                    }
+
+                    mapJobs += entry.MapStat.MapOpenTasks;
+                    mapNewToday += entry.MapStat.MapNewTodayOpenTasks;
+                    mapWork += entry.MapStat.MapWorkLeft;
+                    mapWorkNewToday += entry.MapStat.MapNewTodayWorkLeft;
+                }
+            }
+
+            DrawOverviewMetrics(row, mapJobs, mapNewToday, mapWork, mapWorkNewToday, 0, 0f);
+        }
+
+        private static void DrawColonistTopGroupRow(Rect row, ColonistOverviewGroupNode groupNode, bool isUnassignedParent)
+        {
+            WorkGroupStats groupStats = groupNode.GroupStats;
+            Text.Font = GameFont.Small;
+            float labelLeft = WorkMonitorTableColumns.OverviewLabelLeft(row.x, hasExpand: true, hasStatus: true);
+            float labelWidth = WorkMonitorTableColumns.OverviewLabelWidth(row, labelLeft, hasInterest: false);
+
+            Color dot = WorkMonitorUiUtility.StatusColor(groupStats.Status);
+            float dotSize = 10f;
+            float statusX = row.x + ExpandButtonWidth;
+            Widgets.DrawBoxSolid(
+                new Rect(statusX + (StatusWidth - dotSize) * 0.5f, row.y + (row.height - dotSize) * 0.5f, dotSize, dotSize),
+                dot);
+
+            Widgets.Label(new Rect(labelLeft, row.y, labelWidth, row.height), groupNode.Group.Label.Truncate(labelWidth));
+
+            int jobCount = 0;
+            float workUnits = 0f;
+            if (!isUnassignedParent)
+            {
+                foreach (ColonistWorkGiverStat wg in groupNode.ColonistWorkGivers)
+                {
+                    jobCount += wg.JobCount;
+                    workUnits += wg.WorkUnitsSpent;
+                }
+            }
+
+            DrawOverviewMetrics(
+                row,
+                groupStats.TotalMapOpenTasks,
+                groupStats.TotalMapNewTodayOpenTasks,
+                groupStats.TotalMapWorkLeft,
+                groupStats.TotalMapNewTodayWorkLeft,
+                jobCount,
+                workUnits);
+        }
+
+        private static string ColonistTopColonistKey(int pawnId)
+        {
+            return "ct:colonist:" + pawnId;
+        }
+
+        private static string ColonistTopGroupKey(int pawnId, string storageKey)
+        {
+            return "ct:colonist:" + pawnId + ":group:" + storageKey;
         }
 
         private void DrawWorkGiverFirstChildren(
@@ -528,6 +888,11 @@ namespace WorkMonitor.UI
 
         private float CalculateViewHeight()
         {
+            if (ColonistTopLevel)
+            {
+                return CalculateColonistTopViewHeight();
+            }
+
             float height = cachedStats.Count * RowHeight;
 
             foreach (WorkGroupStats stats in cachedStats)
@@ -554,6 +919,11 @@ namespace WorkMonitor.UI
                 else
                 {
                     height += stats.ColonistStats.Count * RowHeight;
+                    if (BulkExpandUtility.HasMapOnlyBacklog(stats, wg => GetWorkGiverDetail(stats.Group, wg, boundRangeState)))
+                    {
+                        height += RowHeight;
+                    }
+
                     foreach (ColonistWorkStat colonist in stats.ColonistStats)
                     {
                         if (expandedLevel2Keys.Contains(Level2PawnKey(storageKey, colonist.PawnId)))
@@ -561,6 +931,44 @@ namespace WorkMonitor.UI
                             ColonistGroupWorkDetail detail = GetColonistDetail(stats.Group, colonist.PawnId, boundRangeState);
                             height += detail.WorkGiverStats.Count * RowHeight;
                         }
+                    }
+
+                    if (expandedLevel2Keys.Contains(Level2PawnKey(storageKey, BulkExpandUtility.UnassignedBacklogPawnId)))
+                    {
+                        height += GetMapOnlyWorkGivers(stats, boundRangeState).Count * RowHeight;
+                    }
+                }
+            }
+
+            return height;
+        }
+
+        private float CalculateColonistTopViewHeight()
+        {
+            float height = cachedColonistTree.Count * RowHeight;
+
+            foreach (ColonistOverviewNode node in cachedColonistTree)
+            {
+                if (!expandedColonistTopKeys.Contains(ColonistTopColonistKey(node.PawnId)))
+                {
+                    continue;
+                }
+
+                height += node.Groups.Count * RowHeight;
+                foreach (ColonistOverviewGroupNode groupNode in node.Groups)
+                {
+                    if (!expandedColonistTopKeys.Contains(ColonistTopGroupKey(node.PawnId, groupNode.Group.Key.StorageKey)))
+                    {
+                        continue;
+                    }
+
+                    if (node.IsUnassigned)
+                    {
+                        height += groupNode.MapOnlyWorkGivers.Count * RowHeight;
+                    }
+                    else
+                    {
+                        height += groupNode.ColonistWorkGivers.Count * RowHeight;
                     }
                 }
             }
@@ -657,18 +1065,37 @@ namespace WorkMonitor.UI
                 return;
             }
 
-            settings.groupDetailWorkGiverFirst = !settings.groupDetailWorkGiverFirst;
+            settings.overviewLayoutMode = LayoutMode switch
+            {
+                OverviewLayoutMode.WorkTypeColonistFirst => OverviewLayoutMode.WorkTypeWorkGiverFirst,
+                OverviewLayoutMode.WorkTypeWorkGiverFirst => OverviewLayoutMode.ColonistTopLevel,
+                _ => OverviewLayoutMode.WorkTypeColonistFirst
+            };
             ClearExpandCaches();
         }
 
         private void ExpandOneLevel()
         {
-            BulkExpandUtility.ExpandOneLevel(AllLevel1Expanded(), ExpandAllLevel1, ExpandAllLevel2);
+            if (ColonistTopLevel)
+            {
+                BulkExpandUtility.ExpandOneLevel(AllColonistTopL0Expanded(), ExpandAllColonistTopL0, ExpandAllColonistTopL1);
+            }
+            else
+            {
+                BulkExpandUtility.ExpandOneLevel(AllLevel1Expanded(), ExpandAllLevel1, ExpandAllLevel2);
+            }
         }
 
         private void CollapseOneLevel()
         {
-            BulkExpandUtility.CollapseOneLevel(AnyLevel2Expanded(), CollapseAllLevel2, CollapseAllLevel1);
+            if (ColonistTopLevel)
+            {
+                BulkExpandUtility.CollapseOneLevel(AnyColonistTopL1Expanded(), CollapseAllColonistTopL1, CollapseAllColonistTopL0);
+            }
+            else
+            {
+                BulkExpandUtility.CollapseOneLevel(AnyLevel2Expanded(), CollapseAllLevel2, CollapseAllLevel1);
+            }
         }
 
         private bool AllLevel1Expanded()
@@ -726,8 +1153,98 @@ namespace WorkMonitor.UI
                     {
                         expandedLevel2Keys.Add(Level2PawnKey(storageKey, colonist.PawnId));
                     }
+
+                    if (BulkExpandUtility.HasMapOnlyBacklog(stats, wg => GetWorkGiverDetail(stats.Group, wg, boundRangeState)))
+                    {
+                        expandedLevel2Keys.Add(Level2PawnKey(storageKey, BulkExpandUtility.UnassignedBacklogPawnId));
+                    }
                 }
             }
+        }
+
+        private bool AllColonistTopL0Expanded()
+        {
+            if (cachedColonistTree.Count == 0)
+            {
+                return true;
+            }
+
+            foreach (ColonistOverviewNode node in cachedColonistTree)
+            {
+                if (!expandedColonistTopKeys.Contains(ColonistTopColonistKey(node.PawnId)))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private bool AnyColonistTopL1Expanded()
+        {
+            foreach (ColonistOverviewNode node in cachedColonistTree)
+            {
+                if (!expandedColonistTopKeys.Contains(ColonistTopColonistKey(node.PawnId)))
+                {
+                    continue;
+                }
+
+                foreach (ColonistOverviewGroupNode groupNode in node.Groups)
+                {
+                    if (expandedColonistTopKeys.Contains(ColonistTopGroupKey(node.PawnId, groupNode.Group.Key.StorageKey)))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private void ExpandAllColonistTopL0()
+        {
+            foreach (ColonistOverviewNode node in cachedColonistTree)
+            {
+                expandedColonistTopKeys.Add(ColonistTopColonistKey(node.PawnId));
+            }
+        }
+
+        private void ExpandAllColonistTopL1()
+        {
+            foreach (ColonistOverviewNode node in cachedColonistTree)
+            {
+                if (!expandedColonistTopKeys.Contains(ColonistTopColonistKey(node.PawnId)))
+                {
+                    continue;
+                }
+
+                foreach (ColonistOverviewGroupNode groupNode in node.Groups)
+                {
+                    expandedColonistTopKeys.Add(ColonistTopGroupKey(node.PawnId, groupNode.Group.Key.StorageKey));
+                }
+            }
+        }
+
+        private void CollapseAllColonistTopL1()
+        {
+            var groupKeys = new List<string>();
+            foreach (string key in expandedColonistTopKeys)
+            {
+                if (key.Contains(":group:"))
+                {
+                    groupKeys.Add(key);
+                }
+            }
+
+            foreach (string key in groupKeys)
+            {
+                expandedColonistTopKeys.Remove(key);
+            }
+        }
+
+        private void CollapseAllColonistTopL0()
+        {
+            expandedColonistTopKeys.Clear();
         }
 
         private void CollapseAllLevel2()

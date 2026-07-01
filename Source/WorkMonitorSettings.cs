@@ -14,8 +14,12 @@ namespace WorkMonitor
         public int yellowStatusHours = 12;
         public int refreshIntervalTicks = 60;
         public bool showTimeInHours = true;
-        public bool groupDetailWorkGiverFirst = false;
+        public UI.OverviewLayoutMode overviewLayoutMode = UI.OverviewLayoutMode.WorkTypeColonistFirst;
         public bool showSkillOnWorkGiverLabels = true;
+
+        public bool WorkGiverFirst => overviewLayoutMode == UI.OverviewLayoutMode.WorkTypeWorkGiverFirst;
+
+        public bool ColonistTopLevel => overviewLayoutMode == UI.OverviewLayoutMode.ColonistTopLevel;
         public string workGiverLabelFormat = "{skill}: {label}";
         public string skillRoleOverrides = "";
         public string workGiverSkillOverrides = "";
@@ -157,7 +161,25 @@ namespace WorkMonitor
             Scribe_Values.Look(ref yellowStatusHours, "yellowStatusHours", 12);
             Scribe_Values.Look(ref refreshIntervalTicks, "refreshIntervalTicks", 60);
             Scribe_Values.Look(ref showTimeInHours, "showTimeInHours", true);
-            Scribe_Values.Look(ref groupDetailWorkGiverFirst, "groupDetailWorkGiverFirst", false);
+
+            int layoutModeInt = (int)overviewLayoutMode;
+            Scribe_Values.Look(ref layoutModeInt, "overviewLayoutMode", -1);
+            bool legacyGroupDetailWorkGiverFirst = false;
+            Scribe_Values.Look(ref legacyGroupDetailWorkGiverFirst, "groupDetailWorkGiverFirst", false);
+            if (Scribe.mode == LoadSaveMode.LoadingVars)
+            {
+                if (layoutModeInt < 0)
+                {
+                    overviewLayoutMode = legacyGroupDetailWorkGiverFirst
+                        ? UI.OverviewLayoutMode.WorkTypeWorkGiverFirst
+                        : UI.OverviewLayoutMode.WorkTypeColonistFirst;
+                }
+                else
+                {
+                    overviewLayoutMode = (UI.OverviewLayoutMode)layoutModeInt;
+                }
+            }
+
             Scribe_Values.Look(ref showSkillOnWorkGiverLabels, "showSkillOnWorkGiverLabels", true);
             Scribe_Values.Look(ref workGiverLabelFormat, "workGiverLabelFormat", "{skill}: {label}");
             Scribe_Values.Look(ref skillRoleOverrides, "skillRoleOverrides", "");
