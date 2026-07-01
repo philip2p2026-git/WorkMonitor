@@ -1031,7 +1031,7 @@ namespace WorkMonitor.UI
 
     public static class DistributionPieChart
     {
-        private static readonly Color WalkColor = new Color(0.55f, 0.75f, 0.95f);
+        private static readonly Color WalkColor = new Color(0.58f, 0.58f, 0.62f);
         private static readonly Color WorkColor = new Color(0.4f, 0.85f, 0.5f);
         private static readonly Color SplitHintColor = new Color(0.75f, 0.75f, 0.75f);
         private static readonly Color SliceEdgeColor = new Color(0.06f, 0.06f, 0.06f, 0.95f);
@@ -1134,7 +1134,7 @@ namespace WorkMonitor.UI
                             sliceEnd,
                             workFrac,
                             BlendSliceColor(slice.Color, WorkColor, 0.42f),
-                            BlendSliceColor(slice.Color, WalkColor, 0.55f),
+                            WalkColor,
                             hits,
                             slice.Label,
                             work,

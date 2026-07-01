@@ -10,6 +10,7 @@ namespace WorkMonitor.UI
     public class WorkGroupDetailPanel
     {
         private const float RowHeight = 24f;
+        private const float HeaderHeight = 18f;
         private const float ChartHeight = 168f;
         private const float MapPieHeight = 168f;
         private const float MapPieGap = 12f;
@@ -123,18 +124,18 @@ namespace WorkMonitor.UI
                 SetGroup(stats.Group, rangeState);
             }
 
-            Rect header = new Rect(rect.x, rect.y + 32f, rect.width, 52f);
-            DrawHeader(header);
-
-            Rect chartRect = new Rect(rect.x, header.yMax + 4f, rect.width, ChartHeight);
-            chartPanel.Draw(chartRect, stats, allStats, rangeState);
-
-            Rect content = new Rect(rect.x, chartRect.yMax + 6f, rect.width, rect.yMax - chartRect.yMax - 12f);
-            float viewHeight = 150f + CalculateColonistViewHeight() + MapPieGap + MapPieHeight + MapPieGap + stats.WorkGiverStats.Count * RowHeight + RowHeight;
+            Rect content = new Rect(rect.x, rect.y + 32f, rect.width, rect.yMax - rect.y - 38f);
+            float viewHeight = CalculateScrollViewHeight();
             Rect view = new Rect(0f, 0f, content.width - 16f, viewHeight);
             Widgets.BeginScrollView(content, ref scroll, view);
 
             float y = 0f;
+            DrawHeader(new Rect(0f, y, view.width, HeaderHeight));
+            y += HeaderHeight + 4f;
+
+            chartPanel.Draw(new Rect(0f, y, view.width, ChartHeight), stats, allStats, rangeState);
+            y += ChartHeight + 6f;
+
             DrawColonistTable(new Rect(0f, y, view.width, viewHeight - y), rangeState, ref y, out colonistClicked, out selectedColonist, out workGiverClicked, out selectedWorkGiver);
             y += MapPieGap;
             mapPiePanel.Draw(new Rect(0f, y, view.width, MapPieHeight), stats);
@@ -156,20 +157,19 @@ namespace WorkMonitor.UI
             }
         }
 
+        private float CalculateScrollViewHeight()
+        {
+            return HeaderHeight + 4f + ChartHeight + 6f
+                + 150f + CalculateColonistViewHeight() + MapPieGap + MapPieHeight + MapPieGap
+                + stats.WorkGiverStats.Count * RowHeight + RowHeight;
+        }
+
         private void DrawHeader(Rect rect)
         {
             Color dot = WorkMonitorUiUtility.StatusColor(stats.Status);
-            Widgets.DrawBoxSolid(new Rect(rect.x, rect.y + 5f, 10f, 10f), dot);
+            Widgets.DrawBoxSolid(new Rect(rect.x, rect.y + 3f, 10f, 10f), dot);
 
             Text.Font = GameFont.Tiny;
-            string summary = string.Format(
-                "capable {0} · enabled {1} · worked {2} · {3}",
-                stats.CapableCount,
-                stats.EnabledCount,
-                stats.WorkedCount,
-                WorkMonitorUiUtility.FormatInterestRatio(stats));
-            Widgets.Label(new Rect(rect.x + 14f, rect.y, rect.width - 14f, 16f), summary);
-
             int totalTravel = 0;
             int totalWork = 0;
             foreach (ColonistWorkStat colonist in stats.ColonistStats)
@@ -178,19 +178,20 @@ namespace WorkMonitor.UI
                 totalWork += colonist.WorkTicksSpent;
             }
 
-            string totals = "WorkMonitor.JobsWorkWalkActiveSummary".Translate(
+            bool showHours = WorkMonitorMod.Settings?.showTimeInHours ?? true;
+            string summary = "WorkMonitor.GroupDetailSummary".Translate(
+                stats.CapableCount,
+                stats.EnabledCount,
+                stats.WorkedCount,
+                WorkMonitorUiUtility.FormatInterestRatio(stats),
                 stats.TotalJobCount,
                 WorkMonitorUtility.FormatWorkUnits(stats.TotalWorkUnits),
-                WorkMonitorUtility.FormatDuration(totalTravel, WorkMonitorMod.Settings?.showTimeInHours ?? true),
-                WorkMonitorUtility.FormatDuration(totalWork, WorkMonitorMod.Settings?.showTimeInHours ?? true));
-            Widgets.Label(new Rect(rect.x + 14f, rect.y + 18f, rect.width - 14f, 16f), totals);
-
-            string mapSummary = "WorkMonitor.MapSummary".Translate(
+                WorkMonitorUtility.FormatDuration(totalTravel, showHours),
+                WorkMonitorUtility.FormatDuration(totalWork, showHours),
                 WorkMonitorUiUtility.FormatMapOpenTasks(stats.TotalMapOpenTasks, stats.TotalMapNewTodayOpenTasks),
                 WorkMonitorUiUtility.FormatMapWorkLeft(stats.TotalMapWorkLeft, stats.TotalMapNewTodayWorkLeft),
-                WorkMonitorUtility.FormatGameDateTime(stats.MapSampleTick),
                 WorkMonitorUtility.FormatSampleAge(stats.MapSampleTick));
-            Widgets.Label(new Rect(rect.x + 14f, rect.y + 36f, rect.width - 14f, 16f), mapSummary);
+            Widgets.Label(new Rect(rect.x + 14f, rect.y, rect.width - 14f, rect.height), summary);
         }
 
         private float CalculateColonistViewHeight()

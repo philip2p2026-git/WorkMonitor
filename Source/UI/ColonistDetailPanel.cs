@@ -16,6 +16,7 @@ namespace WorkMonitor.UI
         private const float ExpandButtonWidth = WorkMonitorTableColumns.ExpandButtonWidth;
         private const float WorkGiverIndent = 16f;
         private const float ExpandAllWidth = 76f;
+        private const float HeaderHeight = 18f;
         private const float ChartHeight = 168f;
 
         private Vector2 scroll;
@@ -154,18 +155,19 @@ namespace WorkMonitor.UI
                 SetColonist(stats.PawnId, rangeState, returnGroup: returnGroup, returnWorkGiver: returnWorkGiver);
             }
 
-            Rect header = new Rect(rect.x, rect.y + 32f, rect.width, 18f);
-            DrawHeader(header);
-
-            Rect chartRect = new Rect(rect.x, header.yMax + 4f, rect.width, ChartHeight);
-            pieChartPanel.Draw(chartRect, stats);
-
-            Rect content = new Rect(rect.x, chartRect.yMax + 6f, rect.width, rect.yMax - chartRect.yMax - 12f);
-            float viewHeight = CalculateGroupsViewHeight();
+            Rect content = new Rect(rect.x, rect.y + 32f, rect.width, rect.yMax - rect.y - 38f);
+            float viewHeight = HeaderHeight + 4f + ChartHeight + 6f + CalculateGroupsViewHeight();
             Rect viewRect = new Rect(0f, 0f, content.width - 16f, viewHeight);
             Widgets.BeginScrollView(content, ref scroll, viewRect);
+
             float y = 0f;
-            DrawGroupTable(new Rect(0f, y, viewRect.width, viewHeight), rangeState, ref y, out groupClicked, out selectedGroup);
+            DrawHeader(new Rect(0f, y, viewRect.width, HeaderHeight));
+            y += HeaderHeight + 4f;
+
+            pieChartPanel.Draw(new Rect(0f, y, viewRect.width, ChartHeight), stats);
+            y += ChartHeight + 6f;
+
+            DrawGroupTable(new Rect(0f, y, viewRect.width, viewHeight - y), rangeState, ref y, out groupClicked, out selectedGroup);
             Widgets.EndScrollView();
 
             if (pendingColonistPawnId > 0)
