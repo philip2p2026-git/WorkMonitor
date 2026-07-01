@@ -32,16 +32,43 @@ namespace WorkMonitor.UI
             selectedGroup = null;
             selectedWorkGiver = null;
             selectedColonistPawnId = 0;
+            overviewPanel.ClearExpandCaches();
         }
 
         public void Draw(Rect rect)
         {
             if (view == MonitorView.Overview)
             {
-                WorkGroupSnapshot clicked = overviewPanel.Draw(rect, rangeState, out bool rowClicked);
-                if (rowClicked && clicked != null)
+                overviewPanel.Draw(
+                    rect,
+                    rangeState,
+                    out bool groupClicked,
+                    out WorkGroupSnapshot clickedGroup,
+                    out bool colonistClicked,
+                    out ColonistWorkStat selectedColonistStat,
+                    out WorkGroupSnapshot colonistGroup,
+                    out bool workGiverClicked,
+                    out WorkGiverDef workGiver,
+                    out WorkGroupSnapshot workGiverGroup);
+
+                if (workGiverClicked && workGiver != null && workGiverGroup != null)
                 {
-                    selectedGroup = clicked;
+                    selectedGroup = workGiverGroup;
+                    selectedWorkGiver = workGiver;
+                    workGiverDetailPanel.SetWorkGiver(selectedGroup, selectedWorkGiver, rangeState);
+                    view = MonitorView.WorkGiverDetail;
+                }
+                else if (colonistClicked && selectedColonistStat != null && selectedColonistStat.PawnId > 0 && colonistGroup != null)
+                {
+                    selectedGroup = colonistGroup;
+                    selectedColonistPawnId = selectedColonistStat.PawnId;
+                    selectedWorkGiver = null;
+                    colonistDetailPanel.SetColonist(selectedColonistPawnId, rangeState, selectedGroup, openGroupDetail: true, returnGroup: selectedGroup);
+                    view = MonitorView.ColonistDetail;
+                }
+                else if (groupClicked && clickedGroup != null)
+                {
+                    selectedGroup = clickedGroup;
                     detailPanel.SetGroup(selectedGroup, rangeState);
                     view = MonitorView.GroupDetail;
                 }
@@ -97,8 +124,8 @@ namespace WorkMonitor.UI
                 return;
             }
 
-            colonistDetailPanel.Draw(rect, rangeState, out bool colonistBack, out bool groupClicked, out WorkGroupSnapshot groupFromColonist);
-            if (groupClicked && groupFromColonist != null)
+            colonistDetailPanel.Draw(rect, rangeState, out bool colonistBack, out bool groupClickedFromColonist, out WorkGroupSnapshot groupFromColonist);
+            if (groupClickedFromColonist && groupFromColonist != null)
             {
                 selectedGroup = groupFromColonist;
                 detailPanel.SetGroup(selectedGroup, rangeState);

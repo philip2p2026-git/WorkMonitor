@@ -290,20 +290,13 @@ namespace WorkMonitor.UI
 
             TooltipHandler.TipRegion(layoutRect, "WorkMonitor.GroupDetailLayoutTip".Translate());
 
-            string expandLabel = WorkGiverFirst
-                ? AllWorkGiversExpanded() ? "WorkMonitor.CollapseAll".Translate() : "WorkMonitor.ExpandAll".Translate()
-                : AllColonistsExpanded() ? "WorkMonitor.CollapseAll".Translate() : "WorkMonitor.ExpandAll".Translate();
+            string expandLabel = BulkExpandUtility.BulkButtonLabel(AllLevel2Expanded());
             if (Widgets.ButtonText(new Rect(area.xMax - ExpandAllWidth, y, ExpandAllWidth, 22f), expandLabel))
             {
-                if (WorkGiverFirst)
-                {
-                    ToggleExpandAllWorkGivers();
-                }
-                else
-                {
-                    ToggleExpandAllColonists();
-                }
+                ApplyBulkExpandToggle();
             }
+
+            TooltipHandler.TipRegion(new Rect(area.xMax - ExpandAllWidth, y, ExpandAllWidth, 22f), "WorkMonitor.ExpandAllLevelTip".Translate());
 
             y += RowHeight;
 
@@ -465,6 +458,79 @@ namespace WorkMonitor.UI
             }
         }
 
+        private bool AllLevel1Expanded()
+        {
+            return WorkGiverFirst ? AllWorkGiversExpanded() : AllColonistsExpanded();
+        }
+
+        private bool AllLevel2Expanded()
+        {
+            return AllLevel1Expanded();
+        }
+
+        private bool AnyLevel2Expanded()
+        {
+            return WorkGiverFirst ? expandedWorkGiverDefNames.Count > 0 : expandedColonistIds.Count > 0;
+        }
+
+        private void ApplyBulkExpandToggle()
+        {
+            BulkExpandUtility.ApplyBulkToggle(
+                AllLevel2Expanded(),
+                ExpandOneLevel,
+                CollapseOneLevel);
+        }
+
+        private void ExpandOneLevel()
+        {
+            BulkExpandUtility.ExpandOneLevel(AllLevel1Expanded(), ExpandAllLevel1, ExpandAllLevel2);
+        }
+
+        private void CollapseOneLevel()
+        {
+            BulkExpandUtility.CollapseOneLevel(AnyLevel2Expanded(), CollapseAllLevel2, CollapseAllLevel1);
+        }
+
+        private void ExpandAllLevel1()
+        {
+            if (WorkGiverFirst)
+            {
+                foreach (WorkGiverDef workGiver in GetActiveWorkGivers())
+                {
+                    expandedWorkGiverDefNames.Add(workGiver.defName);
+                }
+            }
+            else
+            {
+                foreach (ColonistWorkStat colonist in stats.ColonistStats)
+                {
+                    expandedColonistIds.Add(colonist.PawnId);
+                }
+            }
+        }
+
+        private void ExpandAllLevel2()
+        {
+            // Detail breakdown has two visual levels but one expansion set; L2 follows L1.
+        }
+
+        private void CollapseAllLevel2()
+        {
+            if (WorkGiverFirst)
+            {
+                expandedWorkGiverDefNames.Clear();
+            }
+            else
+            {
+                expandedColonistIds.Clear();
+            }
+        }
+
+        private void CollapseAllLevel1()
+        {
+            CollapseAllLevel2();
+        }
+
         private bool AllColonistsExpanded()
         {
             if (stats.ColonistStats.Count == 0)
@@ -481,20 +547,6 @@ namespace WorkMonitor.UI
             }
 
             return true;
-        }
-
-        private void ToggleExpandAllColonists()
-        {
-            if (AllColonistsExpanded())
-            {
-                expandedColonistIds.Clear();
-                return;
-            }
-
-            foreach (ColonistWorkStat colonist in stats.ColonistStats)
-            {
-                expandedColonistIds.Add(colonist.PawnId);
-            }
         }
 
         private bool AllWorkGiversExpanded()
@@ -514,20 +566,6 @@ namespace WorkMonitor.UI
             }
 
             return true;
-        }
-
-        private void ToggleExpandAllWorkGivers()
-        {
-            if (AllWorkGiversExpanded())
-            {
-                expandedWorkGiverDefNames.Clear();
-                return;
-            }
-
-            foreach (WorkGiverDef workGiver in GetActiveWorkGivers())
-            {
-                expandedWorkGiverDefNames.Add(workGiver.defName);
-            }
         }
 
         private void DrawExpandedWorkGivers(Rect area, float tableWidth, int pawnId, ref float y, ref int rowIndex, ref bool workGiverClicked, ref WorkGiverDef selectedWorkGiver)

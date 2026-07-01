@@ -49,6 +49,8 @@
 	<WorkMonitor.GroupByColonist>By colonist</WorkMonitor.GroupByColonist>
 	<WorkMonitor.GroupByWorkGiver>By work giver</WorkMonitor.GroupByWorkGiver>
 	<WorkMonitor.GroupDetailLayoutTip>Switch colonist breakdown between colonist-first and work-giver-first grouping.</WorkMonitor.GroupDetailLayoutTip>
+	<WorkMonitor.OverviewLayoutTip>Switch overview sub-rows between colonist-first and work-giver-first grouping (shared with WorkType detail).</WorkMonitor.OverviewLayoutTip>
+	<WorkMonitor.ExpandAllLevelTip>Expand or collapse one level at a time. Click twice to fully expand or collapse.</WorkMonitor.ExpandAllLevelTip>
 	<WorkMonitor.MapEndlessTip>Colonist endless job starts in the selected range (not map backlog).</WorkMonitor.MapEndlessTip>
 	<WorkMonitor.ColonistsIconTip>Info opens colonist bio. Click a row to open colonist work breakdown.</WorkMonitor.ColonistsIconTip>
 	<WorkMonitor.OpenColonistProfile>Open colonist bio</WorkMonitor.OpenColonistProfile>

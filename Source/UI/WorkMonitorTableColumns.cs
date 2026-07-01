@@ -22,6 +22,10 @@ namespace WorkMonitor.UI
         private const float GroupDetailActiveWorkWidth = 60f;
 
         public const float ExpandButtonWidth = 20f;
+        public const float OverviewStatusWidth = 22f;
+        public const float OverviewInterestWidth = 56f;
+        public const float OverviewColonistIndent = 16f;
+        public const float OverviewWorkGiverIndent = 16f;
         public const float ColonistIconSize = 18f;
         public const float ColonistIconGap = 4f;
         private const float GroupDetailKpiJobWidth = 63f;
@@ -128,6 +132,44 @@ namespace WorkMonitor.UI
             return existJobCol.x;
         }
 
+        public static void GetOverviewInterestColumn(Rect row, out Rect interestCol)
+        {
+            float metricsLeft = OverviewMetricsLeftEdge(row);
+            interestCol = new Rect(metricsLeft - ColumnGap - OverviewInterestWidth, row.y, OverviewInterestWidth, row.height);
+        }
+
+        public static float OverviewLabelLeft(float rowX, bool hasExpand, bool hasStatus, float extraIndent = 0f)
+        {
+            float x = rowX + extraIndent;
+            if (hasExpand)
+            {
+                x += ExpandButtonWidth;
+            }
+
+            if (hasStatus)
+            {
+                x += OverviewStatusWidth + 4f;
+            }
+
+            return x;
+        }
+
+        public static float OverviewLabelWidth(Rect row, float labelLeft, bool hasInterest)
+        {
+            float labelRight;
+            if (hasInterest)
+            {
+                GetOverviewInterestColumn(row, out Rect interestCol);
+                labelRight = interestCol.x - 4f;
+            }
+            else
+            {
+                labelRight = OverviewMetricsLeftEdge(row) - 8f;
+            }
+
+            return Mathf.Max(labelRight - labelLeft, 24f);
+        }
+
         public static void GetColonistGroupColumns(
             Rect row,
             out Rect jobCol,
@@ -205,6 +247,8 @@ namespace WorkMonitor.UI
             System.Action<Rect, string> labelRight)
         {
             GetOverviewMetricColumns(row, out Rect existJobCol, out Rect existWorkCol, out Rect jobProcessedCol, out Rect workProcessedCol);
+            GetOverviewInterestColumn(row, out Rect interestCol);
+            labelRight(interestCol, "WorkMonitor.Interest".Translate());
             labelRight(existJobCol, "WorkMonitor.ExistJob".Translate());
             labelRight(existWorkCol, "WorkMonitor.ExistWork".Translate());
             labelRight(jobProcessedCol, "WorkMonitor.JobProcessed".Translate());

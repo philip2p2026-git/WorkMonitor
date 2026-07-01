@@ -476,7 +476,7 @@ The monitor is hosted by `WorkMonitorContentHost` inside the History **Work** ta
 
 | UI name | Content | `MonitorView` | `ColonistDetailView` | Panel(s) | Translation key |
 |---------|---------|---------------|----------------------|----------|-----------------|
-| **WorkType overview** | **WorkType list** — all monitor rows with status and map/colonist KPIs | `Overview` | — | `WorkGroupOverviewPanel` | `WorkMonitor.OverviewTitle` |
+| **WorkType overview** | **WorkType list** — expandable tree (WorkType → colonist/work giver → work giver/colonist) with status, interest, map + colonist KPIs | `Overview` | — | `WorkGroupOverviewPanel` | `WorkMonitor.OverviewTitle` |
 | **WorkType detail** | **Charts**, expandable **Colonist list**, **WorkGiver list** (map backlog) for one row | `GroupDetail` | — | `WorkGroupDetailPanel`, `WorkGroupChartPanel` | `WorkMonitor.DetailTitle` (`{workType} — Detail`) |
 | **WorkGiver detail** | Charts + colonist table for one work giver within a row | `WorkGiverDetail` | — | `WorkGiverDetailPanel`, `WorkGroupChartPanel` | (work giver label in dropdown) |
 | **Colonist work detail** | **Work list** — per–work-giver breakdown for one colonist | `ColonistDetail` | `GroupWorkDetail` | `ColonistDetailPanel` | `WorkMonitor.ColonistWorkDetailTitle` (`{colonist} — {workType}`) |
@@ -498,8 +498,10 @@ Enums and `WorkGroup*` type names are **not yet aligned** with UI vocabulary (Wo
 ### Navigation
 
 ```
-WorkType overview (WorkType list)
-        │ click row
+WorkType overview (expandable WorkType tree)
+        │ click WorkType row (not ▶/▼) → WorkType detail
+        │ click colonist sub-row → Colonist work detail
+        │ click work giver sub-row → WorkGiver detail
         ▼
 WorkType detail (chart · colonist list · work giver list)
         │ click work giver row (map or expanded colonist sub-row)
@@ -522,7 +524,9 @@ WorkType detail
 WorkType overview
 ```
 
-**WorkType detail colonist table:** expand/collapse per colonist (▶/▼) to show per–work-giver metrics; **Expand all** / **Collapse all** toggles all rows. Expanded rows use `ColonistStatsAggregator.BuildGroupDetail`. KPI columns show jobs/h and work/h for the selected range.
+**WorkType overview tree:** Layout toggle **By colonist** / **By work giver** shares `groupDetailWorkGiverFirst` with WorkType detail. Expand ▶/▼ on WorkType and L1 rows; **Expand all** / **Collapse all** advances one level per click (fully expand/collapse in two clicks). Sub-rows reuse overview columns: map backlog on WorkType and work-giver rows; colonist processed metrics on colonist rows; interest on WorkType rows only. Click anywhere on a row (except ▶/▼) navigates to the matching detail view. L2 data from `ColonistStatsAggregator.BuildGroupDetail` and `WorkGiverStatsAggregator.Build` (lazy-cached).
+
+**WorkType detail colonist table:** expand/collapse per colonist (▶/▼) to show per–work-giver metrics; **Expand all** / **Collapse all** uses the same progressive one-level-per-click behavior (`BulkExpandUtility`). Expanded rows use `ColonistStatsAggregator.BuildGroupDetail`. KPI columns show jobs/h and work/h for the selected range.
 
 Opening **colonist work detail** from WorkType or WorkGiver detail pre-selects that work type (and work giver when applicable). Back from colonist detail returns to WorkGiver detail when `returnWorkGiver` was set.
 
@@ -531,7 +535,10 @@ Opening **colonist work detail** from WorkType or WorkGiver detail pre-selects t
 | Action | Result |
 |--------|--------|
 | Open History → Work tab | **WorkType overview** |
-| Click a WorkType row | **WorkType detail** for that row |
+| Click a WorkType row (overview) | **WorkType detail** for that row |
+| Click colonist sub-row (overview) | **Colonist work detail** |
+| Click work giver sub-row (overview) | **WorkGiver detail** |
+| Overview layout toggle | Switch colonist-first / work-giver-first (shared setting with detail) |
 | WorkType dropdown on detail | Switch detail row without returning to overview |
 | Range dropdown (any view) | Change `MonitorRangeState`; rebuilds stats/charts |
 | Highlight button | `WorkTabHighlightController.HighlightGroup` — jumps to Work tab |
@@ -547,7 +554,8 @@ Opening **colonist work detail** from WorkType or WorkGiver detail pre-selects t
 | `WorkMonitorContentHost.cs` | View routing, shared `MonitorRangeState` | all | — |
 | `MonitorRangeState.cs` | Range presets and span hours | — | — |
 | `WorkMonitorTableColumns.cs` | Shared column rects for colonist/work-giver tables | — | — |
-| `WorkGroupOverviewPanel.cs` | WorkType overview — WorkType list | `Overview` | — |
+| `WorkGroupOverviewPanel.cs` | WorkType overview — expandable tree, layout toggle, progressive expand | `Overview` | — |
+| `BulkExpandUtility.cs` | Shared progressive expand/collapse helpers | — | — |
 | `WorkGroupDetailPanel.cs` | WorkType detail — colonist list + map WorkGiver list | `GroupDetail` | — |
 | `WorkGroupChartPanel.cs` | Charts (dual colonist/map stream, new-today stack) | `GroupDetail`, `WorkGiverDetail` | — |
 | `WorkGiverDetailPanel.cs` | WorkGiver detail — single-WG colonist breakdown | `WorkGiverDetail` | — |
