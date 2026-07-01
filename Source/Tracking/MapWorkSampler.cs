@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using RimWorld;
 using UnityEngine;
 using Verse;
+using WorkMonitor.Diagnostics;
 using WorkMonitor.Tracking.MapWork;
 
 namespace WorkMonitor.Tracking
@@ -65,6 +66,8 @@ namespace WorkMonitor.Tracking
         {
             return historyBuffer;
         }
+
+        public int HistoryCount => historyBuffer?.Count ?? 0;
 
         public override void GameComponentTick()
         {
@@ -158,80 +161,88 @@ namespace WorkMonitor.Tracking
 
         private MapWorkSnapshot BuildSnapshot(Map map, int hourIndex, int sampleTick, long absTick)
         {
-            MapWorkSnapshot snapshot = new MapWorkSnapshot
+            using (new WorkMonitorPerfScope("map_sample_total"))
             {
-                hourIndex = hourIndex,
-                sampleTick = sampleTick
-            };
-
-            List<ScannedMapTarget> targets = new List<ScannedMapTarget>();
-            HashSet<string> currentKeys = new HashSet<string>();
-            HashSet<string> seenKeys = new HashSet<string>();
-
-            foreach (IMapWorkTargetProvider provider in MapWorkProviderRegistry.All)
-            {
-                provider.Collect(map, targets);
-            }
-
-            Vector2 longitude = Find.WorldGrid.LongLatOf(map.Tile);
-            int rolloverHour = WorkMonitorUtility.DayRolloverHour();
-            int currentDayId = WorkMonitorUtility.GetWorkDayId(absTick, longitude, rolloverHour);
-
-            foreach (ScannedMapTarget target in targets)
-            {
-                if (!seenKeys.Add(target.DedupeKey))
+                MapWorkSnapshot snapshot = new MapWorkSnapshot
                 {
-                    continue;
-                }
+                    hourIndex = hourIndex,
+                    sampleTick = sampleTick
+                };
 
-                currentKeys.Add(target.DedupeKey);
-                if (!taskFirstSeenDayId.ContainsKey(target.DedupeKey))
+                List<ScannedMapTarget> targets = new List<ScannedMapTarget>();
+                HashSet<string> currentKeys = new HashSet<string>();
+                HashSet<string> seenKeys = new HashSet<string>();
+
+                foreach (IMapWorkTargetProvider provider in MapWorkProviderRegistry.All)
                 {
-                    taskFirstSeenDayId[target.DedupeKey] = currentDayId;
-                }
-
-                bool isNewToday = taskFirstSeenDayId[target.DedupeKey] == currentDayId;
-
-                foreach (string workGiverDefName in target.WorkGiverDefNames)
-                {
-                    MapWorkGiverSnapshot wgSnap = snapshot.GetOrCreateWorkGiver(workGiverDefName);
-                    wgSnap.openTaskCount++;
-                    wgSnap.workLeftTotal += target.WorkLeft;
-                    if (isNewToday)
+                    string providerName = provider.GetType().Name;
+                    using (new WorkMonitorPerfScope("map_provider:" + providerName))
                     {
-                        wgSnap.newTodayOpenTaskCount++;
-                        wgSnap.newTodayWorkLeftTotal += target.WorkLeft;
+                        provider.Collect(map, targets);
                     }
                 }
 
-                foreach (string groupKey in target.GroupKeys)
+                Vector2 longitude = Find.WorldGrid.LongLatOf(map.Tile);
+                int rolloverHour = WorkMonitorUtility.DayRolloverHour();
+                int currentDayId = WorkMonitorUtility.GetWorkDayId(absTick, longitude, rolloverHour);
+
+                foreach (ScannedMapTarget target in targets)
                 {
-                    MapWorkGroupSnapshot groupSnap = snapshot.GetOrCreateGroup(groupKey);
-                    groupSnap.openTaskCount++;
-                    groupSnap.workLeftTotal += target.WorkLeft;
-                    if (isNewToday)
+                    if (!seenKeys.Add(target.DedupeKey))
                     {
-                        groupSnap.newTodayOpenTaskCount++;
-                        groupSnap.newTodayWorkLeftTotal += target.WorkLeft;
+                        continue;
+                    }
+
+                    currentKeys.Add(target.DedupeKey);
+                    if (!taskFirstSeenDayId.ContainsKey(target.DedupeKey))
+                    {
+                        taskFirstSeenDayId[target.DedupeKey] = currentDayId;
+                    }
+
+                    bool isNewToday = taskFirstSeenDayId[target.DedupeKey] == currentDayId;
+
+                    foreach (string workGiverDefName in target.WorkGiverDefNames)
+                    {
+                        MapWorkGiverSnapshot wgSnap = snapshot.GetOrCreateWorkGiver(workGiverDefName);
+                        wgSnap.openTaskCount++;
+                        wgSnap.workLeftTotal += target.WorkLeft;
+                        if (isNewToday)
+                        {
+                            wgSnap.newTodayOpenTaskCount++;
+                            wgSnap.newTodayWorkLeftTotal += target.WorkLeft;
+                        }
+                    }
+
+                    foreach (string groupKey in target.GroupKeys)
+                    {
+                        MapWorkGroupSnapshot groupSnap = snapshot.GetOrCreateGroup(groupKey);
+                        groupSnap.openTaskCount++;
+                        groupSnap.workLeftTotal += target.WorkLeft;
+                        if (isNewToday)
+                        {
+                            groupSnap.newTodayOpenTaskCount++;
+                            groupSnap.newTodayWorkLeftTotal += target.WorkLeft;
+                        }
                     }
                 }
-            }
 
-            List<string> staleKeys = new List<string>();
-            foreach (KeyValuePair<string, int> entry in taskFirstSeenDayId)
-            {
-                if (!currentKeys.Contains(entry.Key) && entry.Value < currentDayId - 1)
+                List<string> staleKeys = new List<string>();
+                foreach (KeyValuePair<string, int> entry in taskFirstSeenDayId)
                 {
-                    staleKeys.Add(entry.Key);
+                    if (!currentKeys.Contains(entry.Key) && entry.Value < currentDayId - 1)
+                    {
+                        staleKeys.Add(entry.Key);
+                    }
                 }
-            }
 
-            foreach (string key in staleKeys)
-            {
-                taskFirstSeenDayId.Remove(key);
-            }
+                foreach (string key in staleKeys)
+                {
+                    taskFirstSeenDayId.Remove(key);
+                }
 
-            return snapshot;
+                WorkMonitorPerfRecorder.SetCategoryNote("map_sample_total", "targets=" + seenKeys.Count);
+                return snapshot;
+            }
         }
     }
 }

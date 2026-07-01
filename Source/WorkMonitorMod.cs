@@ -2,6 +2,7 @@ using HarmonyLib;
 using RimWorld;
 using UnityEngine;
 using Verse;
+using WorkMonitor.Diagnostics;
 using WorkMonitor.Export;
 using WorkMonitor.Tracking;
 using WorkMonitor.UI;
@@ -10,7 +11,7 @@ namespace WorkMonitor
 {
     public class WorkMonitorMod : Mod
     {
-        private const float SettingsContentHeight = 520f;
+        private const float SettingsContentHeight = 620f;
         private const float SettingsRowHeight = 28f;
         private const float SettingsSectionGap = 10f;
         private const float SettingsControlGap = 6f;
@@ -86,6 +87,12 @@ namespace WorkMonitor
             DrawSectionHeader(listing, "WorkMonitor.SettingsExport".Translate());
             listing.Gap(4f);
             DrawExportButtonsRows(listing);
+
+            listing.Gap(SettingsSectionGap);
+            listing.GapLine(SettingsControlGap);
+
+            DrawSectionHeader(listing, "WorkMonitor.SettingsSectionDiagnostics".Translate());
+            DrawDiagnosticsSection(listing);
         }
 
         private static void DrawSectionHeader(Listing_Standard listing, string text)
@@ -321,6 +328,87 @@ namespace WorkMonitor
             DrawRightLabel(
                 new Rect(row.xMax - valueWidth, row.y, valueWidth, row.height),
                 MapWorkSampler.NormalizeInterval(Settings.mapSampleIntervalHours) + "h");
+        }
+
+        private static void DrawDiagnosticsSection(Listing_Standard listing)
+        {
+            Rect checkboxRow = listing.GetRect(SettingsRowHeight);
+            bool enablePerf = Settings.enablePerfLogging;
+            Widgets.CheckboxLabeled(
+                new Rect(checkboxRow.x, checkboxRow.y, checkboxRow.width, checkboxRow.height),
+                "WorkMonitor.SettingsEnablePerfLogging".Translate(),
+                ref enablePerf);
+            if (enablePerf != Settings.enablePerfLogging)
+            {
+                Settings.enablePerfLogging = enablePerf;
+                WorkMonitorPerfRecorder.OnSettingsToggled(enablePerf);
+            }
+
+            listing.Gap(SettingsControlGap);
+            DrawPerfFlushSliderRow(listing);
+
+            listing.Gap(SettingsControlGap);
+            Rect buttonRow = listing.GetRect(SettingsRowHeight);
+            float gap = SettingsControlGap;
+            float buttonWidth = (buttonRow.width - gap * 2f) / 3f;
+
+            if (Widgets.ButtonText(new Rect(buttonRow.x, buttonRow.y, buttonWidth, buttonRow.height), "WorkMonitor.ExportPerfLog".Translate()))
+            {
+                ExportPerfLog(openFolder: false);
+            }
+
+            if (Widgets.ButtonText(new Rect(buttonRow.x + buttonWidth + gap, buttonRow.y, buttonWidth, buttonRow.height), "WorkMonitor.OpenPerfFolder".Translate()))
+            {
+                ExportPerfLog(openFolder: true);
+            }
+
+            if (Widgets.ButtonText(new Rect(buttonRow.x + (buttonWidth + gap) * 2f, buttonRow.y, buttonWidth, buttonRow.height), "WorkMonitor.ResetPerfSession".Translate()))
+            {
+                WorkMonitorPerfRecorder.ResetSession();
+                Messages.Message("WorkMonitor.ResetPerfSessionDone".Translate(), MessageTypeDefOf.NeutralEvent, false);
+            }
+        }
+
+        private static void DrawPerfFlushSliderRow(Listing_Standard listing)
+        {
+            Rect row = listing.GetRect(SettingsRowHeight);
+            float labelWidth = 148f;
+            float valueWidth = 36f;
+            float sliderWidth = row.width - labelWidth - valueWidth - SettingsControlGap;
+
+            Widgets.Label(new Rect(row.x, row.y, labelWidth, row.height), "WorkMonitor.SettingsPerfFlushHours".Translate());
+
+            float sliderValue = Widgets.HorizontalSlider(
+                new Rect(row.x + labelWidth, row.y + 4f, sliderWidth, row.height),
+                Settings.perfLogFlushHours,
+                1f,
+                12f,
+                true);
+            int newValue = Mathf.Clamp(Mathf.RoundToInt(sliderValue), 1, 12);
+            if (newValue != Settings.perfLogFlushHours)
+            {
+                Settings.perfLogFlushHours = newValue;
+            }
+
+            DrawRightLabel(
+                new Rect(row.xMax - valueWidth, row.y, valueWidth, row.height),
+                Settings.perfLogFlushHours + "h");
+        }
+
+        private static void ExportPerfLog(bool openFolder)
+        {
+            if (WorkMonitorPerfRecorder.TryExportNow(out string path, out string error))
+            {
+                Messages.Message("WorkMonitor.ExportSuccess".Translate(path), MessageTypeDefOf.PositiveEvent, false);
+                if (openFolder)
+                {
+                    WorkMonitorPerfRecorder.OpenPerfDirectory();
+                }
+            }
+            else
+            {
+                Messages.Message("WorkMonitor.ExportFailed".Translate(error ?? "unknown"), MessageTypeDefOf.RejectInput, false);
+            }
         }
 
         private static void DrawExportButtonsRows(Listing_Standard listing)

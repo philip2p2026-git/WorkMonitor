@@ -35,6 +35,9 @@ namespace WorkMonitor
 
         public Vector2 monitorWindowSize = new Vector2(720f, 520f);
 
+        public bool enablePerfLogging = false;
+        public int perfLogFlushHours = 1;
+
         private Dictionary<string, bool> workGiverSkillOverrideCache;
 
         public int StatsWindowTicks => statsWindowHours * TicksPerHour;
@@ -216,6 +219,8 @@ namespace WorkMonitor
             Scribe_Values.Look(ref maxYearBuckets, "maxYearBuckets", 7);
             Scribe_Values.Look(ref yearHistoryUnlimited, "yearHistoryUnlimited", false);
             Scribe_Values.Look(ref monitorWindowSize, "monitorWindowSize", new Vector2(720f, 520f));
+            Scribe_Values.Look(ref enablePerfLogging, "enablePerfLogging", false);
+            Scribe_Values.Look(ref perfLogFlushHours, "perfLogFlushHours", 1);
             workGiverSkillOverrideCache = null;
         }
     }

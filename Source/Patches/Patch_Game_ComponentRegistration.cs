@@ -3,6 +3,7 @@ using System.Reflection;
 using HarmonyLib;
 using RimWorld;
 using Verse;
+using WorkMonitor.Diagnostics;
 using WorkMonitor.Tracking;
 
 namespace WorkMonitor.Patches
@@ -34,6 +35,24 @@ namespace WorkMonitor.Patches
             WorkActivityTracker.EnsureRegistered();
             MapWorkSampler sampler = MapWorkSampler.EnsureRegistered();
             sampler?.TrySampleIfDue(force: true);
+        }
+    }
+
+    [HarmonyPatch(typeof(ScribeSaver), "InitSaving")]
+    public static class Patch_ScribeSaver_InitSaving
+    {
+        public static void Prefix()
+        {
+            WorkMonitorPerfRecorder.FlushOnGameEnd();
+        }
+    }
+
+    [HarmonyPatch(typeof(GenScene), nameof(GenScene.GoToMainMenu))]
+    public static class Patch_GenScene_GoToMainMenu
+    {
+        public static void Prefix()
+        {
+            WorkMonitorPerfRecorder.FlushOnGameEnd();
         }
     }
 }

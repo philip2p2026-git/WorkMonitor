@@ -2,6 +2,7 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 using Verse.AI;
+using WorkMonitor.Diagnostics;
 using WorkMonitor.Tracking;
 
 namespace WorkMonitor.Patches
@@ -11,26 +12,32 @@ namespace WorkMonitor.Patches
     {
         public static void Prefix(Pawn_JobTracker __instance)
         {
-            Pawn pawn = Traverse.Create(__instance).Field("pawn").GetValue<Pawn>();
-            if (pawn == null)
+            using (new WorkMonitorPerfScope("job_start_end"))
             {
-                return;
-            }
+                Pawn pawn = Traverse.Create(__instance).Field("pawn").GetValue<Pawn>();
+                if (pawn == null)
+                {
+                    return;
+                }
 
-            WorkActivityTracker tracker = WorkActivityTracker.EnsureRegistered();
-            tracker?.RecordJobEnd(pawn, null, __instance.curJob, Find.TickManager.TicksGame);
+                WorkActivityTracker tracker = WorkActivityTracker.EnsureRegistered();
+                tracker?.RecordJobEnd(pawn, null, __instance.curJob, Find.TickManager.TicksGame);
+            }
         }
 
         public static void Postfix(Pawn_JobTracker __instance, Job newJob)
         {
-            Pawn pawn = Traverse.Create(__instance).Field("pawn").GetValue<Pawn>();
-            if (newJob?.workGiverDef == null || pawn == null)
+            using (new WorkMonitorPerfScope("job_start_end"))
             {
-                return;
-            }
+                Pawn pawn = Traverse.Create(__instance).Field("pawn").GetValue<Pawn>();
+                if (newJob?.workGiverDef == null || pawn == null)
+                {
+                    return;
+                }
 
-            WorkActivityTracker tracker = WorkActivityTracker.EnsureRegistered();
-            tracker?.RecordJobStart(pawn, newJob.workGiverDef, newJob, Find.TickManager.TicksGame);
+                WorkActivityTracker tracker = WorkActivityTracker.EnsureRegistered();
+                tracker?.RecordJobStart(pawn, newJob.workGiverDef, newJob, Find.TickManager.TicksGame);
+            }
         }
     }
 
@@ -39,16 +46,19 @@ namespace WorkMonitor.Patches
     {
         public static void Prefix(Pawn_JobTracker __instance)
         {
-            Pawn pawn = Traverse.Create(__instance).Field("pawn").GetValue<Pawn>();
-            if (pawn == null)
+            using (new WorkMonitorPerfScope("job_start_end"))
             {
-                return;
-            }
+                Pawn pawn = Traverse.Create(__instance).Field("pawn").GetValue<Pawn>();
+                if (pawn == null)
+                {
+                    return;
+                }
 
-            Job endingJob = __instance.curJob;
-            WorkGiverDef workGiver = endingJob?.workGiverDef;
-            WorkActivityTracker tracker = WorkActivityTracker.EnsureRegistered();
-            tracker?.RecordJobEnd(pawn, workGiver, endingJob, Find.TickManager.TicksGame);
+                Job endingJob = __instance.curJob;
+                WorkGiverDef workGiver = endingJob?.workGiverDef;
+                WorkActivityTracker tracker = WorkActivityTracker.EnsureRegistered();
+                tracker?.RecordJobEnd(pawn, workGiver, endingJob, Find.TickManager.TicksGame);
+            }
         }
     }
 }

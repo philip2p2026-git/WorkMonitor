@@ -3,6 +3,7 @@ using RimWorld;
 using UnityEngine;
 using Verse;
 using Verse.AI;
+using WorkMonitor.Diagnostics;
 using WorkMonitor.Groups;
 
 namespace WorkMonitor.Tracking
@@ -45,6 +46,24 @@ namespace WorkMonitor.Tracking
             new Dictionary<int, ColonistWorkProfile>();
 
         private int lastPrunedHourIndex = -1;
+
+        public int ActiveJobCount => activeJobs.Count;
+
+        public int GroupBufferCount => groupHistory.Count;
+
+        public int PawnWgBufferCount
+        {
+            get
+            {
+                int count = 0;
+                foreach (KeyValuePair<int, Dictionary<string, WorkHistoryTierBuffer>> entry in pawnWorkGiverHistory)
+                {
+                    count += entry.Value.Count;
+                }
+
+                return count;
+            }
+        }
 
         public static WorkActivityTracker Instance
         {
@@ -100,6 +119,7 @@ namespace WorkMonitor.Tracking
             {
                 lastPrunedHourIndex = hour;
                 PruneStaleData();
+                WorkMonitorPerfRecorder.TryFlushOnHourBoundary(hour);
             }
         }
 
@@ -209,43 +229,46 @@ namespace WorkMonitor.Tracking
 
         public void SampleBillWorkLeft(Pawn pawn, int tick)
         {
-            if (pawn == null || !activeJobs.TryGetValue(pawn.thingIDNumber, out ActiveWorkJob active))
+            using (new WorkMonitorPerfScope("bill_work_left"))
             {
-                return;
-            }
+                if (pawn == null || !activeJobs.TryGetValue(pawn.thingIDNumber, out ActiveWorkJob active))
+                {
+                    return;
+                }
 
-            if (active.trackingMode != WorkLeftTrackingMode.BillIncremental)
-            {
-                return;
-            }
+                if (active.trackingMode != WorkLeftTrackingMode.BillIncremental)
+                {
+                    return;
+                }
 
-            if (!WorkLeftResolver.TryGetBillDriverWorkLeft(pawn, out float currentWorkLeft))
-            {
-                return;
-            }
+                if (!WorkLeftResolver.TryGetBillDriverWorkLeft(pawn, out float currentWorkLeft))
+                {
+                    return;
+                }
 
-            WorkGiverDef workGiver = DefDatabase<WorkGiverDef>.GetNamedSilentFail(active.workGiverDefName);
-            if (workGiver == null)
-            {
-                return;
-            }
+                WorkGiverDef workGiver = DefDatabase<WorkGiverDef>.GetNamedSilentFail(active.workGiverDefName);
+                if (workGiver == null)
+                {
+                    return;
+                }
 
-            if (active.lastBillWorkLeft < 0f)
-            {
-                active.lastBillWorkLeft = currentWorkLeft;
-                return;
-            }
+                if (active.lastBillWorkLeft < 0f)
+                {
+                    active.lastBillWorkLeft = currentWorkLeft;
+                    return;
+                }
 
-            if (currentWorkLeft < active.lastBillWorkLeft)
-            {
-                float delta = active.lastBillWorkLeft - currentWorkLeft;
-                active.lastBillWorkLeft = currentWorkLeft;
-                active.accumulatedWorkUnits += delta;
-                CreditWorkUnits(pawn, workGiver, tick, delta);
-            }
-            else if (currentWorkLeft > active.lastBillWorkLeft)
-            {
-                active.lastBillWorkLeft = currentWorkLeft;
+                if (currentWorkLeft < active.lastBillWorkLeft)
+                {
+                    float delta = active.lastBillWorkLeft - currentWorkLeft;
+                    active.lastBillWorkLeft = currentWorkLeft;
+                    active.accumulatedWorkUnits += delta;
+                    CreditWorkUnits(pawn, workGiver, tick, delta);
+                }
+                else if (currentWorkLeft > active.lastBillWorkLeft)
+                {
+                    active.lastBillWorkLeft = currentWorkLeft;
+                }
             }
         }
 
@@ -426,35 +449,38 @@ namespace WorkMonitor.Tracking
 
         public void PruneStaleData()
         {
-            int retentionHours = WorkMonitorMod.Settings?.ResolveRetentionHours() ?? 24;
-            Vector2 longitude = WorkMonitorUtility.MapLongitude();
-            long absTick = Find.TickManager.TicksAbs;
-
-            foreach (WorkHistoryTierBuffer buffer in groupHistory.Values)
+            using (new WorkMonitorPerfScope("prune_stale"))
             {
-                buffer.RollupIfBoundaryCrossed(absTick, longitude);
-                buffer.Configure(WorkMonitorSettings.MaxRetentionHours);
-                buffer.PruneHourlyRetention();
-            }
+                int retentionHours = WorkMonitorMod.Settings?.ResolveRetentionHours() ?? 24;
+                Vector2 longitude = WorkMonitorUtility.MapLongitude();
+                long absTick = Find.TickManager.TicksAbs;
 
-            HashSet<int> activeColonistIds = new HashSet<int>();
-            foreach (Pawn pawn in WorkMonitorUtility.MonitorColonists())
-            {
-                activeColonistIds.Add(pawn.thingIDNumber);
-            }
-
-            foreach (KeyValuePair<int, Dictionary<string, WorkHistoryTierBuffer>> pawnEntry in pawnWorkGiverHistory)
-            {
-                foreach (WorkHistoryTierBuffer buffer in pawnEntry.Value.Values)
+                foreach (WorkHistoryTierBuffer buffer in groupHistory.Values)
                 {
                     buffer.RollupIfBoundaryCrossed(absTick, longitude);
-                    buffer.ConfigurePawnHistory();
+                    buffer.Configure(WorkMonitorSettings.MaxRetentionHours);
                     buffer.PruneHourlyRetention();
                 }
-            }
 
-            RefreshColonistPresence(activeColonistIds);
-            PruneEmptyPawnEntries();
+                HashSet<int> activeColonistIds = new HashSet<int>();
+                foreach (Pawn pawn in WorkMonitorUtility.MonitorColonists())
+                {
+                    activeColonistIds.Add(pawn.thingIDNumber);
+                }
+
+                foreach (KeyValuePair<int, Dictionary<string, WorkHistoryTierBuffer>> pawnEntry in pawnWorkGiverHistory)
+                {
+                    foreach (WorkHistoryTierBuffer buffer in pawnEntry.Value.Values)
+                    {
+                        buffer.RollupIfBoundaryCrossed(absTick, longitude);
+                        buffer.ConfigurePawnHistory();
+                        buffer.PruneHourlyRetention();
+                    }
+                }
+
+                RefreshColonistPresence(activeColonistIds);
+                PruneEmptyPawnEntries();
+            }
         }
 
         private void TouchColonistProfile(Pawn pawn)

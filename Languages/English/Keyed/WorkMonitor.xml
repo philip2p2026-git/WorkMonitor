@@ -164,4 +164,11 @@
 	<WorkMonitor.ExportSuccess>Exported to {0}</WorkMonitor.ExportSuccess>
 	<WorkMonitor.ExportFailed>Export failed: {0}</WorkMonitor.ExportFailed>
 	<WorkMonitor.WorkGiverDetailTitle>{0} — Detail</WorkMonitor.WorkGiverDetailTitle>
+	<WorkMonitor.SettingsSectionDiagnostics>Diagnostics</WorkMonitor.SettingsSectionDiagnostics>
+	<WorkMonitor.SettingsEnablePerfLogging>Enable performance logging (CSV)</WorkMonitor.SettingsEnablePerfLogging>
+	<WorkMonitor.SettingsPerfFlushHours>Perf log flush interval (hours)</WorkMonitor.SettingsPerfFlushHours>
+	<WorkMonitor.ExportPerfLog>Export perf log</WorkMonitor.ExportPerfLog>
+	<WorkMonitor.OpenPerfFolder>Open perf folder</WorkMonitor.OpenPerfFolder>
+	<WorkMonitor.ResetPerfSession>Reset perf session</WorkMonitor.ResetPerfSession>
+	<WorkMonitor.ResetPerfSessionDone>Performance session reset.</WorkMonitor.ResetPerfSessionDone>
 </LanguageData>

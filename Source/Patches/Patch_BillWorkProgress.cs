@@ -2,6 +2,7 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 using Verse.AI;
+using WorkMonitor.Diagnostics;
 using WorkMonitor.Tracking;
 
 namespace WorkMonitor.Patches
@@ -16,13 +17,16 @@ namespace WorkMonitor.Patches
                 return;
             }
 
-            int tick = Find.TickManager.TicksGame;
-            WorkActivityTracker tracker = WorkActivityTracker.Instance;
-            tracker?.SampleJobTick(__instance.pawn, tick);
-
-            if (__instance is JobDriver_DoBill)
+            using (new WorkMonitorPerfScope("job_driver_tick"))
             {
-                tracker?.SampleBillWorkLeft(__instance.pawn, tick);
+                int tick = Find.TickManager.TicksGame;
+                WorkActivityTracker tracker = WorkActivityTracker.Instance;
+                tracker?.SampleJobTick(__instance.pawn, tick);
+
+                if (__instance is JobDriver_DoBill)
+                {
+                    tracker?.SampleBillWorkLeft(__instance.pawn, tick);
+                }
             }
         }
     }
