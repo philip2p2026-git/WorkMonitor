@@ -335,7 +335,8 @@ namespace WorkMonitor.UI
                 Color prev = GUI.color;
                 GUI.color = new Color(0.8f, 0.8f, 0.8f);
                 float labelWidth = interestCol.x - area.x - WorkGiverIndent - 8f;
-                Widgets.Label(new Rect(area.x + WorkGiverIndent, columnRow.y, labelWidth, columnRow.height), wg.Label.Truncate(labelWidth));
+                float labelLeft = area.x + WorkGiverIndent;
+                WorkGiverLabelUtility.Draw(columnRow, labelLeft, labelWidth, wg.WorkGiver, GameFont.Tiny);
                 GUI.color = prev;
 
                 WorkMonitorUiUtility.DrawInterestValue(

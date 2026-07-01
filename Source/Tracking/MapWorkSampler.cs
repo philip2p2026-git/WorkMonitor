@@ -85,7 +85,7 @@ namespace WorkMonitor.Tracking
             }
 
             int hour = WorkMonitorUtility.CurrentHourIndex();
-            int interval = NormalizeInterval(WorkMonitorMod.Settings?.mapSampleIntervalHours ?? 6);
+            int interval = NormalizeInterval(WorkMonitorMod.Settings?.mapSampleIntervalHours ?? 1);
             if (!force && hour % interval != 0)
             {
                 return;

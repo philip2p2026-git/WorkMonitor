@@ -862,13 +862,24 @@ namespace WorkMonitor.UI
             if (labelIndentFromArea.HasValue)
             {
                 float labelWidth = interestCol.x - area.x - labelIndentFromArea.Value - 8f;
-                Widgets.Label(
-                    new Rect(area.x + labelIndentFromArea.Value, columnRow.y, labelWidth, columnRow.height),
-                    label.Truncate(labelWidth));
+                float labelLeft = area.x + labelIndentFromArea.Value;
+                WorkGiverLabelUtility.DrawLabelOrText(
+                    columnRow,
+                    labelLeft,
+                    labelWidth,
+                    navigateTarget,
+                    label,
+                    GameFont.Tiny);
             }
             else
             {
-                Widgets.Label(labelCol, label.Truncate(labelCol.width));
+                WorkGiverLabelUtility.DrawLabelOrText(
+                    columnRow,
+                    labelCol.x,
+                    labelCol.width,
+                    navigateTarget,
+                    label,
+                    GameFont.Tiny);
             }
 
             GUI.color = prev;
@@ -1073,7 +1084,7 @@ namespace WorkMonitor.UI
                 clicked = true;
             }
 
-            Widgets.Label(labelCol, wg.Label.Truncate(labelCol.width));
+            WorkGiverLabelUtility.Draw(row, labelCol.x, labelCol.width, wg.WorkGiver, GameFont.Small);
             string mapJobsText = WorkMonitorUiUtility.FormatMapOpenTasks(wg.MapOpenTasks, wg.MapNewTodayOpenTasks);
             string mapWorkText = WorkMonitorUiUtility.FormatMapWorkLeft(wg.MapWorkLeft, wg.MapNewTodayWorkLeft);
             WorkMonitorUiUtility.LabelRightWorkGiverStatValue(mapJobsCol, mapJobsText);

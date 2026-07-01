@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using RimWorld;
+using UnityEngine;
 using Verse;
 using WorkMonitor.Groups;
 using WorkMonitor.Tracking;
@@ -10,6 +11,8 @@ namespace WorkMonitor.Export
 {
     public static class WorkMonitorCsvExporter
     {
+        public static string ExportDirectory =>
+            Path.Combine(GenFilePaths.SaveDataFolderPath, "WorkMonitor", "Exports");
         private const string ColonistHeader =
             "colony,map,pawn_id,colonist_label,presence,work_giver,tier,period_id,period_start_hour,period_end_hour," +
             "job_count,endless_job_count,ticks,travel_ticks,work_ticks,work_units";
@@ -123,6 +126,53 @@ namespace WorkMonitor.Export
             }
 
             return TryWriteCsv("MapWorkGivers", lines, out path, out error);
+        }
+
+        public static bool TryExportBoth(out string colonistPath, out string mapPath, out string error)
+        {
+            colonistPath = null;
+            mapPath = null;
+            error = null;
+
+            bool colonistOk = TryExportColonistRecords(out colonistPath, out string colonistError);
+            bool mapOk = TryExportMapWorkGiverRecords(out mapPath, out string mapError);
+
+            if (colonistOk && mapOk)
+            {
+                return true;
+            }
+
+            if (colonistOk || mapOk)
+            {
+                error = colonistOk
+                    ? mapError ?? "Map export failed."
+                    : colonistError ?? "Colonist export failed.";
+                return false;
+            }
+
+            error = CombineErrors(colonistError, mapError);
+            return false;
+        }
+
+        public static void OpenExportDirectory()
+        {
+            Directory.CreateDirectory(ExportDirectory);
+            Application.OpenURL("file:///" + ExportDirectory.Replace('\\', '/'));
+        }
+
+        private static string CombineErrors(string first, string second)
+        {
+            if (first.NullOrEmpty())
+            {
+                return second ?? "Export failed.";
+            }
+
+            if (second.NullOrEmpty())
+            {
+                return first;
+            }
+
+            return first + "; " + second;
         }
 
         private static void AppendColonistBufferRows(
@@ -278,7 +328,7 @@ namespace WorkMonitor.Export
             error = null;
             try
             {
-                string dir = Path.Combine(GenFilePaths.SaveDataFolderPath, "WorkMonitor", "Exports");
+                string dir = ExportDirectory;
                 Directory.CreateDirectory(dir);
                 string safeColony = SanitizeFileName(ColonyLabel());
                 string timestamp = GenDate.DateFullStringAt(Find.TickManager.TicksAbs, WorkMonitorUtility.MapLongitude());

@@ -60,7 +60,7 @@
 	<WorkMonitor.OpenColonistProfile>Open colonist bio</WorkMonitor.OpenColonistProfile>
 	<WorkMonitor.OpenColonistWork>Open colonist work view</WorkMonitor.OpenColonistWork>
 	<WorkMonitor.WorkGivers>WorkGivers</WorkMonitor.WorkGivers>
-	<WorkMonitor.WorkGiversMap>WorkGivers (map)</WorkMonitor.WorkGiversMap>
+	<WorkMonitor.WorkGiversMap>WorkGivers (map backlog)</WorkMonitor.WorkGiversMap>
 	<WorkMonitor.WorkGiversMapTip>Periodic map sample: open tasks and work-left backlog on the map. Updates every 1–12 hours (mod setting).</WorkMonitor.WorkGiversMapTip>
 	<WorkMonitor.MapTotal>Total ({0})</WorkMonitor.MapTotal>
 	<WorkMonitor.MapSummary>Map: {0} open tasks · {1} work remaining · recorded {2} · sampled {3} ago</WorkMonitor.MapSummary>
@@ -109,7 +109,7 @@
 	<WorkMonitor.WorkGiverRowUnits>{0} — {1} jobs · {2} work · {3}</WorkMonitor.WorkGiverRowUnits>
 	<WorkMonitor.SettingsShowSkillOnWorkGiver>Show skill role on WorkGiver labels</WorkMonitor.SettingsShowSkillOnWorkGiver>
 	<WorkMonitor.SettingsWorkGiverLabelFormat>WorkGiver label format ({skill}, {label})</WorkMonitor.SettingsWorkGiverLabelFormat>
-	<WorkMonitor.SettingsSkillRoleOverrides>Skill role overrides (SkillDef=Label, comma-separated)</WorkMonitor.SettingsSkillRoleOverrides>
+	<WorkMonitor.SettingsSkillRoleOverrides>Skill role overrides for text mode when format includes {skill} (SkillDef=Label, comma-separated). Example: Shooting=Marksmanship, Intellectual=Science. Default display uses RimWorld skill icons.</WorkMonitor.SettingsSkillRoleOverrides>
 	<WorkMonitor.SettingsWorkGiverSkillOverrides>WorkGiver skill overrides (WorkGiverDef=true/false, comma-separated)</WorkMonitor.SettingsWorkGiverSkillOverrides>
 	<WorkMonitor.SettingsMapSampleInterval>Map work sample interval</WorkMonitor.SettingsMapSampleInterval>
 	<WorkMonitor.SettingsMapSampleCycle>Cycle map sample interval</WorkMonitor.SettingsMapSampleCycle>
@@ -131,7 +131,12 @@
 	<WorkMonitor.DayRolloverHour>Day summary starts at</WorkMonitor.DayRolloverHour>
 	<WorkMonitor.DayRolloverMidnight>Midnight (00:00)</WorkMonitor.DayRolloverMidnight>
 	<WorkMonitor.DayRolloverMorning>Morning (08:00)</WorkMonitor.DayRolloverMorning>
-	<WorkMonitor.SettingsDayRolloverAtMorning>Start day summary at 08:00 (unchecked = midnight)</WorkMonitor.SettingsDayRolloverAtMorning>
+	<WorkMonitor.SettingsDayRollover>Day summary starts at</WorkMonitor.SettingsDayRollover>
+	<WorkMonitor.SettingsDefaultOverviewLayout>Overview layout</WorkMonitor.SettingsDefaultOverviewLayout>
+	<WorkMonitor.ExportBoth>Both</WorkMonitor.ExportBoth>
+	<WorkMonitor.OpenExportFolder>Open folder</WorkMonitor.OpenExportFolder>
+	<WorkMonitor.ExportBothSuccess>Exported colonist and map files:\n{0}\n{1}</WorkMonitor.ExportBothSuccess>
+	<WorkMonitor.ExportPartialSuccess>Partial export to {0}: {1}</WorkMonitor.ExportPartialSuccess>
 	<WorkMonitor.MapJobsNewTodayTip>{0} open tasks on map (parentheses = new since today's day start)</WorkMonitor.MapJobsNewTodayTip>
 	<WorkMonitor.MapWorkNewTodayTip>{0} work remaining on map (parentheses = from tasks first seen today)</WorkMonitor.MapWorkNewTodayTip>
 	<WorkMonitor.MapBacklogRow>Map: {0} jobs · {1} work · recorded {2} · sampled {3} ago</WorkMonitor.MapBacklogRow>
@@ -145,8 +150,8 @@
 	<WorkMonitor.SettingsSectionStatus>Status thresholds</WorkMonitor.SettingsSectionStatus>
 	<WorkMonitor.SettingsSectionDisplay>Display and labels</WorkMonitor.SettingsSectionDisplay>
 	<WorkMonitor.SettingsSectionMap>Map sampling</WorkMonitor.SettingsSectionMap>
-	<WorkMonitor.ExportColonistCsv>Export colonist work records</WorkMonitor.ExportColonistCsv>
-	<WorkMonitor.ExportMapWorkGiverCsv>Export map workgiver snapshots</WorkMonitor.ExportMapWorkGiverCsv>
+	<WorkMonitor.ExportColonistCsv>Colonists work</WorkMonitor.ExportColonistCsv>
+	<WorkMonitor.ExportMapWorkGiverCsv>Map backlog</WorkMonitor.ExportMapWorkGiverCsv>
 	<WorkMonitor.ExportSuccess>Exported to {0}</WorkMonitor.ExportSuccess>
 	<WorkMonitor.ExportFailed>Export failed: {0}</WorkMonitor.ExportFailed>
 	<WorkMonitor.WorkGiverDetailTitle>{0} — Detail</WorkMonitor.WorkGiverDetailTitle>

@@ -104,7 +104,7 @@ namespace WorkMonitor
 
         public static int DayRolloverHour()
         {
-            return WorkMonitorMod.Settings?.dayRolloverHour ?? 0;
+            return WorkMonitorMod.Settings?.dayRolloverHour ?? 5;
         }
 
         public static int GetWorkDayId(long absTick, Vector2 longitude, int rolloverHour)

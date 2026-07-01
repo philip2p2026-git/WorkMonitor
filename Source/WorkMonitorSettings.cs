@@ -20,12 +20,14 @@ namespace WorkMonitor
         public bool WorkGiverFirst => overviewLayoutMode == UI.OverviewLayoutMode.WorkTypeWorkGiverFirst;
 
         public bool ColonistTopLevel => overviewLayoutMode == UI.OverviewLayoutMode.ColonistTopLevel;
-        public string workGiverLabelFormat = "{skill}: {label}";
+        public string workGiverLabelFormat = "{label}";
         public string skillRoleOverrides = "";
         public string workGiverSkillOverrides = "";
-        public int mapSampleIntervalHours = 6;
+        public int mapSampleIntervalHours = 1;
         public int defaultRangePreset = (int)UI.MonitorRangePreset.Hours24;
-        public int dayRolloverHour = 0;
+        public int dayRolloverHour = 5;
+
+        public static readonly int[] DayRolloverHourOptions = { 0, 5, 8 };
         public int maxDailyBuckets = 20;
         public int maxQuadrumBuckets = 12;
         public int maxYearBuckets = 7;
@@ -48,6 +50,55 @@ namespace WorkMonitor
         {
             int range = activeRangeHours > 0 ? activeRangeHours : statsWindowHours;
             return UnityEngine.Mathf.Clamp(UnityEngine.Mathf.Min(range, MaxRetentionHours), 6, MaxRetentionHours);
+        }
+
+        public static int NormalizeDayRolloverHour(int hour)
+        {
+            foreach (int option in DayRolloverHourOptions)
+            {
+                if (hour == option)
+                {
+                    return option;
+                }
+            }
+
+            int best = DayRolloverHourOptions[1];
+            int bestDistance = int.MaxValue;
+            foreach (int option in DayRolloverHourOptions)
+            {
+                int distance = UnityEngine.Mathf.Abs(hour - option);
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    best = option;
+                }
+            }
+
+            return best;
+        }
+
+        public static int IndexOfDayRolloverHour(int hour)
+        {
+            int normalized = NormalizeDayRolloverHour(hour);
+            for (int i = 0; i < DayRolloverHourOptions.Length; i++)
+            {
+                if (DayRolloverHourOptions[i] == normalized)
+                {
+                    return i;
+                }
+            }
+
+            return 1;
+        }
+
+        public static int DayRolloverHourAtIndex(int index)
+        {
+            return DayRolloverHourOptions[UnityEngine.Mathf.Clamp(index, 0, DayRolloverHourOptions.Length - 1)];
+        }
+
+        public static string FormatDayRolloverHour(int hour)
+        {
+            return NormalizeDayRolloverHour(hour).ToString("00") + ":00";
         }
 
         public bool TryGetSkillRoleOverride(string skillDefName, out string label)
@@ -181,12 +232,20 @@ namespace WorkMonitor
             }
 
             Scribe_Values.Look(ref showSkillOnWorkGiverLabels, "showSkillOnWorkGiverLabels", true);
-            Scribe_Values.Look(ref workGiverLabelFormat, "workGiverLabelFormat", "{skill}: {label}");
+            Scribe_Values.Look(ref workGiverLabelFormat, "workGiverLabelFormat", "{label}");
+            if (Scribe.mode == LoadSaveMode.LoadingVars && workGiverLabelFormat == "{skill}: {label}")
+            {
+                workGiverLabelFormat = "{label}";
+            }
             Scribe_Values.Look(ref skillRoleOverrides, "skillRoleOverrides", "");
             Scribe_Values.Look(ref workGiverSkillOverrides, "workGiverSkillOverrides", "");
-            Scribe_Values.Look(ref mapSampleIntervalHours, "mapSampleIntervalHours", 6);
+            Scribe_Values.Look(ref mapSampleIntervalHours, "mapSampleIntervalHours", 1);
             Scribe_Values.Look(ref defaultRangePreset, "defaultRangePreset", (int)UI.MonitorRangePreset.Hours24);
-            Scribe_Values.Look(ref dayRolloverHour, "dayRolloverHour", 0);
+            Scribe_Values.Look(ref dayRolloverHour, "dayRolloverHour", 5);
+            if (Scribe.mode == LoadSaveMode.LoadingVars)
+            {
+                dayRolloverHour = NormalizeDayRolloverHour(dayRolloverHour);
+            }
             Scribe_Values.Look(ref maxDailyBuckets, "maxDailyBuckets", 20);
             Scribe_Values.Look(ref maxQuadrumBuckets, "maxQuadrumBuckets", 12);
             Scribe_Values.Look(ref maxYearBuckets, "maxYearBuckets", 7);

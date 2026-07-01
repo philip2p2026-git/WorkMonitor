@@ -364,6 +364,7 @@ namespace WorkMonitor.UI
                     WorkGiverStat mapStat = FindWorkGiverStat(stats, wg.WorkGiver);
                     DrawWorkGiverL2Row(
                         wgRow,
+                        wg.WorkGiver,
                         wg.Label,
                         mapStat,
                         wg.JobCount,
@@ -455,7 +456,7 @@ namespace WorkMonitor.UI
                     workGiverGroup = stats.Group;
                 }
 
-                DrawWorkGiverL2Row(wgRow, WorkGiverLabelUtility.Format(workGiver), mapStat, 0, 0f, 0, null, stats.Group);
+                DrawWorkGiverL2Row(wgRow, workGiver, null, mapStat, 0, 0f, 0, null, stats.Group);
                 y += RowHeight;
                 rowIndex++;
             }
@@ -596,7 +597,7 @@ namespace WorkMonitor.UI
                                 workGiverGroup = groupNode.Group;
                             }
 
-                            DrawWorkGiverL2Row(wgRow, entry.Label, entry.MapStat, 0, 0f, 0, null, groupNode.Group);
+                            DrawWorkGiverL2Row(wgRow, entry.WorkGiver, entry.Label, entry.MapStat, 0, 0f, 0, null, groupNode.Group);
                             y += RowHeight;
                             rowIndex++;
                         }
@@ -616,7 +617,7 @@ namespace WorkMonitor.UI
                                 workGiverGroup = groupNode.Group;
                             }
 
-                            DrawWorkGiverL2Row(wgRow, wg.Label, mapStat, wg.JobCount, wg.WorkUnitsSpent, node.PawnId, wg.WorkGiver, groupNode.Group);
+                            DrawWorkGiverL2Row(wgRow, wg.WorkGiver, wg.Label, mapStat, wg.JobCount, wg.WorkUnitsSpent, node.PawnId, wg.WorkGiver, groupNode.Group);
                             y += RowHeight;
                             rowIndex++;
                         }
@@ -756,7 +757,7 @@ namespace WorkMonitor.UI
                     workGiverGroup = stats.Group;
                 }
 
-                DrawWorkGiverL1Row(row, WorkGiverLabelUtility.Format(workGiver), mapStat, detail.TotalJobCount, detail.TotalWorkUnits);
+                DrawWorkGiverL1Row(row, workGiver, mapStat, detail.TotalJobCount, detail.TotalWorkUnits);
                 y += RowHeight;
                 rowIndex++;
 
@@ -858,12 +859,11 @@ namespace WorkMonitor.UI
             DrawOverviewColonistMetrics(row, colonist.JobCount, colonist.WorkUnitsSpent);
         }
 
-        private static void DrawWorkGiverL1Row(Rect row, string label, WorkGiverStat mapStat, int jobCount, float workUnits)
+        private static void DrawWorkGiverL1Row(Rect row, WorkGiverDef workGiver, WorkGiverStat mapStat, int jobCount, float workUnits)
         {
-            Text.Font = GameFont.Small;
             float labelLeft = WorkMonitorTableColumns.OverviewLabelLeft(row.x, hasExpand: true, hasStatus: false);
             float labelWidth = WorkMonitorTableColumns.OverviewLabelWidth(row, labelLeft, hasInterest: false);
-            Widgets.Label(new Rect(labelLeft, row.y, labelWidth, row.height), label.Truncate(labelWidth));
+            WorkGiverLabelUtility.Draw(row, labelLeft, labelWidth, workGiver, GameFont.Small);
 
             int mapJobs = mapStat?.MapOpenTasks ?? 0;
             int mapNewToday = mapStat?.MapNewTodayOpenTasks ?? 0;
@@ -874,25 +874,25 @@ namespace WorkMonitor.UI
 
         private static void DrawWorkGiverL2Row(
             Rect row,
-            string label,
+            WorkGiverDef workGiver,
+            string fallbackLabel,
             WorkGiverStat mapStat,
             int jobCount,
             float workUnits,
             int pawnId,
-            WorkGiverDef workGiver,
+            WorkGiverDef interestWorkGiver,
             WorkGroupSnapshot group)
         {
-            Text.Font = GameFont.Tiny;
             Color prev = GUI.color;
             GUI.color = new Color(0.8f, 0.8f, 0.8f);
             float labelLeft = row.x + 4f;
             float labelWidth = WorkMonitorTableColumns.OverviewLabelWidth(row, labelLeft, hasInterest: true);
-            Widgets.Label(new Rect(labelLeft, row.y, labelWidth, row.height), label.Truncate(labelWidth));
+            WorkGiverLabelUtility.DrawLabelOrText(row, labelLeft, labelWidth, workGiver, fallbackLabel, GameFont.Tiny);
             GUI.color = prev;
 
-            if (pawnId > 0 && workGiver != null)
+            if (pawnId > 0 && interestWorkGiver != null)
             {
-                DrawColonistInterest(row, ColonistWorkQuery.FormatColonistWorkGiverInterest(pawnId, workGiver, group));
+                DrawColonistInterest(row, ColonistWorkQuery.FormatColonistWorkGiverInterest(pawnId, interestWorkGiver, group));
             }
 
             int mapJobs = mapStat?.MapOpenTasks ?? 0;

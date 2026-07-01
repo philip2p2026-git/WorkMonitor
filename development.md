@@ -30,7 +30,7 @@ Read-only RimWorld mod that tracks colonist work activity and map backlog, organ
 | **Work unit** | Numeric “work done” (bill `workLeft` deltas, frame/mine progress, etc.). Not all jobs produce work units. Charts and sums include `estimatedWorkUnitsSpent` when actual tracking is unavailable. |
 | **Estimated work unit** | Work credited via `WorkUnitEstimator` (pawn work-speed stat × work ticks) when work-left tracking fails. Stored as `estimatedWorkUnitsSpent` on buckets/records. |
 | **Range** | UI-selected rolling window (`MonitorRangeState.RangeHours`) for tables and charts. Presets from 6 h through 5 years; shared across all monitor views. |
-| **Work day** | In-game day boundary for rollup and map new-today (`dayRolloverHour`, default midnight or morning). Distinct from UI range. |
+| **Work day** | In-game day boundary for rollup and map new-today (`dayRolloverHour`, default 05:00; options 00:00, 05:00, 08:00). Distinct from UI range. |
 | **Tier buffer** | `WorkHistoryTierBuffer` — hourly/daily/quadrum/year colonist history with automatic rollup and caps. |
 | **Tick** | RimWorld time unit. **2500 ticks = 1 in-game hour** (`WorkMonitorSettings.TicksPerHour`). |
 | **Travel tick** | Tick spent while `pawn.pather.MovingNow` during an active job. |
@@ -327,7 +327,7 @@ flowchart TB
 
 When a tier exceeds its cap, the **oldest** bucket is dropped (`RemoveAt(0)`).
 
-**Work day** id: `year * 1000 + dayOfYear` after shifting `absTick` by `dayRolloverHour` (`0` = midnight, `8` = morning — mod settings toggle). Used for daily rollup and map new-today.
+**Work day** id: `year * 1000 + dayOfYear` after shifting `absTick` by `dayRolloverHour` (`0`, `5`, or `8` in-game hour — mod settings slider). Used for daily rollup and map new-today.
 
 ### Retention settings
 
@@ -339,7 +339,7 @@ When a tier exceeds its cap, the **oldest** bucket is dropped (`RemoveAt(0)`).
 | `maxQuadrumBuckets` | 12 | Max completed quadrum buckets kept. **No settings UI.** |
 | `maxYearBuckets` | 7 | Max completed year buckets kept. **No settings UI.** |
 | `yearHistoryUnlimited` | false | When true, year buckets are never capped. **No settings UI.** |
-| `dayRolloverHour` | 0 | When the work day rolls over for rollup and map new-today |
+| `dayRolloverHour` | 5 | When the work day rolls over for rollup and map new-today (00:00, 05:00, or 08:00) |
 
 `ResolveRetentionHours(activeRangeHours)` = `clamp(min(activeRangeHours ?? statsWindowHours, 72), 6, 72)` — always ≤ 72 h; governs pawn-buffer `Configure()` on create.
 
@@ -399,14 +399,14 @@ Map table columns always read **latest** snapshot only (not range-summed). Map c
 | `overviewLayoutMode` | `WorkTypeColonistFirst` | Overview tree layout (`OverviewLayoutMode`); migrates from legacy `groupDetailWorkGiverFirst` on load. |
 | `greenStatusHours` / `yellowStatusHours` | 6 / 12 | Status color thresholds. |
 | `refreshIntervalTicks` | 60 | Overview panel refresh cadence. |
-| `mapSampleIntervalHours` | 6 | Map sampler interval (1/2/3/6/12). |
-| `dayRolloverHour` | 0 | In-game hour when “today” resets for map new-today counts. |
+| `mapSampleIntervalHours` | 1 | Map sampler interval (1/2/3/6/12). |
+| `dayRolloverHour` | 5 | In-game hour when “today” resets for map new-today counts (00:00, 05:00, or 08:00). |
 | `maxDailyBuckets` / `maxQuadrumBuckets` / `maxYearBuckets` | 20 / 12 / 7 | Coarse history caps. **No settings UI.** |
 | `yearHistoryUnlimited` | false | Disable year-bucket cap when true. **No settings UI.** |
 | `showTimeInHours` | true | Display ticks as hours. |
-| `showSkillOnWorkGiverLabels` | true | Prefix work giver labels with skill. |
-| `workGiverLabelFormat` | `{skill}: {label}` | Label template. |
-| `skillRoleOverrides` | `""` | `SkillDef=label` comma list. |
+| `showSkillOnWorkGiverLabels` | true | Draw RimWorld skill icon before work giver label (or text `{skill}` when format includes it). |
+| `workGiverLabelFormat` | `{label}` | Label template; default icon + name; use `{skill}: {label}` for text-only skill prefix. |
+| `skillRoleOverrides` | `""` | `SkillDef=label` comma list (text mode when format includes `{skill}`). |
 | `workGiverSkillOverrides` | `""` | `WorkGiverDef=true/false` comma list. |
 | `monitorWindowSize` | 720×520 | Standalone monitor window size. **No settings UI.** |
 
@@ -414,15 +414,15 @@ Map table columns always read **latest** snapshot only (not range-summed). Map c
 
 Exposed in `WorkMonitorMod.DrawSettingsContents` (mod options):
 
-- Default range preset (slider over all `MonitorRangePreset` values)
-- Day rollover (midnight vs 08:00)
+- Default range preset and overview layout (sliders on one row)
+- Day rollover slider (00:00, 05:00, 08:00; default 05:00)
 - Green/yellow status thresholds and UI refresh interval (ticks)
-- Show time in hours; show skill on work-giver labels
-- Work-giver label format; skill role overrides; work-giver skill overrides
-- Map sample interval (cycle 1/2/3/6/12 h)
-- CSV export buttons
+- Show time in hours; show skill on work-giver labels (RimWorld skill icons by default)
+- Work-giver label format; skill role overrides (text mode); work-giver skill overrides
+- Map sample interval (cycle 1/2/3/6/12 h; default 1 h)
+- CSV export: colonist, map work-giver, both, open export folder
 
-Not in settings UI: `statsWindowHours`, `chartHistoryHours`, retention bucket caps, `monitorWindowSize`, `overviewLayoutMode` (changed via overview/detail layout toggle in the monitor).
+Not in settings UI: `statsWindowHours`, `chartHistoryHours`, retention bucket caps, `monitorWindowSize` (overview layout also on settings row; in-monitor layout toggle still syncs the same setting).
 
 ---
 
