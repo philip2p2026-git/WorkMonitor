@@ -4,6 +4,19 @@ Read-only RimWorld mod that tracks colonist work activity and map backlog, organ
 
 ---
 
+## Mod packaging
+
+| Path | Role |
+|------|------|
+| [`About/About.xml`](About/About.xml) | RimWorld 1.6; packageId `philip2p2026.workmonitor` |
+| **Dependencies** | Harmony (`brrainz.harmony`), **Work Tab** (`Fluffy.WorkTab`) — hard requirement |
+| **Load after** | Work Tab Groups (`philip2p2026.worktabgroups`) — optional integration |
+| [`Languages/English/Keyed/WorkMonitor.xml`](Languages/English/Keyed/WorkMonitor.xml) | ~150 keyed strings |
+| `1.6/Assemblies/WorkMonitor.dll` | Built output |
+| **No `Defs/`** | All behavior via Harmony + `GameComponent`s (atypical for RimWorld mods; intentional) |
+
+---
+
 ## Glossary
 
 | Term | Meaning |
@@ -84,37 +97,49 @@ All monitor pages and both CSV exports read from the same two `GameComponent` st
 
 ```
 Source/
-├── WorkMonitorMod.cs          # Mod entry, Harmony, settings UI
-├── WorkMonitorSettings.cs     # User settings
-├── WorkMonitorUtility.cs      # Time formatting, colonist enumeration
-├── Groups/                    # Monitor rows + stat aggregators (WorkGroup* — code legacy naming)
+├── WorkMonitorMod.cs              # Mod entry, Harmony, settings UI
+├── WorkMonitorSettings.cs         # User settings
+├── WorkMonitorUtility.cs          # Time formatting, colonist enumeration
+├── Groups/                        # Monitor rows + stat aggregators (WorkGroup* — code legacy naming)
+│   ├── WorkGroupKey.cs, WorkGroupSnapshot.cs, WorkGroupKeyResolver.cs
+│   ├── WorkGroupOrderUtility.cs, WorkActivityStatus.cs, WorkGroupStats.cs
+│   ├── IWorkGroupProvider.cs    # Extension point for monitor rows
+│   ├── WorkTypeGroupProvider.cs, WorkTabGroupsProvider.cs, OtherWorkGroupProvider.cs
 │   ├── WorkGroupStatsAggregator.cs  # WorkGroupRegistry + WorkGroupStatsAggregator
-│   ├── ColonistStatsAggregator.cs
-│   └── WorkGiverStatsAggregator.cs
+│   ├── ColonistStatsAggregator.cs, WorkGiverStatsAggregator.cs
+│   ├── ColonistWorkQuery.cs, ColonistOverviewTreeBuilder.cs
 ├── Tracking/
-│   ├── WorkActivityTracker.cs # Colonist job/work/tick tracking
-│   ├── WorkHistoryTierBuffer.cs # Hourly → daily → quadrum → year rollups
-│   ├── WorkLeftResolver.cs    # Read work-left from jobs, things, bills
-│   ├── EndlessWorkGiverUtility.cs
-│   ├── WorkUnitEstimator.cs   # Speed-based work estimates
-│   ├── MapWorkSampler.cs      # Periodic map snapshot
-│   ├── MapWorkSnapshot.cs     # Snapshot DTOs
+│   ├── WorkActivityTracker.cs     # Colonist job/work/tick tracking
+│   ├── WorkHistoryTierBuffer.cs   # Hourly → daily → quadrum → year rollups
+│   ├── HourlyWorkBucket.cs, CoarseWorkBuckets.cs, PawnBucketMergeUtility.cs
+│   ├── WorkActivityRecord.cs, WorkMonitorSaveData.cs, ColonistWorkProfile.cs
+│   ├── WorkLeftResolver.cs, EndlessWorkGiverUtility.cs, WorkUnitEstimator.cs
+│   ├── MapWorkSampler.cs, MapWorkSnapshot.cs
+│   ├── WorkHistoryRingBuffer.cs   # Legacy / unused — no references
 │   └── MapWork/
-│       ├── IMapWorkTargetProvider.cs
-│       ├── MapWorkProviderRegistry.cs
-│       ├── MapWorkAttribution.cs
-│       ├── MapWorkEstimate.cs
-│       ├── ScannedMapTarget.cs
-│       └── Providers/         # One class per scan source
+│       ├── IMapWorkTargetProvider.cs, MapWorkProviderRegistry.cs
+│       ├── MapWorkAttribution.cs, MapWorkEstimate.cs, ScannedMapTarget.cs
+│       ├── MapWorkFrameUtility.cs, GrowerSowMapUtility.cs
+│       └── Providers/             # 16 classes — one scan source each
 ├── Export/
-│   └── WorkMonitorCsvExporter.cs  # Colonist + map CSV dumps (mod settings)
-├── Patches/                   # Harmony hooks
-└── UI/                        # Monitor windows and tables
-    ├── WorkMonitorContentHost.cs
-    ├── MonitorRangeState.cs   # Range presets (6 h – 5 y)
-    ├── WorkMonitorTableColumns.cs
-    ├── WorkChartDataBuilder.cs
-    └── …panels (overview, detail, work-giver detail, colonist, chart)
+│   └── WorkMonitorCsvExporter.cs
+├── Patches/
+│   ├── Patch_RecordWorkActivity.cs
+│   ├── Patch_BillWorkProgress.cs
+│   ├── Patch_Game_ComponentRegistration.cs
+│   ├── Patch_History_WorkMonitorTab.cs
+│   └── Patch_WorkTab_MonitorButton.cs
+└── UI/
+    ├── WorkMonitorContentHost.cs, MonitorRangeState.cs
+    ├── WorkGroupOverviewPanel.cs, WorkGroupDetailPanel.cs
+    ├── WorkGiverDetailPanel.cs, ColonistDetailPanel.cs
+    ├── WorkGroupChartPanel.cs, WorkGroupMonitorWindow.cs
+    ├── WorkChartDataBuilder.cs    # + DualStreamChart (used), DualLineChart (unused)
+    ├── BulkExpandUtility.cs, OverviewLayoutMode.cs
+    ├── WorkMonitorTableColumns.cs, MonitorRowKind.cs
+    ├── WorkMonitorUiUtility.cs, WorkMonitorDropdownUtility.cs
+    ├── WorkGiverLabelUtility.cs, WorkGiverSkillUtility.cs
+    ├── ColonistInspectUtility.cs, WorkTabHighlightController.cs
 ```
 
 ---
@@ -213,8 +238,21 @@ Helpers for provider work-left estimates: `FromFrame`, `FromMineable`, `FromFilt
 |------|---------|
 | `WorkGroupKey` | `ForWorkType`, `ForCustomGroup`, `ForOther` → `StorageKey`. |
 | `WorkGroupSnapshot` | `Key`, `Label`, `WorkGivers`, `UniqueWorkTypes`, `PrimaryWorkType`. |
-| `WorkGroupRegistry.GetAllGroups()` | Cached monitor rows (250-tick cache): work types + custom + Other. Defined in `WorkGroupStatsAggregator.cs`. |
+| `WorkGroupRegistry.GetAllGroups()` | Cached monitor rows (250-tick cache). Defined in `WorkGroupStatsAggregator.cs`. |
+| `IWorkGroupProvider` | Extension point for monitor rows (parallel to `IMapWorkTargetProvider` for map scanning). |
 | `WorkGroupKeyResolver.ResolveGroupKeysForWorkGiver(wg)` | Work type key + optional custom row key. |
+
+**`WorkGroupRegistry.GetAllGroups()`** assembly (250-tick cache):
+
+1. `WorkTypeGroupProvider` — one row per `WorkTypeDef`
+2. `WorkTabGroupsProvider` — custom rows when Work Tab Groups mod is present
+3. `OtherWorkGroupProvider` — unassigned mod work givers → **Other**
+4. `WorkGroupOrderUtility.Sort`
+
+**Adding a monitor row provider:** implement `IWorkGroupProvider`, return `WorkGroupSnapshot` entries, wire into `WorkGroupRegistry.GetAllGroups()`.
+
+| Type | Purpose |
+|------|---------|
 | `WorkGroupStatsAggregator.Build(row, rangeHours)` | Merges colonist history + map snapshot into `WorkGroupStats`. |
 | `WorkGroupStatsAggregator.BuildAll(rangeHours)` | All rows for overview/charts. |
 | `ColonistStatsAggregator.Build(pawn, rangeHours)` | Per-colonist rollup across monitor rows. |
@@ -295,15 +333,15 @@ When a tier exceeds its cap, the **oldest** bucket is dropped (`RemoveAt(0)`).
 
 | Setting | Default | Effect |
 |---------|---------|--------|
-| `chartHistoryHours` | 24 | Floor for `ResolveRetentionHours()` (6–72); mod settings slider |
-| `statsWindowHours` | 24 | Legacy span; used when no active UI range passed to `ResolveRetentionHours` |
-| `maxDailyBuckets` | 20 | Max completed daily buckets kept |
-| `maxQuadrumBuckets` | 12 | Max completed quadrum buckets kept |
-| `maxYearBuckets` | 7 | Max completed year buckets kept |
-| `yearHistoryUnlimited` | false | When true, year buckets are never capped |
+| `chartHistoryHours` | 24 | **Legacy / unused** — saved for compatibility; not applied |
+| `statsWindowHours` | 24 | Fallback range when `ResolveRetentionHours()` is called without an active UI range. **No settings UI.** |
+| `maxDailyBuckets` | 20 | Max completed daily buckets kept. **No settings UI** (defaults only). |
+| `maxQuadrumBuckets` | 12 | Max completed quadrum buckets kept. **No settings UI.** |
+| `maxYearBuckets` | 7 | Max completed year buckets kept. **No settings UI.** |
+| `yearHistoryUnlimited` | false | When true, year buckets are never capped. **No settings UI.** |
 | `dayRolloverHour` | 0 | When the work day rolls over for rollup and map new-today |
 
-`ResolveRetentionHours(activeRangeHours)` = `clamp(max(chartHistoryHours, min(range, 72)), 6, 72)` — always ≤ 72 h; governs pawn-buffer `Configure()` on create.
+`ResolveRetentionHours(activeRangeHours)` = `clamp(min(activeRangeHours ?? statsWindowHours, 72), 6, 72)` — always ≤ 72 h; governs pawn-buffer `Configure()` on create.
 
 ### Prune schedule
 
@@ -355,21 +393,36 @@ Map table columns always read **latest** snapshot only (not range-summed). Map c
 
 | Setting | Default | Purpose |
 |---------|---------|---------|
-| `statsWindowHours` | 24 | Legacy/default span; superseded in UI by `MonitorRangeState`. |
-| `chartHistoryHours` | 24 | Minimum history retention floor. |
+| `statsWindowHours` | 24 | Fallback for `ResolveRetentionHours()` when no UI range is active. **No settings UI.** |
+| `chartHistoryHours` | 24 | **Legacy / unused** — serialized only. |
 | `defaultRangePreset` | 24 h | Initial `MonitorRangeState` preset. |
+| `overviewLayoutMode` | `WorkTypeColonistFirst` | Overview tree layout (`OverviewLayoutMode`); migrates from legacy `groupDetailWorkGiverFirst` on load. |
 | `greenStatusHours` / `yellowStatusHours` | 6 / 12 | Status color thresholds. |
 | `refreshIntervalTicks` | 60 | Overview panel refresh cadence. |
 | `mapSampleIntervalHours` | 6 | Map sampler interval (1/2/3/6/12). |
 | `dayRolloverHour` | 0 | In-game hour when “today” resets for map new-today counts. |
-| `maxDailyBuckets` / `maxQuadrumBuckets` / `maxYearBuckets` | 20 / 12 / 7 | Coarse history caps. |
-| `yearHistoryUnlimited` | false | Disable year-bucket cap when true. |
+| `maxDailyBuckets` / `maxQuadrumBuckets` / `maxYearBuckets` | 20 / 12 / 7 | Coarse history caps. **No settings UI.** |
+| `yearHistoryUnlimited` | false | Disable year-bucket cap when true. **No settings UI.** |
 | `showTimeInHours` | true | Display ticks as hours. |
 | `showSkillOnWorkGiverLabels` | true | Prefix work giver labels with skill. |
 | `workGiverLabelFormat` | `{skill}: {label}` | Label template. |
 | `skillRoleOverrides` | `""` | `SkillDef=label` comma list. |
 | `workGiverSkillOverrides` | `""` | `WorkGiverDef=true/false` comma list. |
-| `monitorWindowSize` | 720×520 | Standalone monitor window size. |
+| `monitorWindowSize` | 720×520 | Standalone monitor window size. **No settings UI.** |
+
+#### Mod settings UI
+
+Exposed in `WorkMonitorMod.DrawSettingsContents` (mod options):
+
+- Default range preset (slider over all `MonitorRangePreset` values)
+- Day rollover (midnight vs 08:00)
+- Green/yellow status thresholds and UI refresh interval (ticks)
+- Show time in hours; show skill on work-giver labels
+- Work-giver label format; skill role overrides; work-giver skill overrides
+- Map sample interval (cycle 1/2/3/6/12 h)
+- CSV export buttons
+
+Not in settings UI: `statsWindowHours`, `chartHistoryHours`, retention bucket caps, `monitorWindowSize`, `overviewLayoutMode` (changed via overview/detail layout toggle in the monitor).
 
 ---
 
@@ -453,14 +506,13 @@ On first sighting of a `DedupeKey`, `MapWorkSampler` records `taskFirstSeenDayId
 
 ## Harmony patches
 
-| Patch | Target | Effect |
-|-------|--------|--------|
-| `Patch_RecordWorkStart` | `Pawn_JobTracker.StartJob` | End prior job, then `RecordJobStart`. |
-| `Patch_RecordWorkEnd` | `Pawn_JobTracker.EndCurrentJob` | `RecordJobEnd`. |
-| `Patch_JobDriverTick` | `JobDriver.DriverTick` | `SampleJobTick`; `SampleBillWorkLeft` for bills. |
-| `Patch_Game_Constructor` / `Patch_Game_FinalizeInit` | `Game` | Register `WorkActivityTracker` and `MapWorkSampler`. |
-| `Patch_History_*` | History tab | Embed Work Monitor UI. |
-| `Patch_WorkTab_MonitorButton` | Work tab | Open monitor window. |
+| Patch | Source file | Target | Effect |
+|-------|-------------|--------|--------|
+| `Patch_RecordWorkStart` / `Patch_RecordWorkEnd` | `Patch_RecordWorkActivity.cs` | `Pawn_JobTracker.StartJob` / `EndCurrentJob` | End prior job, then `RecordJobStart` / `RecordJobEnd`. |
+| `Patch_JobDriverTick` | `Patch_BillWorkProgress.cs` | `JobDriver.DriverTick` | `SampleJobTick`; `SampleBillWorkLeft` for bills. |
+| `Patch_Game_Constructor` / `Patch_Game_FinalizeInit` | `Patch_Game_ComponentRegistration.cs` | `Game` | Register `WorkActivityTracker` and `MapWorkSampler`. |
+| `WorkMonitorHistoryTab`, `Patch_History_*` | `Patch_History_WorkMonitorTab.cs` | History tab | Embed Work Monitor UI (`WorkMonitorContentHost`). |
+| `Patch_WorkTab_MonitorButton` | `Patch_WorkTab_MonitorButton.cs` | Work tab | Open standalone monitor window. |
 
 Harmony id: `philip2p2026.workmonitor`.
 
@@ -468,9 +520,14 @@ Harmony id: `philip2p2026.workmonitor`.
 
 ## UI views
 
-The monitor is hosted by `WorkMonitorContentHost` inside the History **Work** tab (`Patch_History_*`).
+The monitor is hosted by `WorkMonitorContentHost` in two places:
 
-**UI naming uses work type**, not “group”. Code still uses `WorkGroup*` types (`WorkGroupSnapshot`, `WorkGroupDetailPanel`, …) for monitor rows — that is implementation naming only; do not use “group” in player-facing labels.
+- **History → Work** sub-tab (`WorkMonitorHistoryTab` in `Patch_History_WorkMonitorTab.cs`)
+- **Standalone window** from the Work tab Monitor button (`WorkGroupMonitorWindow` via `Patch_WorkTab_MonitorButton`)
+
+Both entry points use the same `WorkMonitorContentHost` instance pattern and share navigation/range state within each host.
+
+**UI naming uses work type**, not “group”. Code still uses `WorkGroup*` types (`WorkGroupSnapshot`, `WorkGroupDetailPanel`, …) for monitor rows — that is implementation naming only; do not use “group” in player-facing labels. Some translation keys in `WorkMonitor.xml` still say “group” (e.g. `WorkMonitor.Group`, `GroupByColonist`); prefer WorkType in new copy.
 
 ### The four views
 
@@ -479,7 +536,7 @@ The monitor is hosted by `WorkMonitorContentHost` inside the History **Work** ta
 | **WorkType overview** | **WorkType list** — expandable tree (WorkType → colonist/work giver → work giver/colonist) with status, interest, map + colonist KPIs | `Overview` | — | `WorkGroupOverviewPanel` | `WorkMonitor.OverviewTitle` |
 | **WorkType detail** | **Charts**, expandable **Colonist list**, **WorkGiver list** (map backlog) for one row | `GroupDetail` | — | `WorkGroupDetailPanel`, `WorkGroupChartPanel` | `WorkMonitor.DetailTitle` (`{workType} — Detail`) |
 | **WorkGiver detail** | Charts + colonist table for one work giver within a row | `WorkGiverDetail` | — | `WorkGiverDetailPanel`, `WorkGroupChartPanel` | (work giver label in dropdown) |
-| **Colonist work detail** | **Work list** — per–work-giver breakdown for one colonist | `ColonistDetail` | `GroupWorkDetail` | `ColonistDetailPanel` | `WorkMonitor.ColonistWorkDetailTitle` (`{colonist} — {workType}`) |
+| **Colonist work detail** | **Work list** — per–work-giver breakdown for one colonist; **Time share** column (% of colonist ticks per work giver vs total) | `ColonistDetail` | `GroupWorkDetail` | `ColonistDetailPanel` | `WorkMonitor.ColonistWorkDetailTitle` (`{colonist} — {workType}`) |
 
 **Enum definitions** (`Source/UI/`):
 
@@ -535,6 +592,7 @@ Opening **colonist work detail** from WorkType or WorkGiver detail pre-selects t
 | Action | Result |
 |--------|--------|
 | Open History → Work tab | **WorkType overview** |
+| Work tab → Monitor button | **WorkType overview** (standalone `WorkGroupMonitorWindow`) |
 | Click a WorkType row (overview) | **WorkType detail** for that row |
 | Click colonist sub-row (overview) | **Colonist work detail** |
 | Click work giver sub-row (overview) | **WorkGiver detail** |
@@ -559,11 +617,17 @@ Opening **colonist work detail** from WorkType or WorkGiver detail pre-selects t
 | `OverviewLayoutMode.cs` | Overview layout enum (3 modes) | — | — |
 | `ColonistOverviewTreeBuilder.cs` | Colonist-top overview tree data | — | — |
 | `WorkGroupDetailPanel.cs` | WorkType detail — colonist list + map WorkGiver list | `GroupDetail` | — |
-| `WorkGroupChartPanel.cs` | Charts (dual colonist/map stream, new-today stack) | `GroupDetail`, `WorkGiverDetail` | — |
+| `WorkGroupChartPanel.cs` | Charts — `DualStreamChart` (colonist/map stream + map new-today stack) | `GroupDetail`, `WorkGiverDetail` | — |
 | `WorkGiverDetailPanel.cs` | WorkGiver detail — single-WG colonist breakdown | `WorkGiverDetail` | — |
 | `ColonistDetailPanel.cs` | Colonist work detail — work list | `ColonistDetail` | `GroupWorkDetail` (also `GroupsSummary` internally) |
-| `WorkChartDataBuilder.cs` | Chart series from tier buffers + map history | — | — |
+| `WorkChartDataBuilder.cs` | Chart series from tier buffers + map history; `DualStreamChart` (used), `DualLineChart` (unused — `ChartModeLine` string orphaned) | — | — |
 | `WorkGroupMonitorWindow.cs` | Standalone window (Work tab monitor button) | hosts `WorkMonitorContentHost` | — |
+| `WorkMonitorUiUtility.cs` | Shared drawing/formatting (`FormatTimeShare`, stat labels) | — | — |
+| `WorkMonitorDropdownUtility.cs` | WorkType / colonist / work-giver dropdowns | — | — |
+| `WorkGiverLabelUtility.cs`, `WorkGiverSkillUtility.cs` | Skill-prefixed labels and passion resolution | — | — |
+| `ColonistInspectUtility.cs` | Open colonist bio from info icon | — | — |
+| `WorkTabHighlightController.cs` | Highlight matching Work Tab column | — | — |
+| `MonitorRowKind.cs` | Row kind enum (Colonist / WorkType / WorkGiver / Total) | — | — |
 
 ---
 
@@ -657,6 +721,7 @@ Optional integration: **Work Tab Groups** mod (`philip2p2026.worktabgroups`) add
 8. Hourly colonist **recording** caps at **72 hours** (`MaxRetentionHours`); older activity is kept in rolled-up daily/quadrum/year buckets. Per-colonist queries use those coarse pawn fields when the UI range extends before the hourly window (see [Data retention](#data-retention)).
 9. Map **new today** resets by work-day boundary, not necessarily midnight on the UI clock.
 10. Map chart time series cannot extend beyond ~**72 h** of retained snapshots regardless of UI range.
+11. `chartHistoryHours` setting is serialized but has **no effect** on retention or charts.
 
 ---
 
