@@ -1,32 +1,12 @@
 using System;
+using System.Linq;
 using Verse;
+using WorkMonitor.Groups;
 
 namespace WorkMonitor.UI
 {
     public static class BulkExpandUtility
     {
-        public static string BulkButtonLabel(bool allLevel2Expanded)
-        {
-            return allLevel2Expanded
-                ? "WorkMonitor.CollapseAll".Translate()
-                : "WorkMonitor.ExpandAll".Translate();
-        }
-
-        public static void ApplyBulkToggle(
-            bool allLevel2Expanded,
-            Action expandOneLevel,
-            Action collapseOneLevel)
-        {
-            if (allLevel2Expanded)
-            {
-                collapseOneLevel();
-            }
-            else
-            {
-                expandOneLevel();
-            }
-        }
-
         public static void ExpandOneLevel(
             bool allLevel1Expanded,
             Action expandLevel1,
@@ -55,6 +35,28 @@ namespace WorkMonitor.UI
             {
                 collapseLevel1();
             }
+        }
+
+        public static bool IsVisibleWorkGiverRow(WorkGiverDetailStats detail, WorkGiverStat mapStat)
+        {
+            bool colonist = detail != null && detail.ColonistStats.Count > 0;
+            bool map = mapStat != null && (mapStat.MapOpenTasks > 0 || mapStat.MapWorkLeft > 0f);
+            return colonist || map;
+        }
+
+        public static int RankTicks(WorkGiverDetailStats detail)
+        {
+            return detail?.ColonistStats.Sum(c => c.TicksSpent) ?? 0;
+        }
+
+        public static float RankMapWork(WorkGiverStat mapStat)
+        {
+            return mapStat?.MapWorkLeft ?? 0f;
+        }
+
+        public static int RankMapOpenTasks(WorkGiverStat mapStat)
+        {
+            return mapStat?.MapOpenTasks ?? 0;
         }
     }
 }

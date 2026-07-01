@@ -107,18 +107,24 @@ namespace WorkMonitor.UI
                 () => RefreshIfNeeded(rangeState, force: true));
             toolbarRight -= RangeWidth + ToolbarGap;
 
-            string expandLabel = BulkExpandUtility.BulkButtonLabel(AllLevel2Expanded());
-            if (Widgets.ButtonText(new Rect(toolbarRight - ExpandAllWidth, rect.y, ExpandAllWidth, 24f), expandLabel))
+            float expandCollapseWidth = ExpandAllWidth * 2f + ToolbarGap;
+            Rect collapseRect = new Rect(toolbarRight - ExpandAllWidth, rect.y, ExpandAllWidth, 24f);
+            if (Widgets.ButtonText(collapseRect, "WorkMonitor.CollapseAll".Translate()))
             {
-                ApplyBulkExpandToggle();
-                TooltipHandler.TipRegion(new Rect(toolbarRight - ExpandAllWidth, rect.y, ExpandAllWidth, 24f), BulkExpandTooltip());
-            }
-            else
-            {
-                TooltipHandler.TipRegion(new Rect(toolbarRight - ExpandAllWidth, rect.y, ExpandAllWidth, 24f), BulkExpandTooltip());
+                CollapseOneLevel();
             }
 
-            toolbarRight -= ExpandAllWidth + ToolbarGap;
+            TooltipHandler.TipRegion(collapseRect, BulkExpandTooltip());
+
+            Rect expandRect = new Rect(toolbarRight - expandCollapseWidth, rect.y, ExpandAllWidth, 24f);
+            if (Widgets.ButtonText(expandRect, "WorkMonitor.ExpandAll".Translate()))
+            {
+                ExpandOneLevel();
+            }
+
+            TooltipHandler.TipRegion(expandRect, BulkExpandTooltip());
+
+            toolbarRight -= expandCollapseWidth + ToolbarGap;
 
             string layoutLabel = WorkGiverFirst
                 ? "WorkMonitor.GroupByWorkGiver".Translate()
@@ -606,21 +612,27 @@ namespace WorkMonitor.UI
                 return cached;
             }
 
-            var ranked = new List<(WorkGiverDef workGiver, int ticks)>();
+            var ranked = new List<(WorkGiverDef workGiver, int ticks, float mapWork, int mapOpen)>();
             foreach (WorkGiverDef workGiver in stats.Group.WorkGivers)
             {
                 WorkGiverDetailStats detail = GetWorkGiverDetail(stats.Group, workGiver, rangeState);
-                if (detail == null || detail.ColonistStats.Count == 0)
+                WorkGiverStat mapStat = FindWorkGiverStat(stats, workGiver);
+                if (!BulkExpandUtility.IsVisibleWorkGiverRow(detail, mapStat))
                 {
                     continue;
                 }
 
-                int ticks = detail.ColonistStats.Sum(c => c.TicksSpent);
-                ranked.Add((workGiver, ticks));
+                ranked.Add((
+                    workGiver,
+                    BulkExpandUtility.RankTicks(detail),
+                    BulkExpandUtility.RankMapWork(mapStat),
+                    BulkExpandUtility.RankMapOpenTasks(mapStat)));
             }
 
             cached = ranked
                 .OrderByDescending(entry => entry.ticks)
+                .ThenByDescending(entry => entry.mapWork)
+                .ThenByDescending(entry => entry.mapOpen)
                 .Select(entry => entry.workGiver)
                 .ToList();
             activeWorkGiversCache[storageKey] = cached;
@@ -649,14 +661,6 @@ namespace WorkMonitor.UI
             ClearExpandCaches();
         }
 
-        private void ApplyBulkExpandToggle()
-        {
-            BulkExpandUtility.ApplyBulkToggle(
-                AllLevel2Expanded(),
-                ExpandOneLevel,
-                CollapseOneLevel);
-        }
-
         private void ExpandOneLevel()
         {
             BulkExpandUtility.ExpandOneLevel(AllLevel1Expanded(), ExpandAllLevel1, ExpandAllLevel2);
@@ -679,46 +683,6 @@ namespace WorkMonitor.UI
                 if (!expandedGroupKeys.Contains(stats.Group.Key.StorageKey))
                 {
                     return false;
-                }
-            }
-
-            return true;
-        }
-
-        private bool AllLevel2Expanded()
-        {
-            if (!AllLevel1Expanded())
-            {
-                return false;
-            }
-
-            foreach (WorkGroupStats stats in cachedStats)
-            {
-                string storageKey = stats.Group.Key.StorageKey;
-                if (!expandedGroupKeys.Contains(storageKey))
-                {
-                    continue;
-                }
-
-                if (WorkGiverFirst)
-                {
-                    foreach (WorkGiverDef workGiver in GetActiveWorkGivers(stats, boundRangeState))
-                    {
-                        if (!expandedLevel2Keys.Contains(Level2WorkGiverKey(storageKey, workGiver.defName)))
-                        {
-                            return false;
-                        }
-                    }
-                }
-                else
-                {
-                    foreach (ColonistWorkStat colonist in stats.ColonistStats)
-                    {
-                        if (!expandedLevel2Keys.Contains(Level2PawnKey(storageKey, colonist.PawnId)))
-                        {
-                            return false;
-                        }
-                    }
                 }
             }
 

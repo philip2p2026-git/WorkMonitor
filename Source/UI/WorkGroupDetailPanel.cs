@@ -21,6 +21,7 @@ namespace WorkMonitor.UI
         private const float WorkGiverIndent = 16f;
         private const float ExpandAllWidth = 76f;
         private const float LayoutToggleWidth = 96f;
+        private const float ToolbarGap = 4f;
 
         private readonly WorkGroupChartPanel chartPanel = new WorkGroupChartPanel();
         private Vector2 scroll;
@@ -234,21 +235,27 @@ namespace WorkMonitor.UI
                 return activeWorkGivers;
             }
 
-            var ranked = new List<(WorkGiverDef workGiver, int ticks)>();
+            var ranked = new List<(WorkGiverDef workGiver, int ticks, float mapWork, int mapOpen)>();
             foreach (WorkGiverDef workGiver in stats.Group.WorkGivers)
             {
                 WorkGiverDetailStats detail = GetWorkGiverDetail(workGiver);
-                if (detail == null || detail.ColonistStats.Count == 0)
+                WorkGiverStat mapStat = stats.WorkGiverStats.Find(wg => wg.WorkGiver == workGiver);
+                if (!BulkExpandUtility.IsVisibleWorkGiverRow(detail, mapStat))
                 {
                     continue;
                 }
 
-                int ticks = detail.ColonistStats.Sum(c => c.TicksSpent);
-                ranked.Add((workGiver, ticks));
+                ranked.Add((
+                    workGiver,
+                    BulkExpandUtility.RankTicks(detail),
+                    BulkExpandUtility.RankMapWork(mapStat),
+                    BulkExpandUtility.RankMapOpenTasks(mapStat)));
             }
 
             activeWorkGivers = ranked
                 .OrderByDescending(entry => entry.ticks)
+                .ThenByDescending(entry => entry.mapWork)
+                .ThenByDescending(entry => entry.mapOpen)
                 .Select(entry => entry.workGiver)
                 .ToList();
             return activeWorkGivers;
@@ -273,7 +280,8 @@ namespace WorkMonitor.UI
             selectedWorkGiver = null;
 
             Text.Font = GameFont.Small;
-            float toolbarWidth = LayoutToggleWidth + ExpandAllWidth + 4f;
+            float expandCollapseWidth = ExpandAllWidth * 2f + ToolbarGap;
+            float toolbarWidth = LayoutToggleWidth + expandCollapseWidth + 4f;
             float tableWidth = area.width - toolbarWidth;
             Rect titleRect = new Rect(area.x, y, tableWidth, 22f);
             Widgets.Label(titleRect, "WorkMonitor.Colonists".Translate());
@@ -290,13 +298,21 @@ namespace WorkMonitor.UI
 
             TooltipHandler.TipRegion(layoutRect, "WorkMonitor.GroupDetailLayoutTip".Translate());
 
-            string expandLabel = BulkExpandUtility.BulkButtonLabel(AllLevel2Expanded());
-            if (Widgets.ButtonText(new Rect(area.xMax - ExpandAllWidth, y, ExpandAllWidth, 22f), expandLabel))
+            Rect expandRect = new Rect(layoutRect.xMax + ToolbarGap, y, ExpandAllWidth, 22f);
+            if (Widgets.ButtonText(expandRect, "WorkMonitor.ExpandAll".Translate()))
             {
-                ApplyBulkExpandToggle();
+                ExpandOneLevel();
             }
 
-            TooltipHandler.TipRegion(new Rect(area.xMax - ExpandAllWidth, y, ExpandAllWidth, 22f), "WorkMonitor.ExpandAllLevelTip".Translate());
+            TooltipHandler.TipRegion(expandRect, "WorkMonitor.ExpandAllLevelTip".Translate());
+
+            Rect collapseRect = new Rect(expandRect.xMax + ToolbarGap, y, ExpandAllWidth, 22f);
+            if (Widgets.ButtonText(collapseRect, "WorkMonitor.CollapseAll".Translate()))
+            {
+                CollapseOneLevel();
+            }
+
+            TooltipHandler.TipRegion(collapseRect, "WorkMonitor.ExpandAllLevelTip".Translate());
 
             y += RowHeight;
 
@@ -463,22 +479,9 @@ namespace WorkMonitor.UI
             return WorkGiverFirst ? AllWorkGiversExpanded() : AllColonistsExpanded();
         }
 
-        private bool AllLevel2Expanded()
-        {
-            return AllLevel1Expanded();
-        }
-
         private bool AnyLevel2Expanded()
         {
             return WorkGiverFirst ? expandedWorkGiverDefNames.Count > 0 : expandedColonistIds.Count > 0;
-        }
-
-        private void ApplyBulkExpandToggle()
-        {
-            BulkExpandUtility.ApplyBulkToggle(
-                AllLevel2Expanded(),
-                ExpandOneLevel,
-                CollapseOneLevel);
         }
 
         private void ExpandOneLevel()

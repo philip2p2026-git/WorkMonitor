@@ -524,9 +524,9 @@ WorkType detail
 WorkType overview
 ```
 
-**WorkType overview tree:** Layout toggle **By colonist** / **By work giver** shares `groupDetailWorkGiverFirst` with WorkType detail. Expand ▶/▼ on WorkType and L1 rows; **Expand all** / **Collapse all** advances one level per click (fully expand/collapse in two clicks). Sub-rows reuse overview columns: map backlog on WorkType and work-giver rows; colonist processed metrics on colonist rows; interest on WorkType rows only. Click anywhere on a row (except ▶/▼) navigates to the matching detail view. L2 data from `ColonistStatsAggregator.BuildGroupDetail` and `WorkGiverStatsAggregator.Build` (lazy-cached).
+**WorkType overview tree:** Layout toggle **By colonist** / **By work giver** shares `groupDetailWorkGiverFirst` with WorkType detail. Expand ▶/▼ on WorkType and L1 rows; separate **Expand all** and **Collapse all** buttons (each advances one level per click). WG-first L1 includes work givers with colonist activity in range **or** map backlog (`ExistJob` / `ExistWork` > 0). Sub-rows reuse overview columns: map backlog on WorkType and work-giver rows; colonist processed metrics on colonist rows; interest on WorkType rows only. Click anywhere on a row (except ▶/▼) navigates to the matching detail view. L2 data from `ColonistStatsAggregator.BuildGroupDetail` and `WorkGiverStatsAggregator.Build` (lazy-cached).
 
-**WorkType detail colonist table:** expand/collapse per colonist (▶/▼) to show per–work-giver metrics; **Expand all** / **Collapse all** uses the same progressive one-level-per-click behavior (`BulkExpandUtility`). Expanded rows use `ColonistStatsAggregator.BuildGroupDetail`. KPI columns show jobs/h and work/h for the selected range.
+**WorkType detail colonist table:** expand/collapse per colonist (▶/▼) to show per–work-giver metrics; separate **Expand all** and **Collapse all** buttons with the same progressive one-level-per-click behavior (`BulkExpandUtility`). WG-first rows use the same colonist-or-map visibility rule as overview. Expanded rows use `ColonistStatsAggregator.BuildGroupDetail`. KPI columns show jobs/h and work/h for the selected range.
 
 Opening **colonist work detail** from WorkType or WorkGiver detail pre-selects that work type (and work giver when applicable). Back from colonist detail returns to WorkGiver detail when `returnWorkGiver` was set.
 
