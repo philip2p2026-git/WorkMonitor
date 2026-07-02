@@ -110,3 +110,7 @@ Compare Run 1 vs Run 2 **wall-clock minutes** for the primary user-visible resul
 - If save size grows noticeably in Run 2, investigate retention settings and colony size before shipping.
 
 Archive both external notes and the Run 2 CSV with the build/version you tested.
+
+## Recorded results
+
+See [PerfTestResults.md](PerfTestResults.md) for the **test Wmonitor** colony run (卡斯托爾維加, ~48 in-game hours, Jan 2026).
