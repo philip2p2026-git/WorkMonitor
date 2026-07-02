@@ -1032,7 +1032,6 @@ namespace WorkMonitor.UI
     public static class DistributionPieChart
     {
         private static readonly Color WalkColor = new Color(0.58f, 0.58f, 0.62f);
-        private static readonly Color WorkColor = new Color(0.4f, 0.85f, 0.5f);
         private static readonly Color SplitHintColor = new Color(0.75f, 0.75f, 0.75f);
         private static readonly Color SliceEdgeColor = new Color(0.06f, 0.06f, 0.06f, 0.95f);
         private const float SliceEdgeWidth = 1.25f;
@@ -1060,7 +1059,20 @@ namespace WorkMonitor.UI
             float headerBottom = rect.y + 18f;
             if (splitMode == PieSliceSplitMode.WalkWork)
             {
-                DrawSplitHint(new Rect(rect.x + 4f, rect.y + 16f, rect.width - 8f, 14f), WorkColor, WalkColor,
+                Color innerHintColor = Color.white;
+                if (slices != null)
+                {
+                    foreach (PieSliceData hintSlice in slices)
+                    {
+                        if (hintSlice.Value > 0f)
+                        {
+                            innerHintColor = hintSlice.Color;
+                            break;
+                        }
+                    }
+                }
+
+                DrawSplitHint(new Rect(rect.x + 4f, rect.y + 16f, rect.width - 8f, 14f), innerHintColor, WalkColor,
                     "WorkMonitor.PieSplitInner".Translate("WorkMonitor.WorkTime".Translate()),
                     "WorkMonitor.PieSplitOuter".Translate("WorkMonitor.Walk".Translate()));
                 headerBottom = rect.y + 30f;
@@ -1133,7 +1145,7 @@ namespace WorkMonitor.UI
                             cursor,
                             sliceEnd,
                             workFrac,
-                            BlendSliceColor(slice.Color, WorkColor, 0.42f),
+                            slice.Color,
                             WalkColor,
                             hits,
                             slice.Label,
@@ -1231,16 +1243,6 @@ namespace WorkMonitor.UI
             {
                 DrawWedgeEdges(center, radius, startDeg, endDeg, innerPortion);
             }
-        }
-
-        private static Color BlendSliceColor(Color sliceColor, Color accent, float accentWeight)
-        {
-            float w = Mathf.Clamp01(accentWeight);
-            return new Color(
-                Mathf.Lerp(sliceColor.r, accent.r, w),
-                Mathf.Lerp(sliceColor.g, accent.g, w),
-                Mathf.Lerp(sliceColor.b, accent.b, w),
-                sliceColor.a);
         }
 
         private static void DrawWedgeEdges(
