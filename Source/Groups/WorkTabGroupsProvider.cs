@@ -1,37 +1,31 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using RimWorld;
 using Verse;
+using WorkTabGroups;
 
 namespace WorkMonitor.Groups
 {
     public static class WorkTabGroupsProvider
     {
         private const string PackageId = "philip2p2026.worktabgroups";
-        private static bool reflectionFailed;
+
+        public static bool IsIntegrationActive => ModsConfig.IsActive(PackageId);
 
         public static IEnumerable<WorkGroupSnapshot> GetCustomGroups()
         {
-            if (!ModsConfig.IsActive(PackageId) || reflectionFailed)
+            if (!IsIntegrationActive)
             {
                 yield break;
             }
 
-            object manager = GetManagerInstance();
+            WorkTabGroupsManager manager = WorkTabGroupsManager.Instance;
             if (manager == null)
             {
                 yield break;
             }
 
-            PropertyInfo groupsProp = manager.GetType().GetProperty("Groups", BindingFlags.Public | BindingFlags.Instance);
-            if (groupsProp?.GetValue(manager) is not System.Collections.IEnumerable groups)
-            {
-                yield break;
-            }
-
-            foreach (object group in groups)
+            foreach (MajorWorkGroupData group in manager.Groups)
             {
                 WorkGroupSnapshot snapshot = TryMapGroup(group);
                 if (snapshot != null)
@@ -43,105 +37,65 @@ namespace WorkMonitor.Groups
 
         public static string GetGroupKeyForWorkGiver(WorkGiverDef workGiver)
         {
-            object manager = GetManagerInstance();
-            if (manager == null || workGiver == null)
+            if (!IsIntegrationActive || workGiver == null)
             {
                 return null;
             }
 
-            MethodInfo method = manager.GetType().GetMethod("GetGroupForWorkGiver", BindingFlags.Public | BindingFlags.Instance);
-            if (method == null)
+            WorkTabGroupsManager manager = WorkTabGroupsManager.Instance;
+            MajorWorkGroupData group = manager?.GetGroupForWorkGiver(workGiver);
+            if (group == null || group.defName.NullOrEmpty())
             {
                 return null;
             }
 
-            object group = method.Invoke(manager, new object[] { workGiver });
-            if (group == null)
-            {
-                return null;
-            }
-
-            string defName = group.GetType().GetField("defName", BindingFlags.Public | BindingFlags.Instance)?.GetValue(group) as string;
-            if (defName.NullOrEmpty())
-            {
-                return null;
-            }
-
-            return WorkGroupKey.ForCustomGroup(defName).StorageKey;
+            return WorkGroupKey.ForCustomGroup(group.defName).StorageKey;
         }
 
         public static IEnumerable<WorkGiverDef> GetAssignedWorkGivers()
         {
-            object manager = GetManagerInstance();
+            if (!IsIntegrationActive)
+            {
+                yield break;
+            }
+
+            WorkTabGroupsManager manager = WorkTabGroupsManager.Instance;
             if (manager == null)
             {
                 yield break;
             }
 
-            MethodInfo method = manager.GetType().GetMethod("GetAssignedWorkGiverAssignments", BindingFlags.Public | BindingFlags.Instance);
-            if (method?.Invoke(manager, null) is not System.Collections.IEnumerable assignments)
+            foreach (KeyValuePair<WorkGiverDef, MajorWorkGroupData> assignment in manager.GetAssignedWorkGiverAssignments())
             {
-                yield break;
-            }
-
-            foreach (object assignment in assignments)
-            {
-                if (assignment == null)
+                if (assignment.Key != null)
                 {
-                    continue;
-                }
-
-                Type kvpType = assignment.GetType();
-                PropertyInfo keyProp = kvpType.GetProperty("Key");
-                if (keyProp?.GetValue(assignment) is WorkGiverDef wg)
-                {
-                    yield return wg;
+                    yield return assignment.Key;
                 }
             }
         }
 
-        private static object GetManagerInstance()
+        public static IReadOnlyList<WorkLayoutEntry> GetWorkLayoutOrder()
         {
-            try
+            if (!IsIntegrationActive)
             {
-                Type managerType = GenTypes.GetTypeInAnyAssembly("WorkTabGroups.WorkTabGroupsManager");
-                if (managerType == null)
-                {
-                    reflectionFailed = true;
-                    return null;
-                }
-
-                PropertyInfo instanceProp = managerType.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
-                return instanceProp?.GetValue(null);
-            }
-            catch (Exception ex)
-            {
-                reflectionFailed = true;
-                Log.Warning("[WorkMonitor] WorkTabGroups reflection failed: " + ex.Message);
                 return null;
             }
+
+            WorkTabGroupsManager manager = WorkTabGroupsManager.Instance;
+            return manager?.WorkLayoutOrder;
         }
 
-        private static WorkGroupSnapshot TryMapGroup(object group)
+        private static WorkGroupSnapshot TryMapGroup(MajorWorkGroupData group)
         {
-            if (group == null)
+            if (group == null || group.defName.NullOrEmpty())
             {
                 return null;
             }
 
-            Type type = group.GetType();
-            string defName = type.GetField("defName", BindingFlags.Public | BindingFlags.Instance)?.GetValue(group) as string;
-            string label = type.GetField("label", BindingFlags.Public | BindingFlags.Instance)?.GetValue(group) as string;
-            if (defName.NullOrEmpty())
-            {
-                return null;
-            }
-
-            List<string> wgNames = type.GetField("assignedWorkGiverDefNames", BindingFlags.Public | BindingFlags.Instance)?.GetValue(group) as List<string>;
             List<WorkGiverDef> workGivers = new List<WorkGiverDef>();
-            if (wgNames != null)
+            if (group.assignedWorkGiverDefNames != null)
             {
-                foreach (string wgName in wgNames)
+                foreach (string wgName in group.assignedWorkGiverDefNames)
                 {
                     WorkGiverDef wg = DefDatabase<WorkGiverDef>.GetNamedSilentFail(wgName);
                     if (wg != null)
@@ -156,11 +110,16 @@ namespace WorkMonitor.Groups
                 return null;
             }
 
-            List<WorkTypeDef> workTypes = workGivers.Select(w => w.workType).Distinct().ToList();
+            List<WorkTypeDef> workTypes = workGivers
+                .Select(w => w.workType)
+                .Where(w => w != null)
+                .Distinct()
+                .ToList();
+
             return new WorkGroupSnapshot
             {
-                Key = WorkGroupKey.ForCustomGroup(defName),
-                Label = label ?? defName,
+                Key = WorkGroupKey.ForCustomGroup(group.defName),
+                Label = group.label.NullOrEmpty() ? group.defName : group.label,
                 WorkGivers = workGivers,
                 UniqueWorkTypes = workTypes,
                 PrimaryWorkType = workTypes.FirstOrDefault()

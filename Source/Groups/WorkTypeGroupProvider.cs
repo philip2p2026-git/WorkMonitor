@@ -2,13 +2,23 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
+using WorkMonitor.UI;
+using WorkTabGroups;
 
 namespace WorkMonitor.Groups
 {
+    /// <summary>
+    /// Monitor rows from live WorkTypeDef entries. Visibility is def-gated (current DefDatabase only);
+    /// pawn×workGiver history in the save is not pruned when defs or mods are removed.
+    /// </summary>
     public class WorkTypeGroupProvider : IWorkGroupProvider
     {
+        private const string WorkTabGroupsPackageId = "philip2p2026.worktabgroups";
+
         public IEnumerable<WorkGroupSnapshot> GetGroups()
         {
+            WorkTabGroupsManager manager = TryGetManager();
+
             foreach (WorkTypeDef workType in DefDatabase<WorkTypeDef>.AllDefsListForReading.OrderByDescending(w => w.naturalPriority))
             {
                 if (workType.workGiversByPriority == null || workType.workGiversByPriority.Count == 0)
@@ -16,15 +26,52 @@ namespace WorkMonitor.Groups
                     continue;
                 }
 
+                List<WorkGiverDef> workGivers = CollectWorkGivers(workType, manager);
+                if (workGivers.Count == 0)
+                {
+                    continue;
+                }
+
                 yield return new WorkGroupSnapshot
                 {
                     Key = WorkGroupKey.ForWorkType(workType),
-                    Label = workType.label,
-                    WorkGivers = workType.workGiversByPriority.ToList(),
+                    Label = WorkTypeLabelUtility.Format(workType),
+                    WorkGivers = workGivers,
                     UniqueWorkTypes = new List<WorkTypeDef> { workType },
                     PrimaryWorkType = workType
                 };
             }
+        }
+
+        private static WorkTabGroupsManager TryGetManager()
+        {
+            if (!ModsConfig.IsActive(WorkTabGroupsPackageId))
+            {
+                return null;
+            }
+
+            return WorkTabGroupsManager.Instance;
+        }
+
+        private static List<WorkGiverDef> CollectWorkGivers(WorkTypeDef workType, WorkTabGroupsManager manager)
+        {
+            var workGivers = new List<WorkGiverDef>();
+            foreach (WorkGiverDef wg in workType.workGiversByPriority)
+            {
+                if (wg == null)
+                {
+                    continue;
+                }
+
+                if (manager != null && manager.IsAssignedToCustomGroup(wg))
+                {
+                    continue;
+                }
+
+                workGivers.Add(wg);
+            }
+
+            return workGivers;
         }
     }
 }

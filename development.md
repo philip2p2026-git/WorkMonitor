@@ -10,7 +10,7 @@ Read-only RimWorld mod that tracks colonist work activity and map backlog, organ
 |------|------|
 | [`About/About.xml`](About/About.xml) | RimWorld 1.6; packageId `philip2p2026.workmonitor` |
 | **Dependencies** | Harmony (`brrainz.harmony`), **Work Tab** (`Fluffy.WorkTab`) — hard requirement |
-| **Load after** | Work Tab Groups (`philip2p2026.worktabgroups`) — optional integration |
+| **Load after** | Customize your WorkGroup (`philip2p2026.worktabgroups`) — optional integration |
 | [`Languages/English/Keyed/WorkMonitor.xml`](Languages/English/Keyed/WorkMonitor.xml) | ~150 keyed strings |
 | `1.6/Assemblies/WorkMonitor.dll` | Built output |
 | **No `Defs/`** | All behavior via Harmony + `GameComponent`s (atypical for RimWorld mods; intentional) |
@@ -23,7 +23,7 @@ Read-only RimWorld mod that tracks colonist work activity and map backlog, organ
 |------|---------|
 | **WorkGiver** (`WorkGiverDef`) | RimWorld def for a single job type (e.g. `DoBillsCook`, `Mine`). Jobs reference one via `job.workGiverDef`. |
 | **Work type** (`WorkTypeDef`) | Work-tab column (Cooking, Construction, …). Contains ordered `workGiversByPriority`. Primary unit for **UI navigation** (see [UI views](#ui-views)). |
-| **Monitor row** | One row in the WorkType list. Usually one work type; with Work Tab Groups mod may be a custom bucket; unassigned mod work givers appear as **Other**. Code name: `WorkGroupSnapshot` (legacy “group” — avoid in UI copy). |
+| **Monitor row** | One row in the WorkType list. Usually one work type; with Customize your WorkGroup may be a custom bucket; unassigned mod work givers appear as **Other**. Code name: `WorkGroupSnapshot` (legacy “group” — avoid in UI copy). |
 | **Storage key** | Stable id for a monitor row: `WorkType:Cooking`, `CustomGroup:MyGroup`, `Other:Other`. Built by `WorkGroupKey.StorageKey`. |
 | **Job** | Countable colonist metric. Incremented on `Pawn_JobTracker.StartJob` when `workGiverDef` is set and the work giver is **not** endless. |
 | **Endless job** | Station/long-running job start counted separately from regular jobs: Research, Drill, Ground Penetrating Scan, Operate Scanner (`EndlessWorkGiverUtility`). Shown in the **Endless** column. |
@@ -139,6 +139,7 @@ Source/
     ├── WorkMonitorTableColumns.cs, MonitorRowKind.cs
     ├── WorkMonitorUiUtility.cs, WorkMonitorDropdownUtility.cs
     ├── WorkGiverLabelUtility.cs, WorkGiverSkillMarkerMode.cs, WorkGiverSkillUtility.cs
+    ├── WorkTypeLabelUtility.cs
     ├── ColonistInspectUtility.cs, WorkTabHighlightController.cs
 ```
 
@@ -244,10 +245,12 @@ Helpers for provider work-left estimates: `FromFrame`, `FromMineable`, `FromFilt
 
 **`WorkGroupRegistry.GetAllGroups()`** assembly (250-tick cache):
 
-1. `WorkTypeGroupProvider` — one row per `WorkTypeDef`
-2. `WorkTabGroupsProvider` — custom rows when Work Tab Groups mod is present
+1. `WorkTypeGroupProvider` — one row per `WorkTypeDef` (unassigned work givers only when Customize your WorkGroup is active; skips empty rows)
+2. `WorkTabGroupsProvider` — custom rows when Customize your WorkGroup is present
 3. `OtherWorkGroupProvider` — unassigned mod work givers → **Other**
-4. `WorkGroupOrderUtility.Sort`
+4. `WorkGroupOrderUtility.Sort` — order from `WorkLayoutOrder` when available, else `PawnTableDefOf.Work.columns`; **Other** always last
+
+Monitor row visibility is **def-gated** (current `DefDatabase` only). Pawn×workGiver save/CSV history is **not** pruned when content mods are disabled.
 
 **Adding a monitor row provider:** implement `IWorkGroupProvider`, return `WorkGroupSnapshot` entries, wire into `WorkGroupRegistry.GetAllGroups()`.
 
@@ -703,7 +706,32 @@ Automatic colonist rules apply to any `WorkGiverDef`:
 
 Map side only counts targets found by providers. Unassigned defs appear in the **Other** monitor row (`OtherWorkGroupProvider`).
 
-Optional integration: **Work Tab Groups** mod (`philip2p2026.worktabgroups`) adds custom monitor rows via `WorkTabGroupsProvider`.
+Optional integration: **Customize your WorkGroup** (`philip2p2026.worktabgroups`) adds custom monitor rows via `WorkTabGroupsProvider` and drives row order from `WorkTabGroupsManager.WorkLayoutOrder`.
+
+---
+
+## Mod compatibility / safety
+
+### WorkGiver → WorkType mapping
+
+WorkMonitor does not maintain its own mapping table. `WorkGiverDef.workType` comes from the live def graph (vanilla + active mods). Customize your WorkGroup changes Work Tab / monitor **layout** only; underlying `workGiver.workType` is unchanged. Raw storage and CSV use **pawn × `workGiverDefName`** strings only.
+
+WorkType labels in the UI use `WorkTypeLabelUtility` (`label` → `labelShort` → `pawnLabel` → `defName`) when translations are missing.
+
+### Content mod disabled
+
+| Concern | Behavior |
+|---------|----------|
+| Save data | `pawnWorkGiverHistory` and `pawnRecords` keep `workGiverDefName` keys; no purge on missing defs |
+| Monitor | Providers iterate current `DefDatabase`; removed defs do not appear in rows or aggregators |
+| CSV export | `EnumeratePawnWorkGiverHistory()` exports all saved keys regardless of defs |
+| Re-enable mod | Historical buffers unchanged; UI resumes when defs return |
+| Active jobs | `FinalizeActiveJob` uses `GetNamedSilentFail`; missing def drops active job without throwing |
+| Group keys | `WorkGroupKeyResolver` skips `ForWorkType` when `workGiver.workType` is null |
+
+### WorkMonitor disabled
+
+Harmony patches are removed on unload. Read-only — no gameplay dependency. `GameComponent` XML may remain in the save; RimWorld skips unknown components when the mod is absent. Re-enabling restores tracking and retained history.
 
 ---
 

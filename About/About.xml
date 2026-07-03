@@ -3,7 +3,7 @@
 	<name>Work Monitor</name>
 	<author>philip2p2026</author>
 	<packageId>philip2p2026.workmonitor</packageId>
-	<description>Read-only work activity dashboard for the Work Tab. See which work groups are active, who worked, passion interest, time spent, and charts over time. Does not change gameplay or priorities. Enhanced when Work Tab Groups is installed.</description>
+	<description>Read-only work activity dashboard for the Work Tab. See which work groups are active, who worked, passion interest, time spent, and charts over time. Does not change gameplay or priorities. Enhanced when Customize your WorkGroup is installed.</description>
 	<supportedVersions>
 		<li>1.6</li>
 	</supportedVersions>

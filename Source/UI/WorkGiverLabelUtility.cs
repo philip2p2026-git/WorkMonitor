@@ -14,9 +14,11 @@ namespace WorkMonitor.UI
                 return "";
             }
 
+            string baseLabel = ResolveBaseLabel(workGiver);
+
             if (!ShouldMarkSkill(workGiver))
             {
-                return workGiver.label;
+                return baseLabel;
             }
 
             WorkMonitorSettings settings = WorkMonitorMod.Settings;
@@ -27,14 +29,24 @@ namespace WorkMonitor.UI
                 {
                     string skillLabel = ResolveSkillLabel(workGiver);
                     return skillLabel.NullOrEmpty()
-                        ? workGiver.label
-                        : "(" + skillLabel + ") " + workGiver.label;
+                        ? baseLabel
+                        : "(" + skillLabel + ") " + baseLabel;
                 }
                 case WorkGiverSkillMarkerMode.Asterisk:
-                    return "* " + workGiver.label;
+                    return "* " + baseLabel;
                 default:
-                    return workGiver.label;
+                    return baseLabel;
             }
+        }
+
+        private static string ResolveBaseLabel(WorkGiverDef workGiver)
+        {
+            if (!workGiver.label.NullOrEmpty())
+            {
+                return workGiver.label;
+            }
+
+            return workGiver.defName ?? "";
         }
 
         public static void Draw(Rect row, float labelLeft, float labelWidth, WorkGiverDef workGiver, GameFont font)

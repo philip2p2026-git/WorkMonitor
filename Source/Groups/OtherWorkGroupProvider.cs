@@ -5,6 +5,10 @@ using Verse;
 
 namespace WorkMonitor.Groups
 {
+    /// <summary>
+    /// Orphan work givers from the current DefDatabase only. Save/CSV pawn×workGiver history
+    /// for removed defs is retained but not shown here until the mod is active again.
+    /// </summary>
     public class OtherWorkGroupProvider : IWorkGroupProvider
     {
         public IEnumerable<WorkGroupSnapshot> GetGroups()

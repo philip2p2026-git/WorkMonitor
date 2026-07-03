@@ -14,7 +14,10 @@ namespace WorkMonitor.Groups
                 yield break;
             }
 
-            yield return WorkGroupKey.ForWorkType(workGiver.workType).StorageKey;
+            if (workGiver.workType != null)
+            {
+                yield return WorkGroupKey.ForWorkType(workGiver.workType).StorageKey;
+            }
 
             if (ModsConfig.IsActive("philip2p2026.worktabgroups"))
             {
@@ -35,7 +38,10 @@ namespace WorkMonitor.Groups
                 {
                     foreach (WorkGiverDef wg in workType.workGiversByPriority)
                     {
-                        assigned.Add(wg);
+                        if (wg != null)
+                        {
+                            assigned.Add(wg);
+                        }
                     }
                 }
             }

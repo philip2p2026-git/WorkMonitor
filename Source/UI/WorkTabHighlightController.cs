@@ -4,6 +4,7 @@ using RimWorld;
 using Verse;
 using WorkMonitor.Groups;
 using WorkTab;
+using WorkTabGroups;
 
 namespace WorkMonitor.UI
 {
@@ -57,23 +58,10 @@ namespace WorkMonitor.UI
             {
                 foreach (PawnColumnDef column in columns)
                 {
-                    if (column.workerClass == null || !column.workerClass.FullName.Contains("PawnColumnWorker_MajorWorkGroup"))
+                    if (column.Worker is PawnColumnWorker_MajorWorkGroup groupWorker
+                        && groupWorker.BoundGroup?.defName == group.Key.Id)
                     {
-                        continue;
-                    }
-
-                    PawnColumnWorker worker = column.Worker;
-                    if (worker == null)
-                    {
-                        continue;
-                    }
-
-                    var boundGroupProp = worker.GetType().GetProperty("BoundGroup");
-                    object boundGroup = boundGroupProp?.GetValue(worker);
-                    string defName = boundGroup?.GetType().GetField("defName")?.GetValue(boundGroup) as string;
-                    if (defName == group.Key.Id && worker is IExpandableColumn expandable)
-                    {
-                        MainTabWindow_WorkTab.Expand(expandable, true);
+                        MainTabWindow_WorkTab.Expand(groupWorker, true);
                         return;
                     }
                 }
