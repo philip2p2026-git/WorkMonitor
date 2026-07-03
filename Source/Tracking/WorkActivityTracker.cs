@@ -625,6 +625,32 @@ namespace WorkMonitor.Tracking
             }
         }
 
+        public bool HasPersistedData()
+        {
+            return pawnRecords.Count > 0
+                || pawnWorkGiverHistory.Count > 0
+                || groupHistory.Count > 0
+                || colonistProfiles.Count > 0;
+        }
+
+        public void WriteToSidecarData(WorkMonitorSidecarData data)
+        {
+            SyncToSaveLists();
+            data.savedPawnRecords = savedPawnRecords;
+            data.savedPawnHistory = savedPawnHistory;
+            data.savedGroupHistory = savedGroupHistory;
+            data.savedColonistProfiles = savedColonistProfiles;
+        }
+
+        public void LoadFromSidecarData(WorkMonitorSidecarData data)
+        {
+            savedPawnRecords = data.savedPawnRecords ?? new List<PawnWorkGiverRecords>();
+            savedPawnHistory = data.savedPawnHistory ?? new List<PawnWorkGiverHistory>();
+            savedGroupHistory = data.savedGroupHistory ?? new List<GroupHistoryEntry>();
+            savedColonistProfiles = data.savedColonistProfiles ?? new List<ColonistWorkProfileEntry>();
+            SyncFromSaveLists();
+        }
+
         private void SyncFromSaveLists()
         {
             pawnRecords = new Dictionary<int, Dictionary<string, WorkActivityRecord>>();

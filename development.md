@@ -117,6 +117,7 @@ Source/
 │   ├── WorkActivityRecord.cs, WorkMonitorSaveData.cs, ColonistWorkProfile.cs
 │   ├── WorkLeftResolver.cs, EndlessWorkGiverUtility.cs, WorkUnitEstimator.cs
 │   ├── MapWorkSampler.cs, MapWorkSnapshot.cs
+│   ├── WorkMonitorSidecarData.cs, WorkMonitorSidecarStorage.cs, WorkMonitorSaveTracker.cs
 │   ├── WorkHistoryRingBuffer.cs   # Legacy / unused — no references
 │   └── MapWork/
 │       ├── IMapWorkTargetProvider.cs, MapWorkProviderRegistry.cs
@@ -129,6 +130,7 @@ Source/
 │   ├── Patch_RecordWorkActivity.cs
 │   ├── Patch_BillWorkProgress.cs
 │   ├── Patch_Game_ComponentRegistration.cs
+│   ├── Patch_SaveLoadSidecar.cs
 │   ├── Patch_History_WorkMonitorTab.cs
 │   └── Patch_WorkTab_MonitorButton.cs
 └── UI/
@@ -307,6 +309,22 @@ Colonist and map metrics use different storage layers. The UI range can be longe
 | **Map snapshot history** | `MapWorkSampler.historyBuffer` | One sample per map interval | Map chart time series (hold-forward); map work-giver CSV export |
 | **Map latest** | `MapWorkSampler.latestSnapshot` | Current sample | Table **ExistJob** / **ExistWork** columns |
 | **New-today tracking** | `MapWorkSampler.taskFirstSeenDayId` | Per `DedupeKey`, current save | `newToday*` fields until target disappears |
+
+### Save persistence (sidecar)
+
+`WorkActivityTracker` and `MapWorkSampler` remain **runtime** `GameComponent`s (registered in `FinalizeInit`), but their history is **not** written into the `.rws` file.
+
+| Piece | Role |
+|-------|------|
+| `Patch_Game_ExposeData_Sidecar` | On save, temporarily removes both components from `game.components` before `Game.ExposeData` serializes — no `WorkMonitor.Tracking.*` types in `.rws`. |
+| `Patch_GameDataSaveLoader_SaveGame` | After save, writes `WorkMonitorSidecarData` to disk via `WorkMonitorSidecarStorage.Save()`. |
+| `Patch_GameDataSaveLoader_LoadGame` | After load, `LongEventHandler.ExecuteWhenFinished` → `TryLoadIntoTrackers()` restores history from sidecar when components are empty. |
+| `WorkMonitorSaveTracker` | Tracks current save name from `GameDataSaveLoader` path. |
+| Sidecar path | `{SaveDataFolder}/WorkMonitor/{saveName}.xml` |
+
+`WriteToSidecarData` / `LoadFromSidecarData` on each tracker mirror the former `ExposeData` field shapes. `ExposeData` on both components is **kept** so saves created before sidecar migration still load embedded XML once; after the next save, `.rws` is clean and history lives in the sidecar only.
+
+**One-time migration (pre-sidecar saves):** If a save already contains embedded `WorkMonitor.Tracking.*` nodes in `game.components`, load **once with WorkMonitor enabled**, then save. That strips polluted XML and writes the sidecar. Until that re-save, disabling WorkMonitor can still log `Could not find class WorkMonitor.Tracking.*` — RimWorld does **not** silently skip unknown `Class="…"` component nodes.
 
 ### Colonist tier rollup
 
@@ -515,6 +533,7 @@ On first sighting of a `DedupeKey`, `MapWorkSampler` records `taskFirstSeenDayId
 | `Patch_RecordWorkStart` / `Patch_RecordWorkEnd` | `Patch_RecordWorkActivity.cs` | `Pawn_JobTracker.StartJob` / `EndCurrentJob` | End prior job, then `RecordJobStart` / `RecordJobEnd`. |
 | `Patch_JobDriverTick` | `Patch_BillWorkProgress.cs` | `JobDriver.DriverTick` | `SampleJobTick`; `SampleBillWorkLeft` for bills. |
 | `Patch_Game_Constructor` / `Patch_Game_FinalizeInit` | `Patch_Game_ComponentRegistration.cs` | `Game` | Register `WorkActivityTracker` and `MapWorkSampler`. |
+| `Patch_Game_ExposeData_Sidecar`, `Patch_GameDataSaveLoader_*` | `Patch_SaveLoadSidecar.cs` | `Game.ExposeData`, `GameDataSaveLoader` | Strip components from `.rws` on save; persist history to `SaveData/WorkMonitor/{save}.xml`; restore on load. |
 | `WorkMonitorHistoryTab`, `Patch_History_*` | `Patch_History_WorkMonitorTab.cs` | History tab | Embed Work Monitor UI (`WorkMonitorContentHost`). |
 | `Patch_WorkTab_MonitorButton` | `Patch_WorkTab_MonitorButton.cs` | Work tab | Open standalone monitor window. |
 
@@ -746,7 +765,9 @@ WorkType labels in the UI use `WorkTypeLabelUtility` (`label` → `labelShort` �
 
 ### WorkMonitor disabled
 
-Harmony patches are removed on unload. Read-only — no gameplay dependency. `GameComponent` XML may remain in the save; RimWorld skips unknown components when the mod is absent. Re-enabling restores tracking and retained history.
+Harmony patches are removed on unload. Read-only — no gameplay dependency. **New saves** (saved with this sidecar build) contain **no** WorkMonitor types in `.rws`; loads without the mod are clean. History remains in `SaveData/WorkMonitor/{saveName}.xml` on disk; re-enabling and loading the same save restores it via `TryLoadIntoTrackers`.
+
+**Legacy saves** (embedded `game.components` XML from before sidecar): disabling WorkMonitor still produces `Could not find class WorkMonitor.Tracking.*` / `Can't load abstract class Verse.GameComponent` in `Player.log` until the save is loaded once with the mod and re-saved.
 
 ### No-crash matrix
 
@@ -755,9 +776,10 @@ Harmony patches are removed on unload. Read-only — no gameplay dependency. `Ga
 | Content mod removes WorkGiverDef | UI skips row; pawn history retained; active job dropped silently; no exception |
 | Content mod changes `workGiversByPriority` | Index refreshes within 250 ticks; rollups match new Work Tab columns |
 | Customize your WorkGroup moves WG to custom row | Credits `CustomGroup:*` only; vanilla WorkType buffer not double-counted |
-| WorkMonitor disabled mid-save | Game loads; unknown `GameComponent` types ignored; no gameplay dependency |
+| WorkMonitor disabled (sidecar-era save) | `.rws` has no WorkMonitor XML; no log errors; gameplay unaffected |
+| WorkMonitor disabled (legacy embedded save) | Load errors in log for missing `WorkMonitor.Tracking.*`; gameplay still proceeds; history not restored until mod re-enabled |
 | WorkMonitor without Customize your WorkGroup | Loads normally; reflection bridge inactive; vanilla WorkType rows only |
-| WorkMonitor re-enabled | `FinalizeInit` registers components; string-keyed history intact |
+| WorkMonitor re-enabled | `FinalizeInit` registers components; sidecar restores history when `.rws` has no embedded data |
 | Missing `History` main button def | `WorkMonitorHistoryTab.Open()` returns early (`GetNamedSilentFail`) |
 
 ---

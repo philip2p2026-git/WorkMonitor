@@ -115,6 +115,29 @@ namespace WorkMonitor.Tracking
             }
         }
 
+        public bool HasPersistedData()
+        {
+            return latestSnapshot != null
+                || historyBuffer.Count > 0
+                || taskFirstSeenDayId.Count > 0;
+        }
+
+        public void WriteToSidecarData(WorkMonitorSidecarData data)
+        {
+            data.latestSnapshot = latestSnapshot;
+            data.historyBuffer = historyBuffer;
+            data.taskFirstSeenDayId = taskFirstSeenDayId;
+            data.lastSampledHour = lastSampledHour;
+        }
+
+        public void LoadFromSidecarData(WorkMonitorSidecarData data)
+        {
+            latestSnapshot = data.latestSnapshot;
+            historyBuffer = data.historyBuffer ?? new List<MapWorkSnapshot>();
+            taskFirstSeenDayId = data.taskFirstSeenDayId ?? new Dictionary<string, int>();
+            lastSampledHour = data.lastSampledHour;
+        }
+
         public override void ExposeData()
         {
             base.ExposeData();
