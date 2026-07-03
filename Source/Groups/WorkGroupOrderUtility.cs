@@ -1,10 +1,8 @@
 using System.Collections.Generic;
 using System.Linq;
-using HarmonyLib;
 using RimWorld;
 using Verse;
 using WorkTab;
-using WorkTabGroups;
 
 namespace WorkMonitor.Groups
 {
@@ -34,23 +32,23 @@ namespace WorkMonitor.Groups
         private static bool TryBuildOrderFromLayout(out Dictionary<string, int> order)
         {
             order = new Dictionary<string, int>();
-            IReadOnlyList<WorkLayoutEntry> layoutOrder = WorkTabGroupsProvider.GetWorkLayoutOrder();
+            IReadOnlyList<WorkTabLayoutEntrySnapshot> layoutOrder = WorkTabGroupsProvider.GetWorkLayoutOrder();
             if (layoutOrder == null || layoutOrder.Count == 0)
             {
                 return false;
             }
 
             int index = 0;
-            foreach (WorkLayoutEntry entry in layoutOrder)
+            foreach (WorkTabLayoutEntrySnapshot entry in layoutOrder)
             {
-                if (entry == null || entry.key.NullOrEmpty())
+                if (entry.Key.NullOrEmpty())
                 {
                     continue;
                 }
 
-                if (entry.kind == WorkLayoutEntryKind.CustomGroup)
+                if (entry.IsCustomGroup)
                 {
-                    string storageKey = WorkGroupKey.ForCustomGroup(entry.key).StorageKey;
+                    string storageKey = WorkGroupKey.ForCustomGroup(entry.Key).StorageKey;
                     if (!order.ContainsKey(storageKey))
                     {
                         order[storageKey] = index++;
@@ -59,7 +57,7 @@ namespace WorkMonitor.Groups
                     continue;
                 }
 
-                WorkTypeDef workType = DefDatabase<WorkTypeDef>.GetNamedSilentFail(entry.key);
+                WorkTypeDef workType = DefDatabase<WorkTypeDef>.GetNamedSilentFail(entry.Key);
                 if (workType == null)
                 {
                     continue;
@@ -92,33 +90,9 @@ namespace WorkMonitor.Groups
                     continue;
                 }
 
-                if (column.Worker is PawnColumnWorker_MajorWorkGroup groupWorker)
+                if (WorkTabGroupsIntegration.TryReadMajorWorkGroupDefName(column, out string defName))
                 {
-                    string defName = groupWorker.BoundGroup?.defName;
-                    if (!defName.NullOrEmpty())
-                    {
-                        order[WorkGroupKey.ForCustomGroup(defName).StorageKey] = index++;
-                    }
-
-                    continue;
-                }
-
-                if (column.workerClass == null || !column.workerClass.FullName.Contains("PawnColumnWorker_MajorWorkGroup"))
-                {
-                    continue;
-                }
-
-                PawnColumnWorker worker = column.Worker;
-                if (worker == null)
-                {
-                    continue;
-                }
-
-                object boundGroup = worker.GetType().GetProperty("BoundGroup")?.GetValue(worker);
-                string defNameFallback = boundGroup?.GetType().GetField("defName")?.GetValue(boundGroup) as string;
-                if (!defNameFallback.NullOrEmpty())
-                {
-                    order[WorkGroupKey.ForCustomGroup(defNameFallback).StorageKey] = index++;
+                    order[WorkGroupKey.ForCustomGroup(defName).StorageKey] = index++;
                 }
             }
 

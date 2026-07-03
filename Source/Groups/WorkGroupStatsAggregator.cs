@@ -22,6 +22,8 @@ namespace WorkMonitor.Groups
                 return cachedGroups;
             }
 
+            WorkGiverAssignmentIndex.Rebuild(tick);
+
             List<WorkGroupSnapshot> groups = new List<WorkGroupSnapshot>();
             groups.AddRange(new WorkTypeGroupProvider().GetGroups());
             groups.AddRange(WorkTabGroupsProvider.GetCustomGroups());

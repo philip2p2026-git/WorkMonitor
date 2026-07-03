@@ -3,7 +3,6 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using WorkMonitor.UI;
-using WorkTabGroups;
 
 namespace WorkMonitor.Groups
 {
@@ -13,12 +12,8 @@ namespace WorkMonitor.Groups
     /// </summary>
     public class WorkTypeGroupProvider : IWorkGroupProvider
     {
-        private const string WorkTabGroupsPackageId = "philip2p2026.worktabgroups";
-
         public IEnumerable<WorkGroupSnapshot> GetGroups()
         {
-            WorkTabGroupsManager manager = TryGetManager();
-
             foreach (WorkTypeDef workType in DefDatabase<WorkTypeDef>.AllDefsListForReading.OrderByDescending(w => w.naturalPriority))
             {
                 if (workType.workGiversByPriority == null || workType.workGiversByPriority.Count == 0)
@@ -26,7 +21,7 @@ namespace WorkMonitor.Groups
                     continue;
                 }
 
-                List<WorkGiverDef> workGivers = CollectWorkGivers(workType, manager);
+                List<WorkGiverDef> workGivers = CollectWorkGivers(workType);
                 if (workGivers.Count == 0)
                 {
                     continue;
@@ -43,17 +38,7 @@ namespace WorkMonitor.Groups
             }
         }
 
-        private static WorkTabGroupsManager TryGetManager()
-        {
-            if (!ModsConfig.IsActive(WorkTabGroupsPackageId))
-            {
-                return null;
-            }
-
-            return WorkTabGroupsManager.Instance;
-        }
-
-        private static List<WorkGiverDef> CollectWorkGivers(WorkTypeDef workType, WorkTabGroupsManager manager)
+        private static List<WorkGiverDef> CollectWorkGivers(WorkTypeDef workType)
         {
             var workGivers = new List<WorkGiverDef>();
             foreach (WorkGiverDef wg in workType.workGiversByPriority)
@@ -63,7 +48,7 @@ namespace WorkMonitor.Groups
                     continue;
                 }
 
-                if (manager != null && manager.IsAssignedToCustomGroup(wg))
+                if (WorkTabGroupsIntegration.IsAssignedToCustomGroup(wg))
                 {
                     continue;
                 }

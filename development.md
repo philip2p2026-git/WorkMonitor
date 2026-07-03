@@ -102,6 +102,8 @@ Source/
 ├── WorkMonitorUtility.cs          # Time formatting, colonist enumeration
 ├── Groups/                        # Monitor rows + stat aggregators (WorkGroup* — code legacy naming)
 │   ├── WorkGroupKey.cs, WorkGroupSnapshot.cs, WorkGroupKeyResolver.cs
+│   ├── WorkGiverAssignmentIndex.cs
+│   ├── WorkTabGroupsIntegration.cs
 │   ├── WorkGroupOrderUtility.cs, WorkActivityStatus.cs, WorkGroupStats.cs
 │   ├── IWorkGroupProvider.cs    # Extension point for monitor rows
 │   ├── WorkTypeGroupProvider.cs, WorkTabGroupsProvider.cs, OtherWorkGroupProvider.cs
@@ -241,7 +243,8 @@ Helpers for provider work-left estimates: `FromFrame`, `FromMineable`, `FromFilt
 | `WorkGroupSnapshot` | `Key`, `Label`, `WorkGivers`, `UniqueWorkTypes`, `PrimaryWorkType`. |
 | `WorkGroupRegistry.GetAllGroups()` | Cached monitor rows (250-tick cache). Defined in `WorkGroupStatsAggregator.cs`. |
 | `IWorkGroupProvider` | Extension point for monitor rows (parallel to `IMapWorkTargetProvider` for map scanning). |
-| `WorkGroupKeyResolver.ResolveGroupKeysForWorkGiver(wg)` | Work type key + optional custom row key. |
+| `WorkGroupKeyResolver.ResolveGroupKeysForWorkGiver(wg)` | Delegates to `WorkGiverAssignmentIndex` (same rules as monitor rows). |
+| `WorkGiverAssignmentIndex` | Cached WG → storage-key lookup; rebuilt with `WorkGroupRegistry` (250-tick cache). |
 
 **`WorkGroupRegistry.GetAllGroups()`** assembly (250-tick cache):
 
@@ -706,7 +709,7 @@ Automatic colonist rules apply to any `WorkGiverDef`:
 
 Map side only counts targets found by providers. Unassigned defs appear in the **Other** monitor row (`OtherWorkGroupProvider`).
 
-Optional integration: **Customize your WorkGroup** (`philip2p2026.worktabgroups`) adds custom monitor rows via `WorkTabGroupsProvider` and drives row order from `WorkTabGroupsManager.WorkLayoutOrder`.
+Optional integration: **Customize your WorkGroup** (`philip2p2026.worktabgroups`) adds custom monitor rows via `WorkTabGroupsProvider` and drives row order from `WorkTabGroupsManager.WorkLayoutOrder`. Integration uses **`WorkTabGroupsIntegration`** (reflection) so WorkMonitor loads when that mod is not installed — no compile-time dependency on `WorkTabGroups.dll`.
 
 ---
 
@@ -714,7 +717,18 @@ Optional integration: **Customize your WorkGroup** (`philip2p2026.worktabgroups`
 
 ### WorkGiver → WorkType mapping
 
-WorkMonitor does not maintain its own mapping table. `WorkGiverDef.workType` comes from the live def graph (vanilla + active mods). Customize your WorkGroup changes Work Tab / monitor **layout** only; underlying `workGiver.workType` is unchanged. Raw storage and CSV use **pawn × `workGiverDefName`** strings only.
+Group rollup keys (colonist tier buffers and map `perGroupKey`) use **`WorkGiverAssignmentIndex`** — the same assignment rules as monitor UI rows, not `WorkGiverDef.workType` alone.
+
+| Priority | Rule | Storage key |
+|----------|------|-------------|
+| 1 | WG assigned to Customize your WorkGroup custom row | `CustomGroup:{defName}` only (no WorkType key) |
+| 2 | WG in `WorkTypeDef.workGiversByPriority` and not custom-assigned | `WorkType:{workType.defName}` |
+| 3 | WG in `DefDatabase` but unassigned to any column/custom row | `Other:Other` |
+| 4 | WG removed from `DefDatabase` (content mod disabled) | **no group keys** — pawn×`workGiverDefName` history still recorded |
+
+Index rebuilds inside `WorkGroupRegistry.GetAllGroups()` (250-tick cache). `WorkGroupKeyResolver` delegates to the index for all group-key resolution (`WorkActivityTracker`, `MapWorkAttribution`).
+
+Raw pawn storage and CSV use **pawn × `workGiverDefName`** strings only — independent of group assignment.
 
 WorkType labels in the UI use `WorkTypeLabelUtility` (`label` → `labelShort` → `pawnLabel` → `defName`) when translations are missing.
 
@@ -727,11 +741,24 @@ WorkType labels in the UI use `WorkTypeLabelUtility` (`label` → `labelShort` �
 | CSV export | `EnumeratePawnWorkGiverHistory()` exports all saved keys regardless of defs |
 | Re-enable mod | Historical buffers unchanged; UI resumes when defs return |
 | Active jobs | `FinalizeActiveJob` uses `GetNamedSilentFail`; missing def drops active job without throwing |
-| Group keys | `WorkGroupKeyResolver` skips `ForWorkType` when `workGiver.workType` is null |
+| Group rollups | `GetStorageKeysForDefName` returns empty when def missing — no group buffer credit; no throw |
+| Def lookups | All WorkGiver/WorkType/Designation resolution uses `GetNamedSilentFail` + null guards |
 
 ### WorkMonitor disabled
 
 Harmony patches are removed on unload. Read-only — no gameplay dependency. `GameComponent` XML may remain in the save; RimWorld skips unknown components when the mod is absent. Re-enabling restores tracking and retained history.
+
+### No-crash matrix
+
+| Scenario | Result |
+|----------|--------|
+| Content mod removes WorkGiverDef | UI skips row; pawn history retained; active job dropped silently; no exception |
+| Content mod changes `workGiversByPriority` | Index refreshes within 250 ticks; rollups match new Work Tab columns |
+| Customize your WorkGroup moves WG to custom row | Credits `CustomGroup:*` only; vanilla WorkType buffer not double-counted |
+| WorkMonitor disabled mid-save | Game loads; unknown `GameComponent` types ignored; no gameplay dependency |
+| WorkMonitor without Customize your WorkGroup | Loads normally; reflection bridge inactive; vanilla WorkType rows only |
+| WorkMonitor re-enabled | `FinalizeInit` registers components; string-keyed history intact |
+| Missing `History` main button def | `WorkMonitorHistoryTab.Open()` returns early (`GetNamedSilentFail`) |
 
 ---
 

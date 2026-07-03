@@ -2,30 +2,16 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using WorkTabGroups;
 
 namespace WorkMonitor.Groups
 {
     public static class WorkTabGroupsProvider
     {
-        private const string PackageId = "philip2p2026.worktabgroups";
-
-        public static bool IsIntegrationActive => ModsConfig.IsActive(PackageId);
+        public static bool IsIntegrationActive => WorkTabGroupsIntegration.IsActive;
 
         public static IEnumerable<WorkGroupSnapshot> GetCustomGroups()
         {
-            if (!IsIntegrationActive)
-            {
-                yield break;
-            }
-
-            WorkTabGroupsManager manager = WorkTabGroupsManager.Instance;
-            if (manager == null)
-            {
-                yield break;
-            }
-
-            foreach (MajorWorkGroupData group in manager.Groups)
+            foreach (WorkTabCustomGroupSnapshot group in WorkTabGroupsIntegration.EnumerateCustomGroups())
             {
                 WorkGroupSnapshot snapshot = TryMapGroup(group);
                 if (snapshot != null)
@@ -37,65 +23,30 @@ namespace WorkMonitor.Groups
 
         public static string GetGroupKeyForWorkGiver(WorkGiverDef workGiver)
         {
-            if (!IsIntegrationActive || workGiver == null)
-            {
-                return null;
-            }
-
-            WorkTabGroupsManager manager = WorkTabGroupsManager.Instance;
-            MajorWorkGroupData group = manager?.GetGroupForWorkGiver(workGiver);
-            if (group == null || group.defName.NullOrEmpty())
-            {
-                return null;
-            }
-
-            return WorkGroupKey.ForCustomGroup(group.defName).StorageKey;
+            return WorkTabGroupsIntegration.GetCustomGroupStorageKeyForWorkGiver(workGiver);
         }
 
         public static IEnumerable<WorkGiverDef> GetAssignedWorkGivers()
         {
-            if (!IsIntegrationActive)
-            {
-                yield break;
-            }
-
-            WorkTabGroupsManager manager = WorkTabGroupsManager.Instance;
-            if (manager == null)
-            {
-                yield break;
-            }
-
-            foreach (KeyValuePair<WorkGiverDef, MajorWorkGroupData> assignment in manager.GetAssignedWorkGiverAssignments())
-            {
-                if (assignment.Key != null)
-                {
-                    yield return assignment.Key;
-                }
-            }
+            return WorkTabGroupsIntegration.EnumerateCustomAssignedWorkGivers();
         }
 
-        public static IReadOnlyList<WorkLayoutEntry> GetWorkLayoutOrder()
+        public static IReadOnlyList<WorkTabLayoutEntrySnapshot> GetWorkLayoutOrder()
         {
-            if (!IsIntegrationActive)
-            {
-                return null;
-            }
-
-            WorkTabGroupsManager manager = WorkTabGroupsManager.Instance;
-            return manager?.WorkLayoutOrder;
+            return WorkTabGroupsIntegration.GetLayoutOrder();
         }
 
-        private static WorkGroupSnapshot TryMapGroup(MajorWorkGroupData group)
+        private static WorkGroupSnapshot TryMapGroup(WorkTabCustomGroupSnapshot group)
         {
-            if (group == null || group.defName.NullOrEmpty())
+            if (group.DefName.NullOrEmpty())
             {
                 return null;
             }
 
             List<WorkGiverDef> workGivers = new List<WorkGiverDef>();
-            if (group.assignedWorkGiverDefNames != null)
+            if (group.AssignedWorkGiverDefNames != null)
             {
-                foreach (string wgName in group.assignedWorkGiverDefNames)
+                foreach (string wgName in group.AssignedWorkGiverDefNames)
                 {
                     WorkGiverDef wg = DefDatabase<WorkGiverDef>.GetNamedSilentFail(wgName);
                     if (wg != null)
@@ -118,8 +69,8 @@ namespace WorkMonitor.Groups
 
             return new WorkGroupSnapshot
             {
-                Key = WorkGroupKey.ForCustomGroup(group.defName),
-                Label = group.label.NullOrEmpty() ? group.defName : group.label,
+                Key = WorkGroupKey.ForCustomGroup(group.DefName),
+                Label = group.Label.NullOrEmpty() ? group.DefName : group.Label,
                 WorkGivers = workGivers,
                 UniqueWorkTypes = workTypes,
                 PrimaryWorkType = workTypes.FirstOrDefault()

@@ -36,10 +36,6 @@
       <HintPath>..\..\..\..\..\workshop\content\294100\3453549086\1.6\Assemblies\WorkTab.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <Reference Include="WorkTabGroups">
-      <HintPath>..\..\WorkTabGroups\1.6\Assemblies\WorkTabGroups.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
   </ItemGroup>
 
 </Project>

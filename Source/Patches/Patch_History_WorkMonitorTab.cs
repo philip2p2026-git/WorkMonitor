@@ -18,7 +18,12 @@ namespace WorkMonitor.Patches
         public static void Open()
         {
             Active = true;
-            MainButtonDef history = DefDatabase<MainButtonDef>.GetNamed("History");
+            MainButtonDef history = DefDatabase<MainButtonDef>.GetNamedSilentFail("History");
+            if (history == null)
+            {
+                return;
+            }
+
             Find.MainTabsRoot.SetCurrentTab(history);
         }
 

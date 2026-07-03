@@ -4,7 +4,6 @@ using RimWorld;
 using Verse;
 using WorkMonitor.Groups;
 using WorkTab;
-using WorkTabGroups;
 
 namespace WorkMonitor.UI
 {
@@ -54,14 +53,15 @@ namespace WorkMonitor.UI
                     }
                 }
             }
-            else if (group.Key.Kind == WorkGroupKind.CustomGroup && ModsConfig.IsActive("philip2p2026.worktabgroups"))
+            else if (group.Key.Kind == WorkGroupKind.CustomGroup && WorkTabGroupsIntegration.IsActive)
             {
                 foreach (PawnColumnDef column in columns)
                 {
-                    if (column.Worker is PawnColumnWorker_MajorWorkGroup groupWorker
-                        && groupWorker.BoundGroup?.defName == group.Key.Id)
+                    if (column.Worker is IExpandableColumn expandable
+                        && WorkTabGroupsIntegration.TryReadMajorWorkGroupDefName(column, out string defName)
+                        && defName == group.Key.Id)
                     {
-                        MainTabWindow_WorkTab.Expand(groupWorker, true);
+                        MainTabWindow_WorkTab.Expand(expandable, true);
                         return;
                     }
                 }
