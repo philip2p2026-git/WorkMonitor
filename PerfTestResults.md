@@ -13,9 +13,6 @@ Recorded from the **test Wmonitor** save family (Jan 2026). Protocol: [PerfTest.
 | Monitor UI | Closed (`ui_active=0` entire run) |
 | Perf logging | **On** (mod + observer overhead) |
 
-### Save folder
-
-`%USERPROFILE%\AppData\LocalLow\Ludeon Studios\RimWorld by Ludeon Studios\Saves\test Wmonitor#§#…`
 
 ### Perf CSV files
 
